@@ -1,0 +1,18 @@
+{
+  "name": "hard-source-webpack-plugin",
+  "version": "0.0.0",
+  "description": "Hard cache the source of modules in webpack.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "webpack": "^1.13.1",
+    "webpack-dev-server": "^1.14.1"
+  },
+  "peerDependencies": {
+    "webpack": ">=1.13.1"
+  }
+}
