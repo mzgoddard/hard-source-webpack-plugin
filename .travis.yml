@@ -11,7 +11,7 @@ env:
 matrix:
   fast_finish: true
   allow_failures:
-    - env: WEBPACK_VERSION=beta
+    - env: WEBPACK_VERSION=2.1.0-beta.20
 before_script:
   - npm rm webpack webpack-dev-server
   - npm install webpack@$WEBPACK_VERSION

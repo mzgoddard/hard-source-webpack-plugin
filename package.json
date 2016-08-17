@@ -18,7 +18,7 @@
     "webpack-dev-server": "^1.14.1"
   },
   "peerDependencies": {
-    "webpack": ">=1.13.1 ^2.1.0-beta"
+    "webpack": ">=1.13.1 || ^2.1.0-beta"
   },
   "dependencies": {
     "async": "^2.0.1",
