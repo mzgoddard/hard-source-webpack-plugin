@@ -4,11 +4,15 @@
   "description": "Hard cache the source of modules in webpack.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha tests/base.js"
   },
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "bluebird": "^3.4.1",
+    "chai": "^3.5.0",
+    "mocha": "^3.0.2",
+    "rimraf": "^2.5.4",
     "webpack": "^1.13.1",
     "webpack-dev-server": "^1.14.1"
   },

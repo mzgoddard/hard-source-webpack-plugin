@@ -14,6 +14,8 @@ var RawModule = require('webpack/lib/RawModule');
 var RawSource = require('webpack/lib/RawSource');
 var ContextDependency = require('webpack/lib/dependencies/ContextDependency');
 var AsyncDependenciesBlock = require('webpack/lib/AsyncDependenciesBlock');
+var DependenciesBlockVariable = require('webpack/lib/DependenciesBlockVariable');
+var Source = require('webpack/lib/Source');
 
 function RawModuleDependency(request) {
   ModuleDependency.call(this, request);
@@ -30,7 +32,17 @@ function CacheModule(cacheItem) {
 
   this.context = cacheItem.context;
   this.request = cacheItem.request;
-  this.map = function() {return cacheItem.map;};
+  // this.map = function() {return cacheItem.map;};
+  var source = new Source();
+  source.source = function() {
+    return cacheItem.source;
+  };
+  source.map = function() {
+    return cacheItem.map;
+  };
+  this.source = function() {
+    return source;
+  };
   this.assets = Object.keys(cacheItem.assets).reduce(function(carry, key) {
     let source = cacheItem.assets[key];
     if (source.type === 'Buffer') {
@@ -42,32 +54,40 @@ function CacheModule(cacheItem) {
   this.buildTimestamp = cacheItem.buildTimestamp;
   this.fileDependencies = cacheItem.fileDependencies;
   this.contextDependencies = cacheItem.contextDependencies;
-  this.dependencies = cacheItem.dependencies.map(function(req) {
-    if (req.contextDependency) {
-      return new ContextDependency(req.request, req.recursive, req.regExp ? new RegExp(req.regExp) : null);
-    }
-    if (req.constDependency) {
-      return new NullDependency();
-    }
-    return new RawModuleDependency(req.request);
-  });
-  var module = this;
-  this.blocks = cacheItem.blocks.map(function(req) {
-    if (req.async) {
-      var block = new AsyncDependenciesBlock(req.name, module);
-      block.dependencies = req.dependencies.map(function(req) {
-        if (req.contextDependency) {
-          return new ContextDependency(req.request, req.recursive, req.regExp ? new RegExp(req.regExp) : null);
-        }
-        if (req.constDependency) {
-          return new NullDependency();
-        }
-        return new RawModuleDependency(req.request);
-      });
-      return block;
-    }
-  })
-  .filter(Boolean);
+  function deserializeDependencies(deps) {
+    return deps.map(function(req) {
+      if (req.contextDependency) {
+        return new ContextDependency(req.request, req.recursive, req.regExp ? new RegExp(req.regExp) : null);
+      }
+      if (req.constDependency) {
+        return new NullDependency();
+      }
+      return new RawModuleDependency(req.request);
+    });
+  }
+  function deserializeVariables(vars) {
+    return vars.map(function(req) {
+      return new DependenciesBlockVariable(req.name, req.expression, deserializeDependencies(req.dependencies));
+    });
+  }
+  function deserializeBlocks(blocks, parent) {
+    blocks.map(function(req) {
+      if (req.async) {
+        var block = new AsyncDependenciesBlock(req.name, parent);
+        block.dependencies = deserializeDependencies(req.dependencies);
+        block.variables = deserializeVariables(req.variables);
+        deserializeBlocks(req.blocks, block);
+        return block;
+      }
+    })
+    .filter(Boolean)
+    .forEach(function(block) {
+      parent.addBlock(block);
+    });
+  }
+  this.dependencies = deserializeDependencies(cacheItem.dependencies);
+  this.variables = deserializeVariables(cacheItem.variables);
+  deserializeBlocks(cacheItem.blocks, this);
 }
 CacheModule.prototype = Object.create(RawModule.prototype);
 CacheModule.prototype.constructor = CacheModule;
@@ -286,6 +306,52 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         return req.request || req.constDependency;
       });
     }
+    function serializeVariables(vars) {
+      return vars.map(function(variable) {
+        return {
+          name: variable.name,
+          expression: variable.expression,
+          dependencies: serializeDependencies(variable.dependencies),
+        }
+      });
+    }
+    function serializeBlocks(blocks) {
+      return blocks.map(function(block) {
+        return {
+          async: block instanceof AsyncDependenciesBlock,
+          name: block.chunkName,
+          dependencies: serializeDependencies(block.dependencies),
+          variables: serializeVariables(block.variables),
+          blocks: serializeBlocks(block.blocks),
+        };
+      });
+    }
+
+    var devtoolOptions;
+  	if(compiler.options.devtool && (compiler.options.devtool.indexOf("sourcemap") >= 0 || compiler.options.devtool.indexOf("source-map") >= 0)) {
+  		var hidden = compiler.options.devtool.indexOf("hidden") >= 0;
+  		var inline = compiler.options.devtool.indexOf("inline") >= 0;
+  		var evalWrapped = compiler.options.devtool.indexOf("eval") >= 0;
+  		var cheap = compiler.options.devtool.indexOf("cheap") >= 0;
+  		var moduleMaps = compiler.options.devtool.indexOf("module") >= 0;
+  		var noSources = compiler.options.devtool.indexOf("nosources") >= 0;
+  		var legacy = compiler.options.devtool.indexOf("@") >= 0;
+  		var modern = compiler.options.devtool.indexOf("#") >= 0;
+  		var comment = legacy && modern ? "\n/*\n//@ sourceMappingURL=[url]\n//# sourceMappingURL=[url]\n*/" :
+  			legacy ? "\n/*\n//@ sourceMappingURL=[url]\n*/" :
+  			modern ? "\n//# sourceMappingURL=[url]" :
+  			null;
+      devtoolOptions = {
+  			filename: inline ? null : compiler.options.output.sourceMapFilename,
+  			moduleFilenameTemplate: compiler.options.output.devtoolModuleFilenameTemplate,
+  			fallbackModuleFilenameTemplate: compiler.options.output.devtoolFallbackModuleFilenameTemplate,
+  			append: hidden ? false : comment,
+  			module: moduleMaps ? true : cheap ? false : true,
+  			columns: cheap ? false : true,
+  			lineToLine: compiler.options.output.devtoolLineToLine,
+  			noSources: noSources,
+  		};
+  	}
 
     moduleCache.fileDependencies = compilation.fileDependencies;
     fs.writeFileSync(
@@ -296,6 +362,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     async.forEach(compilation.modules, function(module, cb) {
       if (module.request && module.cacheable && !(module instanceof CacheModule)) {
+        var source = module.source(
+          compilation.dependencyTemplates,
+          compilation.moduleTemplate.outputOptions, 
+          compilation.moduleTemplate.requestShortener
+        );
         moduleCache[module.request] = {
           moduleId: module.id,
           context: module.context,
@@ -307,40 +378,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           }, {}),
           buildTimestamp: module.buildTimestamp,
 
-          source: module.source(
-            compilation.dependencyTemplates,
-            compilation.moduleTemplate.outputOptions, 
-            compilation.moduleTemplate.requestShortener
-          ).source(),
-          map: compiler.options.devTool && module.source(
-            compilation.dependencyTemplates,
-            compilation.moduleTemplate.outputOptions,
-            compilation.moduleTemplate.requestShortener
-          ).map(),
+          source: source.source(),
+          map: devtoolOptions && source.map(devtoolOptions),
 
-          dependencies: serializeDependencies(module.dependencies
-          .concat(
-            [].concat(module.variables.reduce(function(carry, variable) {
-              carry.push.apply(carry, variable.dependencies);
-              return carry;
-            }, []))
-          )),
-
-          blocks: module.blocks
-          .map(function(block) {
-            return {
-              async: block instanceof AsyncDependenciesBlock,
-              name: block.chunkName,
-              dependencies: serializeDependencies(block.dependencies),
-            };
-          }),
-
-          variables: module.variables
-          .map(function(variable) {
-            return {
-              dependencies: serializeDependencies(variable.dependencies),
-            }
-          }),
+          dependencies: serializeDependencies(module.dependencies),
+          variables: serializeVariables(module.variables),
+          blocks: serializeBlocks(module.blocks),
 
           fileDependencies: module.fileDependencies,
           contextDependencies: module.contextDependencies,
