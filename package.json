@@ -11,6 +11,7 @@
   "devDependencies": {
     "bluebird": "^3.4.1",
     "chai": "^3.5.0",
+    "memory-fs": "^0.3.0",
     "mocha": "^3.0.2",
     "rimraf": "^2.5.4",
     "webpack": "^1.13.1",
@@ -21,6 +22,7 @@
   },
   "dependencies": {
     "async": "^2.0.1",
-    "mkdirp": "^0.5.1"
+    "mkdirp": "^0.5.1",
+    "webpack-sources": "^0.1.2"
   }
 }

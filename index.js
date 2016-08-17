@@ -5,17 +5,18 @@ var crypto = require('crypto');
 var mkdirp = require('mkdirp');
 var async = require('async');
 
+var AsyncDependenciesBlock = require('webpack/lib/AsyncDependenciesBlock');
 var ConstDependency = require('webpack/lib/dependencies/ConstDependency');
-var NullFactory = require('webpack/lib/NullFactory');
+var ContextDependency = require('webpack/lib/dependencies/ContextDependency');
+var DependenciesBlockVariable = require('webpack/lib/DependenciesBlockVariable');
+var ModuleDependency = require('webpack/lib/dependencies/ModuleDependency');
 var NullDependency = require('webpack/lib/dependencies/NullDependency');
 var NullDependencyTemplate = require('webpack/lib/dependencies/NullDependencyTemplate');
-var ModuleDependency = require('webpack/lib/dependencies/ModuleDependency');
+var NullFactory = require('webpack/lib/NullFactory');
 var RawModule = require('webpack/lib/RawModule');
-var RawSource = require('webpack/lib/RawSource');
-var ContextDependency = require('webpack/lib/dependencies/ContextDependency');
-var AsyncDependenciesBlock = require('webpack/lib/AsyncDependenciesBlock');
-var DependenciesBlockVariable = require('webpack/lib/DependenciesBlockVariable');
-var Source = require('webpack/lib/Source');
+
+var RawSource = require('webpack-sources').RawSource;
+var Source = require('webpack-sources').Source;
 
 function RawModuleDependency(request) {
   ModuleDependency.call(this, request);
