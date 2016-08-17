@@ -224,7 +224,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         // }
         var cacheId = JSON.stringify([request.context, request.request]);
         if (resolveCache[cacheId]) {
-          var result = resolveCache[cacheId];
+          var result = Object.assign({}, resolveCache[cacheId]);
           result.dependencies = request.dependencies;
           result.parser = compilation.compiler.parser;
           return cb(null, result);

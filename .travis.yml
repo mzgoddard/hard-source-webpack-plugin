@@ -14,4 +14,7 @@ matrix:
     - env: WEBPACK_VERSION=beta
 before_script:
   - npm rm webpack webpack-dev-server
-  - npm install webpack@$WEBPACK_VERSION webpack-dev-server@$WEBPACK_DEV_SERVER_VERSION
+  - npm install webpack@$WEBPACK_VERSION
+cache:
+  directories:
+  - node_modules
