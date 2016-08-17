@@ -62,4 +62,28 @@ describe('basic webpack use', function() {
     return util.compileTwiceEqual('base-devtool-eval');
   });
 
+  before(function() {
+    return clean('base-devtool-eval-source-map');
+  });
+
+  it('builds identical base-devtool-eval-source-map fixture', function() {
+    return util.compileTwiceEqual('base-devtool-eval-source-map');
+  });
+
+  before(function() {
+    return clean('base-devtool-source-map');
+  });
+
+  it('builds identical base-devtool-source-map fixture', function() {
+    return util.compileTwiceEqual('base-devtool-source-map');
+  });
+
+  before(function() {
+    return clean('base-devtool-cheap-source-map');
+  });
+
+  it('builds identical base-devtool-cheap-source-map fixture', function() {
+    return util.compileTwiceEqual('base-devtool-cheap-source-map');
+  });
+
 });

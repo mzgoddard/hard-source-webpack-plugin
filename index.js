@@ -18,6 +18,11 @@ var RawModule = require('webpack/lib/RawModule');
 var RawSource = require('webpack-sources').RawSource;
 var Source = require('webpack-sources').Source;
 
+var SourceNode = require('source-map').SourceNode;
+var SourceMapConsumer = require('source-map').SourceMapConsumer;
+
+var fromStringWithSourceMap = require('source-list-map').fromStringWithSourceMap;
+
 function RawModuleDependency(request) {
   ModuleDependency.call(this, request);
 }
@@ -34,15 +39,32 @@ function CacheModule(cacheItem) {
   this.context = cacheItem.context;
   this.request = cacheItem.request;
   // this.map = function() {return cacheItem.map;};
-  var source = new Source();
-  source.source = function() {
-    return cacheItem.source;
-  };
+  var source = new RawSource(cacheItem.source);
   source.map = function() {
     return cacheItem.map;
   };
+  source.node = function() {
+    n = SourceNode.fromStringWithSourceMap(
+      cacheItem.source,
+      new SourceMapConsumer(cacheItem.map)
+    );
+    // Rehydrate source keys
+    var sources = Object.keys(n.sourceContents);
+    for (var i = 0; i < sources.length; i++) {
+      var key = sources[i];
+      n.sourceContents['$' + key] = n.sourceContents[key];
+      delete n.sourceContents[key];
+    }
+    return n;
+  };
+  source.listMap = function() {
+    return fromStringWithSourceMap(cacheItem.source, cacheItem.map);
+  };
   this.source = function() {
     return source;
+  };
+  this.updateHash = function(hash) {
+    hash.update(cacheItem.hashContent);
   };
   this.assets = Object.keys(cacheItem.assets).reduce(function(carry, key) {
     var source = cacheItem.assets[key];
@@ -331,6 +353,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         };
       });
     }
+    function serializeHashContent(module) {
+      var content = [];
+      module.updateHash({
+        update: function(str) {
+          content.push(str);
+        },
+      });
+      return content.join('');
+    }
 
     var devtoolOptions;
   	if(compiler.options.devtool && (compiler.options.devtool.indexOf("sourcemap") >= 0 || compiler.options.devtool.indexOf("source-map") >= 0)) {
@@ -385,6 +416,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
           source: source.source(),
           map: devtoolOptions && source.map(devtoolOptions),
+          hashContent: serializeHashContent(module),
 
           dependencies: serializeDependencies(module.dependencies),
           variables: serializeVariables(module.variables),
