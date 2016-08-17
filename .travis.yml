@@ -1,0 +1,19 @@
+language: node_js
+node_js:
+  - "node"
+  - "iojs"
+  - "6"
+  - "5"
+  - "4"
+
+env:
+  matrix:
+    - WEBPACK_VERSION=1.13.1
+    - WEBPACK_VERSION=beta
+matrix:
+  fast_finish: true
+  allow_failures:
+    - env: WEBPACK_VERSION=beta
+before_script:
+  - npm rm webpack webpack-dev-server
+  - npm install webpack@$WEBPACK_VERSION webpack-dev-server@$WEBPACK_DEV_SERVER_VERSION
