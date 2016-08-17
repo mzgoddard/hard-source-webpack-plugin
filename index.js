@@ -45,7 +45,7 @@ function CacheModule(cacheItem) {
     return source;
   };
   this.assets = Object.keys(cacheItem.assets).reduce(function(carry, key) {
-    let source = cacheItem.assets[key];
+    var source = cacheItem.assets[key];
     if (source.type === 'Buffer') {
       source = new Buffer(source);
     }
@@ -159,15 +159,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       if (name === 'resolve.json') {return cb();}
       fs.readFile(path.join(cacheDirPath, name), 'utf8', function(err, json) {
         if (err) {return cb();}
-        let subcache = JSON.parse(json);
-        let key = Object.keys(subcache)[0];
+        var subcache = JSON.parse(json);
+        var key = Object.keys(subcache)[0];
         moduleCache[key] = subcache[key];
         cb();
       });
     }, function() {
       var loading = moduleCacheLoading;
       moduleCacheLoading = null;
-      for (let i = 0; i < loading.length; i++) {
+      for (var i = 0; i < loading.length; i++) {
         loading[i]();
       }
       cb();
@@ -222,9 +222,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         // if (request.request.indexOf('index.html') !== -1) {
         //   console.log('resolve cache', request.request);
         // }
-        let cacheId = JSON.stringify([request.context, request.request]);
+        var cacheId = JSON.stringify([request.context, request.request]);
         if (resolveCache[cacheId]) {
-          let result = resolveCache[cacheId];
+          var result = resolveCache[cacheId];
+          result.dependencies = request.dependencies;
           result.parser = compilation.compiler.parser;
           return cb(null, result);
         }
@@ -235,7 +236,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             return cb(err);
           }
           if (!request.source) {
-            resolveCache[JSON.stringify([request.context, request.rawRequest])] = Object.assign({}, request, {parser: null});
+            resolveCache[cacheId] = Object.assign({}, request, {
+              parser: null,
+              dependencies: null,
+            });
           }
           cb.apply(null, arguments);
         });
@@ -248,7 +252,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           if (err) {return cb(err);}
           // else if (moduleCacheLoading) {
           //   return moduleCacheLoading.push(function() {
-          //     let cacheItem = moduleCache[result.request];
+          //     var cacheItem = moduleCache[result.request];
           //     if (!needRebuild(
           //       cacheItem.buildTimestamp,
           //       cacheItem.fileDependencies,
@@ -257,7 +261,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           //       fileTimestamps,
           //       compiler.contextTimestamps
           //     )) {
-          //       let module = new CacheModule(cacheItem);
+          //       var module = new CacheModule(cacheItem);
           //       return cb(null, module);
           //     }
           //     else {
@@ -267,7 +271,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           //   });
           // }
           else if (moduleCache[result.request]) {
-            let cacheItem = moduleCache[result.request];
+            var cacheItem = moduleCache[result.request];
             if (!needRebuild(
               cacheItem.buildTimestamp,
               cacheItem.fileDependencies,
@@ -276,7 +280,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               fileTimestamps,
               compiler.contextTimestamps
             )) {
-              let module = new CacheModule(cacheItem);
+              var module = new CacheModule(cacheItem);
               return cb(null, module);
             }
           }
