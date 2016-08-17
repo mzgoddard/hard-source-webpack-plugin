@@ -7,7 +7,7 @@ node_js:
 env:
   matrix:
     - WEBPACK_VERSION=1.13.1
-    - WEBPACK_VERSION=beta
+    - WEBPACK_VERSION=2.1.0-beta.20
 matrix:
   fast_finish: true
   allow_failures:
