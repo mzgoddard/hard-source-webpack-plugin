@@ -177,7 +177,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     active = false;
     return;
   }
-  var cacheDirPath = path.join(compiler.options.output.path, cacheDirName);
+  var cacheDirPath = path.resolve(compiler.options.output.path, cacheDirName);
   var resolveCachePath = path.join(cacheDirPath, 'resolve.json');
 
   var resolveCache = {};
