@@ -10,6 +10,7 @@ var ConstDependency = require('webpack/lib/dependencies/ConstDependency');
 var ContextDependency = require('webpack/lib/dependencies/ContextDependency');
 var DependenciesBlockVariable = require('webpack/lib/DependenciesBlockVariable');
 var ModuleDependency = require('webpack/lib/dependencies/ModuleDependency');
+var NormalModule = require('webpack/lib/NormalModule');
 var NullDependency = require('webpack/lib/dependencies/NullDependency');
 var NullDependencyTemplate = require('webpack/lib/dependencies/NullDependencyTemplate');
 var NullFactory = require('webpack/lib/NullFactory');
@@ -32,6 +33,22 @@ function RawModuleDependencyTemplate() {
 }
 RawModuleDependencyTemplate.prototype.apply = function() {};
 RawModuleDependencyTemplate.prototype.applyAsTemplateArgument = function() {};
+
+function HardHarmonyExportDependency(originModule, id, name, precedence) {
+  NullDependency.call(this);
+  this.originModule = originModule;
+  this.id = id;
+  this.name = name;
+  this.precedence = precedence;
+}
+HardHarmonyExportDependency.prototype = Object.create(ModuleDependency.prototype);
+HardHarmonyExportDependency.prototype.constructor = HardHarmonyExportDependency;
+HardHarmonyExportDependency.prototype.describeHarmonyExport = function() {
+  return {
+    exportedName: this.name,
+    precedence: this.precedence,
+  }
+};
 
 function CacheModule(cacheItem) {
   RawModule.call(this, cacheItem.source, cacheItem.identifier, cacheItem.identifier);
@@ -81,10 +98,14 @@ function CacheModule(cacheItem) {
     carry[key] = new RawSource(source);
     return carry;
   }, {});
+  this.isUsed = function(exportName) {
+    return exportName ? exportName : false;
+  };
+  this.strict = cacheItem.strict;
   this.buildTimestamp = cacheItem.buildTimestamp;
   this.fileDependencies = cacheItem.fileDependencies;
   this.contextDependencies = cacheItem.contextDependencies;
-  function deserializeDependencies(deps) {
+  function deserializeDependencies(deps, parent) {
     return deps.map(function(req) {
       if (req.contextDependency) {
         return new ContextDependency(req.request, req.recursive, req.regExp ? new RegExp(req.regExp) : null);
@@ -92,20 +113,23 @@ function CacheModule(cacheItem) {
       if (req.constDependency) {
         return new NullDependency();
       }
+      if (req.harmonyExport) {
+        return new HardHarmonyExportDependency(parent, req.harmonyId, req.harmonyName, req.harmonyPrecedence);
+      }
       return new RawModuleDependency(req.request);
     });
   }
-  function deserializeVariables(vars) {
+  function deserializeVariables(vars, parent) {
     return vars.map(function(req) {
-      return new DependenciesBlockVariable(req.name, req.expression, deserializeDependencies(req.dependencies));
+      return new DependenciesBlockVariable(req.name, req.expression, deserializeDependencies(req.dependencies, parent));
     });
   }
   function deserializeBlocks(blocks, parent) {
     blocks.map(function(req) {
       if (req.async) {
         var block = new AsyncDependenciesBlock(req.name, parent);
-        block.dependencies = deserializeDependencies(req.dependencies);
-        block.variables = deserializeVariables(req.variables);
+        block.dependencies = deserializeDependencies(req.dependencies, parent);
+        block.variables = deserializeVariables(req.variables, parent);
         deserializeBlocks(req.blocks, block);
         return block;
       }
@@ -115,8 +139,8 @@ function CacheModule(cacheItem) {
       parent.addBlock(block);
     });
   }
-  this.dependencies = deserializeDependencies(cacheItem.dependencies);
-  this.variables = deserializeVariables(cacheItem.variables);
+  this.dependencies = deserializeDependencies(cacheItem.dependencies, this);
+  this.variables = deserializeVariables(cacheItem.variables, this);
   deserializeBlocks(cacheItem.blocks, this);
 }
 CacheModule.prototype = Object.create(RawModule.prototype);
@@ -246,6 +270,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     compilation.dependencyFactories.set(NullDependency, new NullFactory());
     compilation.dependencyTemplates.set(NullDependency, new NullDependencyTemplate);
 
+    compilation.dependencyFactories.set(HardHarmonyExportDependency, new NullFactory());
+    compilation.dependencyTemplates.set(HardHarmonyExportDependency, new NullDependencyTemplate);
+
     params.normalModuleFactory.plugin('resolver', function(fn) {
       return function(request, cb) {
         // if (request.request.indexOf('index.html') !== -1) {
@@ -317,6 +344,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         });
       };
     });
+
+    params.normalModuleFactory.plugin('module', function(module) {
+      module.isUsed = function(exportName) {
+        return exportName ? exportName : false;
+      };
+      return module;
+    });
   });
 
   compiler.plugin('after-compile', function(compilation, cb) {
@@ -328,6 +362,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     function serializeDependencies(deps) {
       return deps
       .map(function(dep) {
+        if (dep.originModule) {
+          return {
+            harmonyExport: true,
+            harmonyId: dep.id,
+            harmonyName: dep.describeHarmonyExport().exportedName,
+            harmonyPrecedence: dep.describeHarmonyExport().exportedName,
+          };
+        }
         return {
           contextDependency: dep instanceof ContextDependency,
           constDependency: dep instanceof ConstDependency,
@@ -337,7 +379,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         };
       })
       .filter(function(req) {
-        return req.request || req.constDependency;
+        return req.request || req.constDependency || req.harmonyExport;
       });
     }
     function serializeVariables(vars) {
@@ -404,7 +446,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     );
 
     async.forEach(compilation.modules, function(module, cb) {
-      if (module.request && module.cacheable && !(module instanceof CacheModule)) {
+      if (module.request && module.cacheable && !(module instanceof CacheModule) && (module instanceof NormalModule)) {
         var source = module.source(
           compilation.dependencyTemplates,
           compilation.moduleTemplate.outputOptions, 
@@ -420,6 +462,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             return carry;
           }, {}),
           buildTimestamp: module.buildTimestamp,
+          strict: module.strict,
 
           source: source.source(),
           map: devtoolOptions && source.map(devtoolOptions),

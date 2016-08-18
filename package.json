@@ -11,7 +11,7 @@
     "url": "https://github.com/mzgoddard/hard-source-webpack-plugin/issues"
   },
   "scripts": {
-    "test": "mocha tests/base.js"
+    "test": "mocha tests/base*.js"
   },
   "author": "Michael \"Z\" Goddard <mzgoddard@gmail.com>",
   "license": "ISC",
