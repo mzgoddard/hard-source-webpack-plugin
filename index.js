@@ -64,7 +64,7 @@ HardHarmonyExportDependency.prototype.describeHarmonyExport = function() {
 };
 
 function CacheModule(cacheItem) {
-  RawModule.call(this, cacheItem.source, cacheItem.identifier, cacheItem.identifier);
+  RawModule.call(this, cacheItem.source, cacheItem.identifier, cacheItem.readableIdentifier);
 
   this.context = cacheItem.context;
   this.request = cacheItem.request;
@@ -570,6 +570,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           context: module.context,
           request: module.request,
           identifier: module.identifier(),
+          readableIdentifier: module
+          .readableIdentifier(compilation.moduleTemplate.requestShortener),
           assets: Object.keys(module.assets || {}),
           buildTimestamp: module.buildTimestamp,
           strict: module.strict,
