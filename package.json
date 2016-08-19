@@ -19,7 +19,7 @@
     "url": "https://github.com/mzgoddard/hard-source-webpack-plugin/issues"
   },
   "scripts": {
-    "test": "mocha tests/base*.js tests/plugin*.js"
+    "test": "mocha tests/*.js"
   },
   "author": "Michael \"Z\" Goddard <mzgoddard@gmail.com>",
   "license": "ISC",
@@ -31,6 +31,7 @@
     "memory-fs": "^0.3.0",
     "mocha": "^3.0.2",
     "rimraf": "^2.5.4",
+    "style-loader": "^0.13.1",
     "webpack": "^1.13.1"
   },
   "peerDependencies": {
