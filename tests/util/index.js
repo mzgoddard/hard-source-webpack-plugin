@@ -7,7 +7,7 @@ var rimraf = require('rimraf');
 var webpack = require('webpack');
 
 exports.compile = function(fixturePath) {
-  var configPath = path.join(__dirname, 'fixtures', fixturePath, 'webpack.config');
+  var configPath = path.join(__dirname, '..', 'fixtures', fixturePath, 'webpack.config');
   var compiler = webpack(require(configPath));
   var outputfs = compiler.outputFileSystem = new MemoryFS();
   var readdir = Promise.promisify(outputfs.readdir, {context: outputfs});
@@ -48,6 +48,6 @@ exports.compileTwiceEqual = function(fixturePath) {
 };
 
 exports.clean = function(fixturePath) {
-  var tmpPath = path.join(__dirname, 'fixtures', fixturePath, 'tmp');
+  var tmpPath = path.join(__dirname, '..', 'fixtures', fixturePath, 'tmp');
   return Promise.promisify(rimraf)(tmpPath);
 };
