@@ -164,6 +164,10 @@ CacheModule.prototype.needRebuild = function(fileTimestamps, contextTimestamps) 
   return needRebuild(this.buildTimestamp, this.fileDependencies, this.contextDependencies, fileTimestamps, contextTimestamps);
 };
 
+function requestHash(request) {
+  return crypto.createHash('sha1').update(request).digest().hexSlice();
+}
+
 function HardSourceWebpackPlugin(options) {
   this.options = options;
 }
@@ -179,6 +183,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     return;
   }
   var cacheDirPath = path.resolve(compiler.options.output.path, cacheDirName);
+  var cacheAssetDirPath = path.join(cacheDirPath, 'assets');
   var resolveCachePath = path.join(cacheDirPath, 'resolve.json');
 
   var resolveCache = {};
@@ -199,7 +204,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
     if (!active) {return cb();}
-    mkdirp.sync(cacheDirPath);
+    mkdirp.sync(cacheAssetDirPath);
     try {
       resolveCache = JSON.parse(fs.readFileSync(resolveCachePath, 'utf8'));
     }
@@ -208,17 +213,38 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     moduleCacheLoading = [];
 
-    async.each(fs.readdirSync(cacheDirPath), function(name, cb) {
-      if (name === 'records.json') {return cb();}
-      if (name === 'resolve.json') {return cb();}
-      fs.readFile(path.join(cacheDirPath, name), 'utf8', function(err, json) {
-        if (err) {return cb();}
-        var subcache = JSON.parse(json);
-        var key = Object.keys(subcache)[0];
-        moduleCache[key] = subcache[key];
-        cb();
-      });
-    }, function() {
+    var assets = {};
+
+    async.seq(
+      function(_, cb) {
+        async.each(fs.readdirSync(cacheAssetDirPath), function(name, cb) {
+          fs.readFile(path.join(cacheAssetDirPath, name), function(err, asset) {
+            if (err) {return cb();}
+            assets[name] = asset;
+            cb();
+          });
+        }, cb);
+      },
+      function(cb) {
+        async.each(fs.readdirSync(cacheDirPath), function(name, cb) {
+          if (name === 'records.json') {return cb();}
+          if (name === 'resolve.json') {return cb();}
+          if (name === 'assets') {return cb();}
+          fs.readFile(path.join(cacheDirPath, name), 'utf8', function(err, json) {
+            if (err) {return cb();}
+            var subcache = JSON.parse(json);
+            var key = Object.keys(subcache)[0];
+            moduleCache[key] = subcache[key];
+            moduleCache[key].assets = (subcache[key].assets || [])
+            .reduce(function(carry, key) {
+              carry[key] = assets[requestHash(key)];
+              return carry;
+            }, {});
+            cb();
+          });
+        }, cb);
+      }
+    )(null, function() {
       var loading = moduleCacheLoading;
       moduleCacheLoading = null;
       for (var i = 0; i < loading.length; i++) {
@@ -453,15 +479,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           compilation.moduleTemplate.outputOptions, 
           compilation.moduleTemplate.requestShortener
         );
+        var assets = Object.keys(module.assets || {}).map(function(key) {
+          return [requestHash(key), module.assets[key].source()];
+        });
         moduleCache[module.request] = {
           moduleId: module.id,
           context: module.context,
           request: module.request,
           identifier: module.identifier(),
-          assets: Object.keys(module.assets || {}).reduce(function(carry, key) {
-            carry[key] = module.assets[key].source();
-            return carry;
-          }, {}),
+          assets: Object.keys(module.assets || {}),
           buildTimestamp: module.buildTimestamp,
           strict: module.strict,
           meta: module.meta,
@@ -478,14 +504,27 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           contextDependencies: module.contextDependencies,
         };
 
-        mkdirp.sync(cacheDirPath);
-        var hashName = crypto.createHash('sha1')
-        .update(module.request).digest().hexSlice();
+        mkdirp.sync(cacheAssetDirPath);
+        var hashName = requestHash(module.request);
         return fs.writeFile(
           path.join(cacheDirPath, hashName + '.json'),
           JSON.stringify({[module.request]: moduleCache[module.request]}),
           'utf8',
-          cb
+          function() {
+            if (assets.length) {
+              async.each(assets, function(asset, callback) {
+                var assetPath = path.join(cacheAssetDirPath, asset[0]);
+                fs.writeFile(
+                  assetPath,
+                  asset[1],
+                  callback
+                );
+              }, cb);
+            }
+            else {
+              cb();
+            }
+          }
         );
       }
       cb();
