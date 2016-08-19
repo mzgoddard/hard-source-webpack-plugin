@@ -1,6 +1,18 @@
 var ExtractTextPlugin = require('extract-text-webpack-plugin');
+var ExtractTextVersion = require('extract-text-webpack-plugin/package.json').version;
 
 var HardSourceWebpackPlugin = require('../../..');
+
+var extractOptions;
+if (Number(ExtractTextVersion[0]) > 1) {
+  extractOptions = [{
+    fallbackLoader: 'style-loader',
+    loader: 'css-loader',
+  }];
+}
+else {
+  extractOptions = ['style-loader', 'css-loader'];
+}
 
 module.exports = {
   context: __dirname,
@@ -14,7 +26,8 @@ module.exports = {
     loaders: [
       {
         test: /\.css$/,
-        loaders: ExtractTextPlugin.extract('style-loader', 'css-loader'),
+        loader: ExtractTextPlugin.extract
+        .apply(ExtractTextPlugin, extractOptions),
       },
     ],
   },
