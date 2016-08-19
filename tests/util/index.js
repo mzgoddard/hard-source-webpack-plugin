@@ -47,7 +47,27 @@ exports.compileTwiceEqual = function(fixturePath) {
   });
 };
 
+exports.itCompilesTwice = function(fixturePath) {
+  before(function() {
+    return exports.clean(fixturePath);
+  });
+
+  it('builds identical ' + fixturePath + ' fixture', function() {
+    return exports.compileTwiceEqual(fixturePath);
+  });
+};
+
 exports.clean = function(fixturePath) {
   var tmpPath = path.join(__dirname, '..', 'fixtures', fixturePath, 'tmp');
   return Promise.promisify(rimraf)(tmpPath);
+};
+
+exports.describeWP2 = function() {
+  var wpVersion = Number(require('webpack/package.json').version[0]);
+  if (wpVersion > 1) {
+    describe.apply(null, arguments);
+  }
+  else {
+    describe.skip.apply(null, arguments);
+  }
 };
