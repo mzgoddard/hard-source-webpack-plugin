@@ -14,4 +14,12 @@ describe('plugin webpack use', function() {
     return util.compileTwiceEqual('plugin-extract-text');
   });
 
+  before(function() {
+    return clean('plugin-uglify-1dep');
+  });
+
+  it('builds identical plugin-uglify-1dep', function() {
+    return util.compileTwiceEqual('plugin-uglify-1dep');
+  });
+
 });
