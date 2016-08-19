@@ -360,26 +360,37 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     params.normalModuleFactory.plugin('resolver', function(fn) {
       return function(request, cb) {
         var cacheId = JSON.stringify([request.context, request.request]);
+
+        var next = function() {
+          var originalRequest = request;
+          return fn.call(null, request, function(err, request) {
+            if (err) {
+              return cb(err);
+            }
+            if (!request.source) {
+              resolveCache[cacheId] = Object.assign({}, request, {
+                parser: null,
+                dependencies: null,
+              });
+            }
+            cb.apply(null, arguments);
+          });
+        };
+
         if (resolveCache[cacheId]) {
-          var result = Object.assign({}, resolveCache[cacheId]);
-          result.dependencies = request.dependencies;
-          result.parser = compilation.compiler.parser;
-          return cb(null, result);
+          return fs.stat(resolveCache[cacheId].userRequest, function(err) {
+            if (!err) {
+              var result = Object.assign({}, resolveCache[cacheId]);
+              result.dependencies = request.dependencies;
+              result.parser = compilation.compiler.parser;
+              return cb(null, result);
+            }
+
+            next();
+          });
         }
 
-        var originalRequest = request;
-        return fn.call(null, request, function(err, request) {
-          if (err) {
-            return cb(err);
-          }
-          if (!request.source) {
-            resolveCache[cacheId] = Object.assign({}, request, {
-              parser: null,
-              dependencies: null,
-            });
-          }
-          cb.apply(null, arguments);
-        });
+        next();
       };
     });
 
