@@ -102,6 +102,7 @@ function CacheModule(cacheItem) {
     return exportName ? exportName : false;
   };
   this.strict = cacheItem.strict;
+  this.meta = cacheItem.meta;
   this.buildTimestamp = cacheItem.buildTimestamp;
   this.fileDependencies = cacheItem.fileDependencies;
   this.contextDependencies = cacheItem.contextDependencies;
@@ -463,6 +464,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           }, {}),
           buildTimestamp: module.buildTimestamp,
           strict: module.strict,
+          meta: module.meta,
 
           source: source.source(),
           map: devtoolOptions && source.map(devtoolOptions),
