@@ -14,5 +14,6 @@ describe('basic webpack use', function() {
   itCompilesTwice('base-devtool-eval-source-map');
   itCompilesTwice('base-devtool-source-map');
   itCompilesTwice('base-devtool-cheap-source-map');
+  itCompilesTwice('base-target-node-1dep');
 
 });
