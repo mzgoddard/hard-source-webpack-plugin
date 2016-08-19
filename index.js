@@ -86,8 +86,9 @@ function CacheModule(cacheItem) {
   source.listMap = function() {
     return fromStringWithSourceMap(cacheItem.source, cacheItem.map);
   };
+  this._source = source;
   this.source = function() {
-    return source;
+    return this._source;
   };
   this.updateHash = function(hash) {
     hash.update(cacheItem.hashContent);
@@ -501,7 +502,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     //   value: moduleCache.fileDependencies,
     // });
 
-    mkdirp.sync(cacheAssetDirPath);
+    // mkdirp.sync(cacheAssetDirPath);
 
     compilation.modules.forEach(function(module, cb) {
       if (module.request && module.cacheable && !(module instanceof CacheModule) && (module instanceof NormalModule)) {
@@ -593,7 +594,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   compiler.plugin('done', function() {
     if (!active) {return;}
 
-    leveldbLock = Promise.resolve();
     fs.writeFileSync(
       path.resolve(compiler.options.context, compiler.recordsOutputPath),
       JSON.stringify(compiler.records, null, 2),
