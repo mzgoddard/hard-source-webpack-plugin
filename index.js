@@ -3,12 +3,20 @@ var fs = require('fs');
 var path = require('path');
 
 var async = require('async');
-var envHash = require('env-hash');
 var level = require('level');
 var lodash = require('lodash');
 var mkdirp = require('mkdirp');
 
-envHash = envHash.default || envHash;
+var envHash;
+try {
+  envHash = require('env-hash');
+  envHash = envHash.default || envHash;
+}
+catch (_) {
+  envHash = function() {
+    return Promise.resolve('');
+  };
+}
 
 var AsyncDependenciesBlock = require('webpack/lib/AsyncDependenciesBlock');
 var ConstDependency = require('webpack/lib/dependencies/ConstDependency');

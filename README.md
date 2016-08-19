@@ -26,7 +26,9 @@ module.exports = {
       environmentPaths: {
         root: process.cwd(),
         directories: ['node_modules'],
-        files: ['package.json'],
+        // Add your webpack configuration paths here so changes to loader
+        // configuration and other details will cause a fresh build to occur.
+        files: ['package.json', 'webpack.config.js'],
       },
     }),
   },
@@ -37,7 +39,9 @@ module.exports = {
 
 ### `environmentPaths`
 
-The options to `environmentPaths` are passed to [`env-hash`](https://www.npmjs.com/package/env-hash). Using `env-hash`, HardSourceWebpackPlugin tries to detect when changes in the configuration environment have changed such that it should ignore any cache. It is advised not but this can be disabled by setting environmentPaths to `false`.
+Requires Node > 4. Other versions will silently disable this option.
+
+The options to `environmentPaths` are passed to [`env-hash`](https://www.npmjs.com/package/env-hash). Using `env-hash`, HardSourceWebpackPlugin tries to detect when changes in the configuration environment have changed such that it should ignore any cache. You can disable this check, though its best not to, by setting `environmentPaths` to `false`.
 
 Here are the options as documented in `env-hash`.
 
