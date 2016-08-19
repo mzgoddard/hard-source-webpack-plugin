@@ -1,3 +1,4 @@
+var fs = require('fs');
 var path = require('path');
 
 var expect = require('chai').expect;
@@ -13,18 +14,39 @@ exports.compile = function(fixturePath) {
   var readdir = Promise.promisify(outputfs.readdir, {context: outputfs});
   var readFile = Promise.promisify(outputfs.readFile, {context: outputfs});
   var stat = Promise.promisify(outputfs.stat, {context: outputfs});
+  var fsReaddir = Promise.promisify(fs.readdir, {context: fs});
+  var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
+  var fsStat = Promise.promisify(fs.stat, {context: fs});
   var run = Promise.promisify(compiler.run, {context: compiler});
 
   return run()
-  .then(function() {return readdir(compiler.options.output.path);})
-  .map(function(name) {
-    var fullname = path.join(compiler.options.output.path, name);
-    return stat(fullname)
-    .then(function(stat) {
-      if (stat.isFile()) {
-        return readFile(fullname)
-        .then(function(file) {return [name, file];});
-      }
+  .then(function() {
+    return Promise.all([
+      readdir(compiler.options.output.path)
+      .map(function(name) {
+        var fullname = path.join(compiler.options.output.path, name);
+        return stat(fullname)
+        .then(function(stat) {
+          if (stat.isFile()) {
+            return readFile(fullname)
+            .then(function(file) {return [name, file];});
+          }
+        });
+      }),
+      fsReaddir(compiler.options.output.path)
+      .map(function(name) {
+        var fullname = path.join(compiler.options.output.path, name);
+        return fsStat(fullname)
+        .then(function(stat) {
+          if (stat.isFile()) {
+            return fsReadFile(fullname)
+            .then(function(file) {return [name, file];});
+          }
+        });
+      }),
+    ])
+    .then(function(files) {
+      return files[0].concat(files[1]);
     });
   })
   .reduce(function(carry, values) {
@@ -43,6 +65,7 @@ exports.compileTwiceEqual = function(fixturePath) {
     return Promise.all([run1, run2]);
   })
   .then(function(runs) {
+    console.log(Object.keys(runs[0]));
     expect(runs[0]).to.eql(runs[1]);
   });
 };

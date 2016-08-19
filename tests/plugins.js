@@ -6,5 +6,6 @@ describe('plugin webpack use', function() {
 
   itCompilesTwice('plugin-extract-text');
   itCompilesTwice('plugin-uglify-1dep');
+  itCompilesTwice('plugin-isomorphic-tools');
 
 });
