@@ -86,9 +86,13 @@ function CacheModule(cacheItem) {
   source.listMap = function() {
     return fromStringWithSourceMap(cacheItem.source, cacheItem.map);
   };
-  this._source = source;
+  // Non-rendered source used by Stats.
+  if (cacheItem.rawSource) {
+    this._source = new RawSource(cacheItem.rawSource);
+  }
+  // Rendered source used in built output.
   this.source = function() {
-    return this._source;
+    return source;
   };
   this.updateHash = function(hash) {
     hash.update(cacheItem.hashContent);
@@ -524,6 +528,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           strict: module.strict,
           meta: module.meta,
 
+          rawSource: module._source ? module._source.source() : null,
           source: source.source(),
           map: devtoolOptions && source.map(devtoolOptions),
           hashContent: serializeHashContent(module),
