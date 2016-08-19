@@ -4,6 +4,8 @@ var crypto = require('crypto');
 
 var mkdirp = require('mkdirp');
 var async = require('async');
+var level = require('level');
+var lodash = require('lodash');
 
 var AsyncDependenciesBlock = require('webpack/lib/AsyncDependenciesBlock');
 var ConstDependency = require('webpack/lib/dependencies/ConstDependency');
@@ -188,6 +190,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var resolveCache = {};
   var moduleCache = {};
+  var assets = {};
   var moduleCacheLoading = [];
 
   var fileTimestamps = {};
@@ -204,19 +207,27 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
     if (!active) {return cb();}
+    if (Object.keys(moduleCache).length) {return cb();}
+
     mkdirp.sync(cacheAssetDirPath);
-    try {
-      resolveCache = JSON.parse(fs.readFileSync(resolveCachePath, 'utf8'));
-    }
-    catch (e) {}
     var start = Date.now();
 
     moduleCacheLoading = [];
 
-    var assets = {};
-
-    async.seq(
-      function(_, cb) {
+    async.parallel([
+      function(cb) {
+        fs.readFile(resolveCachePath, 'utf8', function(err, resolveJson) {
+          if (err) {return cb(err);}
+          try {
+            resolveCache = JSON.parse(resolveJson);
+          }
+          catch (err) {
+            cb(err);
+          }
+          cb();
+        });
+      },
+      function(cb) {
         async.each(fs.readdirSync(cacheAssetDirPath), function(name, cb) {
           fs.readFile(path.join(cacheAssetDirPath, name), function(err, asset) {
             if (err) {return cb();}
@@ -226,30 +237,35 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }, cb);
       },
       function(cb) {
-        async.each(fs.readdirSync(cacheDirPath), function(name, cb) {
-          if (name === 'records.json') {return cb();}
-          if (name === 'resolve.json') {return cb();}
-          if (name === 'assets') {return cb();}
-          fs.readFile(path.join(cacheDirPath, name), 'utf8', function(err, json) {
-            if (err) {return cb();}
-            var subcache = JSON.parse(json);
-            var key = Object.keys(subcache)[0];
-            moduleCache[key] = subcache[key];
-            moduleCache[key].assets = (subcache[key].assets || [])
-            .reduce(function(carry, key) {
-              carry[key] = assets[requestHash(key)];
-              return carry;
-            }, {});
-            cb();
+        var start = Date.now();
+        level(path.join(cacheDirPath, 'modules'), function(err, db) {
+          if (err) {return cb(err);}
+          db.createReadStream()
+          .on('data', function(data) {
+            var value = data.value;
+            if (!moduleCache[data.key]) {
+              moduleCache[data.key] = value;
+            }
+          })
+          .on('end', function() {
+            db.close(function(err) {
+              if (err) {return cb(err);}
+              // console.log('cache in - modules', Date.now() - start);
+              if (typeof moduleCache.fileDependencies === 'string') {
+                moduleCache.fileDependencies = JSON.parse(moduleCache.fileDependencies);
+              }
+              cb();
+            });
           });
-        }, cb);
-      }
-    )(null, function() {
+        });
+      },
+    ], function() {
       var loading = moduleCacheLoading;
       moduleCacheLoading = null;
       for (var i = 0; i < loading.length; i++) {
         loading[i]();
       }
+      // console.log('cache in', Date.now() - start);
       cb();
     });
   });
@@ -302,9 +318,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     params.normalModuleFactory.plugin('resolver', function(fn) {
       return function(request, cb) {
-        // if (request.request.indexOf('index.html') !== -1) {
-        //   console.log('resolve cache', request.request);
-        // }
         var cacheId = JSON.stringify([request.context, request.request]);
         if (resolveCache[cacheId]) {
           var result = Object.assign({}, resolveCache[cacheId]);
@@ -333,28 +346,17 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       return function(request, cb) {
         fn.call(null, request, function(err, result) {
           if (err) {return cb(err);}
-          // else if (moduleCacheLoading) {
-          //   return moduleCacheLoading.push(function() {
-          //     var cacheItem = moduleCache[result.request];
-          //     if (!needRebuild(
-          //       cacheItem.buildTimestamp,
-          //       cacheItem.fileDependencies,
-          //       // cacheItem.contextDependencies,
-          //       [],
-          //       fileTimestamps,
-          //       compiler.contextTimestamps
-          //     )) {
-          //       var module = new CacheModule(cacheItem);
-          //       return cb(null, module);
-          //     }
-          //     else {
-          //       result.parser = compilation.compiler.parser;
-          //       return cb(null, result);
-          //     }
-          //   });
-          // }
           else if (moduleCache[result.request]) {
             var cacheItem = moduleCache[result.request];
+            if (typeof cacheItem === 'string') {
+              cacheItem = JSON.parse(cacheItem);
+              cacheItem.assets = (cacheItem.assets || [])
+              .reduce(function(carry, key) {
+                carry[key] = assets[requestHash(key)];
+                return carry;
+              }, {});
+              moduleCache[result.request] = cacheItem;
+            }
             if (!needRebuild(
               cacheItem.buildTimestamp,
               cacheItem.fileDependencies,
@@ -380,11 +382,16 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     });
   });
 
+  var leveldbLock = Promise.resolve();
+
+  // compiler.plugin('this-compilation', function() {
+  //   leveldbLock = Promise.resolve();
+  // });
+
   compiler.plugin('after-compile', function(compilation, cb) {
     if (!active) {return cb();}
 
     var startCacheTime = Date.now();
-    fs.writeFileSync(resolveCachePath, JSON.stringify(resolveCache), 'utf8');
 
     function serializeDependencies(deps) {
       return deps
@@ -465,14 +472,38 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   		};
   	}
 
-    moduleCache.fileDependencies = compilation.fileDependencies;
-    fs.writeFileSync(
-      path.join(cacheDirPath, 'file-dependencies.json'),
-      JSON.stringify({fileDependencies: compilation.fileDependencies}),
-      'utf8'
-    );
+    // fs.writeFileSync(
+    //   path.join(cacheDirPath, 'file-dependencies.json'),
+    //   JSON.stringify({fileDependencies: compilation.fileDependencies}),
+    //   'utf8'
+    // );
 
-    async.forEach(compilation.modules, function(module, cb) {
+    var ops = [];
+    var assetOps = [];
+
+    var fileDependenciesDiff = lodash.difference(compilation.fileDependencies, moduleCache.fileDependencies || []);
+    if (fileDependenciesDiff.length) {
+      moduleCache.fileDependencies = (moduleCache.fileDependencies || [])
+      .concat(fileDependenciesDiff);
+
+      ops.push({
+        type: 'put',
+        key: 'fileDependencies',
+        value: moduleCache.fileDependencies,
+      });
+    }
+
+    // moduleCache.fileDependencies = compilation.fileDependencies;
+    // ops.push({
+    //   type: 'put',
+    //   key: 'fileDependencies',
+    //   // value: JSON.stringify(compilation.fileDependencies),
+    //   value: moduleCache.fileDependencies,
+    // });
+
+    mkdirp.sync(cacheAssetDirPath);
+
+    compilation.modules.forEach(function(module, cb) {
       if (module.request && module.cacheable && !(module instanceof CacheModule) && (module instanceof NormalModule)) {
         var source = module.source(
           compilation.dependencyTemplates,
@@ -504,40 +535,65 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           contextDependencies: module.contextDependencies,
         };
 
-        mkdirp.sync(cacheAssetDirPath);
-        var hashName = requestHash(module.request);
-        return fs.writeFile(
-          path.join(cacheDirPath, hashName + '.json'),
-          JSON.stringify({[module.request]: moduleCache[module.request]}),
-          'utf8',
-          function() {
-            if (assets.length) {
-              async.each(assets, function(asset, callback) {
-                var assetPath = path.join(cacheAssetDirPath, asset[0]);
-                fs.writeFile(
-                  assetPath,
-                  asset[1],
-                  callback
-                );
-              }, cb);
-            }
-            else {
-              cb();
-            }
-          }
-        );
+        ops.push({
+          type: 'put',
+          key: module.request,
+          value: moduleCache[module.request],
+        });
+
+        if (assets.length) {
+          assetOps = assetOps.concat(assets);
+        }
       }
+    });
+
+    async.parallel([
+      function(cb) {
+        fs.writeFile(resolveCachePath, JSON.stringify(resolveCache), 'utf8', cb);
+      },
+      function(cb) {
+        async.each(assetOps, function(asset, callback) {
+          var assetPath = path.join(cacheAssetDirPath, asset[0]);
+          fs.writeFile(
+            assetPath,
+            asset[1],
+            callback
+          );
+        }, cb);
+      },
+      function(cb) {
+        if (ops.length === 0) {
+          return cb();
+        }
+        leveldbLock = leveldbLock
+        .then(function() {
+          return new Promise(function(resolve, reject) {
+            level(path.join(cacheDirPath, 'modules'), {valueEncoding: 'json'}, function(err, db) {
+              if (err) {return reject(err);}
+              db.batch(ops, function(err) {
+                if (err) {return reject(err);}
+                db.close(function(err) {
+                  if (err) {return reject(err);}
+                  resolve();
+                });
+              });
+            });
+          });
+        })
+        .then(function() {cb();}, cb);
+      },
+    ], function() {
+      // console.log('cache out', Date.now() - startCacheTime);
       cb();
-    }, cb);
-    //
-    // console.log('cache out', Date.now() - startCacheTime);
-    // cb();
+    });
   });
+
   // Ensure records are stored inbetween runs of memory-fs using
   // webpack-dev-middleware.
   compiler.plugin('done', function() {
     if (!active) {return;}
 
+    leveldbLock = Promise.resolve();
     fs.writeFileSync(
       path.resolve(compiler.options.context, compiler.recordsOutputPath),
       JSON.stringify(compiler.records, null, 2),

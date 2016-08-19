@@ -40,6 +40,9 @@
   },
   "dependencies": {
     "async": "^2.0.1",
+    "bluebird": "^3.4.1",
+    "level": "^1.4.0",
+    "lodash": "^4.15.0",
     "mkdirp": "^0.5.1",
     "source-list-map": "^0.1.6",
     "source-map": "^0.5.6",
