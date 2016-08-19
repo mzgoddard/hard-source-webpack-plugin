@@ -11,6 +11,9 @@ module.exports = {
   plugins: [
     new HardSourceWebpackPlugin({
       cacheDirectory: 'cache',
+      environmentPaths: {
+        root: __dirname + '/../../..',
+      },
     }),
   ],
 };

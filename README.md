@@ -21,10 +21,31 @@ module.exports = {
     new HardSourceWebpackPlugin({
       // Either an absolute path or relative to output.path.
       cacheDirectory: 'path/to/cache',
+      // Optional field showing defaults. This field determines when to throw
+      // away the whole cache if for example npm modules were updated.
+      environmentPaths: {
+        root: process.cwd(),
+        directories: ['node_modules'],
+        files: ['package.json'],
+      },
     }),
   },
 };
 ```
+
+## Options
+
+### `environmentPaths`
+
+The options to `environmentPaths` are passed to [`env-hash`](https://www.npmjs.com/package/env-hash). Using `env-hash`, HardSourceWebpackPlugin tries to detect when changes in the configuration environment have changed such that it should ignore any cache. It is advised not but this can be disabled by setting environmentPaths to `false`.
+
+Here are the options as documented in `env-hash`.
+
+> Env-hash accepts three options, `root`, `files` and `directories`.
+>
+> - `root` is the origin directory that is prepended to all relative paths. Defaults to `process.cwd()`
+> - `files` is an array of relative or absolute file paths. Defaults to `['package.json']`
+> - `directories` is an array of relative or absolute directory paths. Defaults to `['node_modules']`
 
 ## Please contribute!
 

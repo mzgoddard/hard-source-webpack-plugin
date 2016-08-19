@@ -1,11 +1,14 @@
+var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
-var crypto = require('crypto');
 
-var mkdirp = require('mkdirp');
 var async = require('async');
+var envHash = require('env-hash');
 var level = require('level');
 var lodash = require('lodash');
+var mkdirp = require('mkdirp');
+
+envHash = envHash.default || envHash;
 
 var AsyncDependenciesBlock = require('webpack/lib/AsyncDependenciesBlock');
 var ConstDependency = require('webpack/lib/dependencies/ConstDependency');
@@ -196,7 +199,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var resolveCache = {};
   var moduleCache = {};
   var assets = {};
-  var moduleCacheLoading = [];
+  var currentStamp = '';
 
   var fileTimestamps = {};
 
@@ -212,66 +215,91 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
     if (!active) {return cb();}
-    if (Object.keys(moduleCache).length) {return cb();}
 
     mkdirp.sync(cacheAssetDirPath);
     var start = Date.now();
 
-    moduleCacheLoading = [];
+    (function() {
+      if (options.environmentPaths === false) {
+        return Promise.resolve('');
+      }
+      else {
+        return envHash(options.environmentPaths);
+      }
+    })()
+    .then(function(hash) {
+      fs.readFile(path.join(cacheDirPath, 'stamp'), 'utf8', function(err, stamp) {
+        if (err) {
+          stamp = '';
+        }
+        currentStamp = hash;
+        if (hash && hash === stamp) {
+          if (Object.keys(moduleCache).length) {return cb();}
 
-    async.parallel([
-      function(cb) {
-        fs.readFile(resolveCachePath, 'utf8', function(err, resolveJson) {
-          if (err) {return cb(err);}
-          try {
-            resolveCache = JSON.parse(resolveJson);
-          }
-          catch (err) {
-            cb(err);
-          }
-          cb();
-        });
-      },
-      function(cb) {
-        async.each(fs.readdirSync(cacheAssetDirPath), function(name, cb) {
-          fs.readFile(path.join(cacheAssetDirPath, name), function(err, asset) {
-            if (err) {return cb();}
-            assets[name] = asset;
+          async.parallel([
+            function(cb) {
+              fs.readFile(resolveCachePath, 'utf8', function(err, resolveJson) {
+                if (err) {return cb(err);}
+                try {
+                  resolveCache = JSON.parse(resolveJson);
+                }
+                catch (err) {
+                  cb(err);
+                }
+                cb();
+              });
+            },
+            function(cb) {
+              async.each(fs.readdirSync(cacheAssetDirPath), function(name, cb) {
+                fs.readFile(path.join(cacheAssetDirPath, name), function(err, asset) {
+                  if (err) {return cb();}
+                  assets[name] = asset;
+                  cb();
+                });
+              }, cb);
+            },
+            function(cb) {
+              var start = Date.now();
+              level(path.join(cacheDirPath, 'modules'), function(err, db) {
+                if (err) {return cb(err);}
+                db.createReadStream()
+                .on('data', function(data) {
+                  var value = data.value;
+                  if (!moduleCache[data.key]) {
+                    moduleCache[data.key] = value;
+                  }
+                })
+                .on('end', function() {
+                  db.close(function(err) {
+                    if (err) {return cb(err);}
+                    // console.log('cache in - modules', Date.now() - start);
+                    if (typeof moduleCache.fileDependencies === 'string') {
+                      moduleCache.fileDependencies = JSON.parse(moduleCache.fileDependencies);
+                    }
+                    cb();
+                  });
+                });
+              });
+            },
+          ], function() {
+            // console.log('cache in', Date.now() - start);
             cb();
           });
-        }, cb);
-      },
-      function(cb) {
-        var start = Date.now();
-        level(path.join(cacheDirPath, 'modules'), function(err, db) {
-          if (err) {return cb(err);}
-          db.createReadStream()
-          .on('data', function(data) {
-            var value = data.value;
-            if (!moduleCache[data.key]) {
-              moduleCache[data.key] = value;
-            }
-          })
-          .on('end', function() {
-            db.close(function(err) {
-              if (err) {return cb(err);}
-              // console.log('cache in - modules', Date.now() - start);
-              if (typeof moduleCache.fileDependencies === 'string') {
-                moduleCache.fileDependencies = JSON.parse(moduleCache.fileDependencies);
-              }
-              cb();
-            });
-          });
-        });
-      },
-    ], function() {
-      var loading = moduleCacheLoading;
-      moduleCacheLoading = null;
-      for (var i = 0; i < loading.length; i++) {
-        loading[i]();
-      }
-      // console.log('cache in', Date.now() - start);
-      cb();
+        }
+        else {
+          if (hash && stamp) {
+            console.error('Environment has changed (node_modules or configuration was updated).\nHardSourceWebpackPlugin will reset the cache and store a fresh one.');
+          }
+
+          // Reset the cache, we can't use it do to an environment change.
+          resolveCache = {};
+          moduleCache = {};
+          assets = {};
+          fileTimestamps = {};
+
+          cb();
+        }
+      });
     });
   });
 
@@ -554,6 +582,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     });
 
     async.parallel([
+      function(cb) {
+        fs.writeFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8', cb);
+      },
       function(cb) {
         fs.writeFile(resolveCachePath, JSON.stringify(resolveCache), 'utf8', cb);
       },

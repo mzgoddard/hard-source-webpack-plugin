@@ -41,6 +41,7 @@
   "dependencies": {
     "async": "^2.0.1",
     "bluebird": "^3.4.1",
+    "env-hash": "^1.0.1",
     "level": "^1.4.0",
     "lodash": "^4.15.0",
     "mkdirp": "^0.5.1",
