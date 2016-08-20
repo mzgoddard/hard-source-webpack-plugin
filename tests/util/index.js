@@ -65,7 +65,6 @@ exports.compileTwiceEqual = function(fixturePath) {
     return Promise.all([run1, run2]);
   })
   .then(function(runs) {
-    console.log(Object.keys(runs[0]));
     expect(runs[0]).to.eql(runs[1]);
   });
 };
@@ -76,6 +75,7 @@ exports.itCompilesTwice = function(fixturePath) {
   });
 
   it('builds identical ' + fixturePath + ' fixture', function() {
+    this.timeout(10000);
     return exports.compileTwiceEqual(fixturePath);
   });
 };
