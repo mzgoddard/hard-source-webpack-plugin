@@ -7,6 +7,8 @@ var level = require('level');
 var lodash = require('lodash');
 var mkdirp = require('mkdirp');
 
+var Promise = require('bluebird');
+
 var envHash;
 try {
   envHash = require('env-hash');
@@ -330,6 +332,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     async.forEach(moduleCache.fileDependencies, function(file, callback) {
       fs.stat(file, function(err, stat) {
         if(err) {
+          fileTs[file] = 0;
           if(err.code === "ENOENT") return callback();
           return callback(err);
         }
@@ -377,13 +380,21 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           });
         };
 
+        var fromCache = function() {
+          var result = Object.assign({}, resolveCache[cacheId]);
+          result.dependencies = request.dependencies;
+          result.parser = compilation.compiler.parser;
+          return cb(null, result);
+        };
+
         if (resolveCache[cacheId]) {
-          return fs.stat(resolveCache[cacheId].userRequest, function(err) {
+          var userRequest = resolveCache[cacheId].userRequest;
+          if (fileTimestamps[userRequest]) {
+            return fromCache();
+          }
+          return fs.stat(userRequest, function(err) {
             if (!err) {
-              var result = Object.assign({}, resolveCache[cacheId]);
-              result.dependencies = request.dependencies;
-              result.parser = compilation.compiler.parser;
-              return cb(null, result);
+              return fromCache();
             }
 
             next();
