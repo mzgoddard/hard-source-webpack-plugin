@@ -333,6 +333,40 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       fs.stat(file, function(err, stat) {
         if(err) {
           fileTs[file] = 0;
+
+          // Invalidate modules that depend on this userRequest.
+          var walkDependencyBlock = function(block, callback) {
+            // console.log(block);
+            block.dependencies.forEach(callback);
+            block.variables.forEach(function(variable) {
+              variable.dependencies.forEach(callback);
+            });
+            block.blocks.forEach(function(block) {
+              walkDependencyBlock(block, callback);
+            });
+          };
+          // Remove the out of date cache modules.
+          Object.keys(moduleCache).forEach(function(key) {
+            if (key === 'fileDependencies') {return;}
+            var module = moduleCache[key];
+            if (typeof module === 'string') {
+              module = JSON.parse(module);
+              moduleCache[key] = module;
+            }
+            var dependsOnRequest = false;
+            walkDependencyBlock(module, function(cacheDependency) {
+              var resolveId = JSON.stringify(
+                [module.context, cacheDependency.request]
+              );
+              var resolveItem = resolveCache[resolveId];
+              dependsOnRequest = dependsOnRequest ||
+                resolveItem && resolveItem.userRequest === file;
+            });
+            if (dependsOnRequest) {
+              moduleCache[key] = null;
+            }
+          });
+
           if(err.code === "ENOENT") return callback();
           return callback(err);
         }
