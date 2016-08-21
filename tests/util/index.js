@@ -3,6 +3,7 @@ var path = require('path');
 
 var expect = require('chai').expect;
 var MemoryFS = require('memory-fs');
+var mkdirp = require('mkdirp');
 var Promise = require('bluebird');
 var rimraf = require('rimraf');
 var webpack = require('webpack');
@@ -77,6 +78,59 @@ exports.itCompilesTwice = function(fixturePath) {
   it('builds identical ' + fixturePath + ' fixture', function() {
     this.timeout(10000);
     return exports.compileTwiceEqual(fixturePath);
+  });
+};
+
+exports.writeFiles = function(fixturePath, files) {
+  var configPath = path.join(__dirname, '..', 'fixtures', fixturePath);
+
+  fsUnlink = Promise.promisify(fs.unlink, {context: fs});
+  _fsWriteFile = Promise.promisify(fs.writeFile, {context: fs});
+  fsMkdirp = Promise.promisify(mkdirp);
+  fsWriteFile = function(file, content, encode) {
+    return fsMkdirp(path.dirname(file))
+    .then(function() {
+      return _fsWriteFile(file, content, encode);
+    });
+  };
+
+  return Promise.all(Object.keys(files).map(function(key) {
+    if (!files[key]) {
+      return fsUnlink(path.join(configPath, key)).catch(function() {});
+    }
+    return fsWriteFile(path.join(configPath, key), files[key]);
+  }));
+};
+
+exports.itCompilesChange = function(fixturePath, filesA, filesB, expectHandle) {
+  before(function() {
+    return exports.clean(fixturePath);
+  });
+
+  it('builds changes in ' + fixturePath + ' fixture', function() {
+    this.timeout(10000);
+    var run1;
+    return Promise.resolve()
+    .then(function() {
+      return exports.writeFiles(fixturePath, filesA);
+    })
+    .then(function() {
+      run1 = exports.compile(fixturePath);
+      return run1;
+    })
+    .then(function() {
+      return exports.writeFiles(fixturePath, filesB);
+    })
+    .then(function() {
+      var run2 = exports.compile(fixturePath);
+      return Promise.all([run1, run2]);
+    })
+    .then(function(runs) {
+      expectHandle({
+        run1: runs[0],
+        run2: runs[1],
+      });
+    });
   });
 };
 
