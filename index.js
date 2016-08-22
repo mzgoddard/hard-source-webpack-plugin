@@ -72,13 +72,21 @@ function CacheModule(cacheItem) {
   this.request = cacheItem.request;
   // this.map = function() {return cacheItem.map;};
   var source = new RawSource(cacheItem.source);
-  source.map = function() {
-    return cacheItem.map;
+  function chooseMap(options, cacheItem) {
+    if (options && Object.keys(options).length) {
+      return cacheItem.map;
+    }
+    else {
+      return cacheItem.baseMap;
+    }
+  }
+  source.map = function(options) {
+    return chooseMap(options, cacheItem);
   };
-  source.node = function() {
+  source.node = function(options) {
     var node = SourceNode.fromStringWithSourceMap(
       cacheItem.source,
-      new SourceMapConsumer(cacheItem.map)
+      new SourceMapConsumer(chooseMap(options, cacheItem))
     );
     // Rehydrate source keys, webpack 1 uses source-map 0.4 which needs an
     // appended $. webpack 2 uses source-map 0.5 which may append $. Either way
@@ -96,8 +104,11 @@ function CacheModule(cacheItem) {
     }
     return node;
   };
-  source.listMap = function() {
-    return fromStringWithSourceMap(cacheItem.source, cacheItem.map);
+  source.listMap = function(options) {
+    return fromStringWithSourceMap(
+      cacheItem.source,
+      chooseMap(options, cacheItem)
+    );
   };
   // Non-rendered source used by Stats.
   if (cacheItem.rawSource) {
@@ -544,30 +555,31 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     }
 
     var devtoolOptions;
-  	if(compiler.options.devtool && (compiler.options.devtool.indexOf("sourcemap") >= 0 || compiler.options.devtool.indexOf("source-map") >= 0)) {
-  		var hidden = compiler.options.devtool.indexOf("hidden") >= 0;
-  		var inline = compiler.options.devtool.indexOf("inline") >= 0;
-  		var evalWrapped = compiler.options.devtool.indexOf("eval") >= 0;
-  		var cheap = compiler.options.devtool.indexOf("cheap") >= 0;
-  		var moduleMaps = compiler.options.devtool.indexOf("module") >= 0;
-  		var noSources = compiler.options.devtool.indexOf("nosources") >= 0;
-  		var legacy = compiler.options.devtool.indexOf("@") >= 0;
-  		var modern = compiler.options.devtool.indexOf("#") >= 0;
-  		var comment = legacy && modern ? "\n/*\n//@ sourceMappingURL=[url]\n//# sourceMappingURL=[url]\n*/" :
-  			legacy ? "\n/*\n//@ sourceMappingURL=[url]\n*/" :
-  			modern ? "\n//# sourceMappingURL=[url]" :
-  			null;
+    var devtool = compiler.options.devtool || compiler.options.devTool;
+    if(devtool && (devtool.indexOf("sourcemap") >= 0 || devtool.indexOf("source-map") >= 0)) {
+      var hidden = devtool.indexOf("hidden") >= 0;
+      var inline = devtool.indexOf("inline") >= 0;
+      var evalWrapped = devtool.indexOf("eval") >= 0;
+      var cheap = devtool.indexOf("cheap") >= 0;
+      var moduleMaps = devtool.indexOf("module") >= 0;
+      var noSources = devtool.indexOf("nosources") >= 0;
+      var legacy = devtool.indexOf("@") >= 0;
+      var modern = devtool.indexOf("#") >= 0;
+      var comment = legacy && modern ? "\n/*\n//@ sourceMappingURL=[url]\n//# sourceMappingURL=[url]\n*/" :
+        legacy ? "\n/*\n//@ sourceMappingURL=[url]\n*/" :
+        modern ? "\n//# sourceMappingURL=[url]" :
+        null;
       devtoolOptions = {
-  			filename: inline ? null : compiler.options.output.sourceMapFilename,
-  			moduleFilenameTemplate: compiler.options.output.devtoolModuleFilenameTemplate,
-  			fallbackModuleFilenameTemplate: compiler.options.output.devtoolFallbackModuleFilenameTemplate,
-  			append: hidden ? false : comment,
-  			module: moduleMaps ? true : cheap ? false : true,
-  			columns: cheap ? false : true,
-  			lineToLine: compiler.options.output.devtoolLineToLine,
-  			noSources: noSources,
-  		};
-  	}
+        filename: inline ? null : compiler.options.output.sourceMapFilename,
+        moduleFilenameTemplate: compiler.options.output.devtoolModuleFilenameTemplate,
+        fallbackModuleFilenameTemplate: compiler.options.output.devtoolFallbackModuleFilenameTemplate,
+        append: hidden ? false : comment,
+        module: moduleMaps ? true : cheap ? false : true,
+        columns: cheap ? false : true,
+        lineToLine: compiler.options.output.devtoolLineToLine,
+        noSources: noSources,
+      };
+    }
 
     // fs.writeFileSync(
     //   path.join(cacheDirPath, 'file-dependencies.json'),
@@ -625,6 +637,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           rawSource: module._source ? module._source.source() : null,
           source: source.source(),
           map: devtoolOptions && source.map(devtoolOptions),
+          // Some plugins (e.g. UglifyJs) set useSourceMap on a module. If that
+          // option is set we should always store some source map info and
+          // separating it from the normal devtool options may be necessary.
+          baseMap: module.useSourceMap && source.map(),
           hashContent: serializeHashContent(module),
 
           dependencies: serializeDependencies(module.dependencies),
