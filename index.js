@@ -2,7 +2,6 @@ var crypto = require('crypto');
 var fs = require('fs');
 var path = require('path');
 
-var async = require('async');
 var level = require('level');
 var lodash = require('lodash');
 var mkdirp = require('mkdirp');

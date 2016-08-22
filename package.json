@@ -40,7 +40,6 @@
     "webpack": ">=1.13.1 || ^2.1.0-beta"
   },
   "dependencies": {
-    "async": "^2.0.1",
     "bluebird": "^3.4.1",
     "env-hash": "^1.0.1",
     "level": "^1.4.0",
