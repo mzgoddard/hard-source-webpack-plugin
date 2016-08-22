@@ -202,6 +202,7 @@ function requestHash(request) {
 var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
 var fsReaddir = Promise.promisify(fs.readdir, {context: fs});
 var fsStat = Promise.promisify(fs.stat, {context: fs});
+var fsWriteFile = Promise.promisify(fs.writeFile, {context: fs});
 
 function HardSourceWebpackPlugin(options) {
   this.options = options;
@@ -649,48 +650,36 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
     });
 
-    async.parallel([
-      function(cb) {
-        fs.writeFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8', cb);
-      },
-      function(cb) {
-        fs.writeFile(resolveCachePath, JSON.stringify(resolveCache), 'utf8', cb);
-      },
-      function(cb) {
-        async.each(assetOps, function(asset, callback) {
+    Promise.all([
+      fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
+      fsWriteFile(resolveCachePath, JSON.stringify(resolveCache), 'utf8'),
+      (function() {
+        return Promise.all(assetOps.map(function(asset) {
           var assetPath = path.join(cacheAssetDirPath, asset[0]);
-          fs.writeFile(
-            assetPath,
-            asset[1],
-            callback
-          );
-        }, cb);
-      },
-      function(cb) {
+          return fsWriteFile(assetPath, asset[1]);
+        }));
+      })(),
+      (function() {
         if (ops.length === 0) {
-          return cb();
+          return;
         }
-        leveldbLock = leveldbLock
+        return leveldbLock = leveldbLock
         .then(function() {
-          return new Promise(function(resolve, reject) {
-            level(path.join(cacheDirPath, 'modules'), {valueEncoding: 'json'}, function(err, db) {
-              if (err) {return reject(err);}
-              db.batch(ops, function(err) {
-                if (err) {return reject(err);}
-                db.close(function(err) {
-                  if (err) {return reject(err);}
-                  resolve();
-                });
-              });
-            });
-          });
+          return Promise.promisify(level)(path.join(cacheDirPath, 'modules'), {valueEncoding: 'json'});
         })
-        .then(function() {cb();}, cb);
-      },
-    ], function() {
+        .then(function(db) {
+          return Promise.promisify(db.batch, {context: db})(ops)
+          .then(function() {return db;});
+        })
+        .then(function(db) {
+          return Promise.promisify(db.close, {context: db})();
+        });
+      })(),
+    ])
+    .then(function() {
       // console.log('cache out', Date.now() - startCacheTime);
       cb();
-    });
+    }, cb);
   });
 
   // Ensure records are stored inbetween runs of memory-fs using
