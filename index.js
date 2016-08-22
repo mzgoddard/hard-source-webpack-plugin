@@ -199,6 +199,9 @@ function requestHash(request) {
   return crypto.createHash('sha1').update(request).digest().hexSlice();
 }
 
+var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
+var fsReaddir = Promise.promisify(fs.readdir, {context: fs});
+
 function HardSourceWebpackPlugin(options) {
   this.options = options;
 }
@@ -240,88 +243,80 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     mkdirp.sync(cacheAssetDirPath);
     var start = Date.now();
 
-    (function() {
-      if (options.environmentPaths === false) {
-        return Promise.resolve('');
-      }
-      else {
+    Promise.all([
+      fsReadFile(path.join(cacheDirPath, 'stamp'), 'utf8')
+      .catch(function() {return '';}),
+
+      (function() {
+        if (options.environmentPaths === false) {
+          return Promise.resolve('');
+        }
         return envHash(options.environmentPaths);
+      })(),
+    ])
+    .then(function(stamps) {
+      var stamp = stamps[0];
+      var hash = stamps[1];
+
+      currentStamp = hash;
+      if (!hash || hash !== stamp) {
+        if (hash && stamp) {
+          console.error('Environment has changed (node_modules or configuration was updated).\nHardSourceWebpackPlugin will reset the cache and store a fresh one.');
+        }
+
+        // Reset the cache, we can't use it do to an environment change.
+        resolveCache = {};
+        moduleCache = {};
+        assets = {};
+        fileTimestamps = {};
+        return;
       }
-    })()
-    .then(function(hash) {
-      fs.readFile(path.join(cacheDirPath, 'stamp'), 'utf8', function(err, stamp) {
-        if (err) {
-          stamp = '';
-        }
-        currentStamp = hash;
-        if (hash && hash === stamp) {
-          if (Object.keys(moduleCache).length) {return cb();}
 
-          async.parallel([
-            function(cb) {
-              fs.readFile(resolveCachePath, 'utf8', function(err, resolveJson) {
-                if (err) {return cb(err);}
-                try {
-                  resolveCache = JSON.parse(resolveJson);
-                }
-                catch (err) {
-                  cb(err);
-                }
-                cb();
-              });
-            },
-            function(cb) {
-              async.each(fs.readdirSync(cacheAssetDirPath), function(name, cb) {
-                fs.readFile(path.join(cacheAssetDirPath, name), function(err, asset) {
-                  if (err) {return cb();}
-                  assets[name] = asset;
-                  cb();
-                });
-              }, cb);
-            },
-            function(cb) {
-              var start = Date.now();
-              level(path.join(cacheDirPath, 'modules'), function(err, db) {
-                if (err) {return cb(err);}
-                db.createReadStream()
-                .on('data', function(data) {
-                  var value = data.value;
-                  if (!moduleCache[data.key]) {
-                    moduleCache[data.key] = value;
-                  }
-                })
-                .on('end', function() {
-                  db.close(function(err) {
-                    if (err) {return cb(err);}
-                    // console.log('cache in - modules', Date.now() - start);
-                    if (typeof moduleCache.fileDependencies === 'string') {
-                      moduleCache.fileDependencies = JSON.parse(moduleCache.fileDependencies);
-                    }
-                    cb();
-                  });
-                });
-              });
-            },
-          ], function() {
-            // console.log('cache in', Date.now() - start);
-            cb();
+      if (Object.keys(moduleCache).length) {return Promise.resolve();}
+
+      return Promise.all([
+        fsReadFile(resolveCachePath, 'utf8')
+        .then(JSON.parse)
+        .then(function(_resolveCache) {resolveCache = _resolveCache}),
+
+        Promise.all(fs.readdirSync(cacheAssetDirPath).map(function(name) {
+          return fsReadFile(path.join(cacheAssetDirPath, name))
+          .then(function(asset) {
+            assets[name] = asset;
           });
-        }
-        else {
-          if (hash && stamp) {
-            console.error('Environment has changed (node_modules or configuration was updated).\nHardSourceWebpackPlugin will reset the cache and store a fresh one.');
-          }
+        })),
 
-          // Reset the cache, we can't use it do to an environment change.
-          resolveCache = {};
-          moduleCache = {};
-          assets = {};
-          fileTimestamps = {};
-
-          cb();
-        }
+        (function() {
+          var start = Date.now();
+          return Promise.promisify(level)(path.join(cacheDirPath, 'modules'))
+          .then(function(db) {
+            return new Promise(function(resolve, reject) {
+              var dbClose = Promise.promisify(db.close, {context: db});
+              db.createReadStream()
+              .on('data', function(data) {
+                var value = data.value;
+                if (!moduleCache[data.key]) {
+                  moduleCache[data.key] = value;
+                }
+              })
+              .on('end', function() {
+                dbClose().then(resolve, reject);
+              });
+            });
+          })
+          .then(function() {
+            // console.log('cache in - modules', Date.now() - start);
+            if (typeof moduleCache.fileDependencies === 'string') {
+              moduleCache.fileDependencies = JSON.parse(moduleCache.fileDependencies);
+            }
+          });
+        })(),
+      ])
+      .then(function() {
+        // console.log('cache in', Date.now() - start);
       });
-    });
+    })
+    .then(cb, cb);
   });
 
   compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
