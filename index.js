@@ -201,6 +201,7 @@ function requestHash(request) {
 
 var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
 var fsReaddir = Promise.promisify(fs.readdir, {context: fs});
+var fsStat = Promise.promisify(fs.stat, {context: fs});
 
 function HardSourceWebpackPlugin(options) {
   this.options = options;
@@ -322,65 +323,55 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
     if (!active) {return cb();}
 
-    if (!compiler.inputFileSystem) {
-      // try {
-      //   compiler.compiler.records = JSON.parse(fs.readFileSync(recordsPath, 'utf8'));
-      // }
-      // catch (e) {}
-    }
-    else {
-      // compiler.recordsInputPath = compiler.recordsOutputPath = recordsPath;
-    }
-
     if(!moduleCache.fileDependencies) return cb();
     // var fs = compiler.inputFileSystem;
     var fileTs = compiler.fileTimestamps = fileTimestamps = {};
-    async.forEach(moduleCache.fileDependencies, function(file, callback) {
-      fs.stat(file, function(err, stat) {
-        if(err) {
-          fileTs[file] = 0;
 
-          // Invalidate modules that depend on this userRequest.
-          var walkDependencyBlock = function(block, callback) {
-            // console.log(block);
-            block.dependencies.forEach(callback);
-            block.variables.forEach(function(variable) {
-              variable.dependencies.forEach(callback);
-            });
-            block.blocks.forEach(function(block) {
-              walkDependencyBlock(block, callback);
-            });
-          };
-          // Remove the out of date cache modules.
-          Object.keys(moduleCache).forEach(function(key) {
-            if (key === 'fileDependencies') {return;}
-            var module = moduleCache[key];
-            if (typeof module === 'string') {
-              module = JSON.parse(module);
-              moduleCache[key] = module;
-            }
-            var dependsOnRequest = false;
-            walkDependencyBlock(module, function(cacheDependency) {
-              var resolveId = JSON.stringify(
-                [module.context, cacheDependency.request]
-              );
-              var resolveItem = resolveCache[resolveId];
-              dependsOnRequest = dependsOnRequest ||
-                resolveItem && resolveItem.userRequest === file;
-            });
-            if (dependsOnRequest) {
-              moduleCache[key] = null;
-            }
-          });
-
-          if(err.code === "ENOENT") return callback();
-          return callback(err);
-        }
-
+    return Promise.all(moduleCache.fileDependencies.map(function(file) {
+      return fsStat(file)
+      .then(function(stat) {
         fileTs[file] = stat.mtime || Infinity;
-        callback();
+      }, function(err) {
+        fileTs[file] = 0;
+
+        // Invalidate modules that depend on this userRequest.
+        var walkDependencyBlock = function(block, callback) {
+          // console.log(block);
+          block.dependencies.forEach(callback);
+          block.variables.forEach(function(variable) {
+            variable.dependencies.forEach(callback);
+          });
+          block.blocks.forEach(function(block) {
+            walkDependencyBlock(block, callback);
+          });
+        };
+        // Remove the out of date cache modules.
+        Object.keys(moduleCache).forEach(function(key) {
+          if (key === 'fileDependencies') {return;}
+          var module = moduleCache[key];
+          if (typeof module === 'string') {
+            module = JSON.parse(module);
+            moduleCache[key] = module;
+          }
+          var dependsOnRequest = false;
+          walkDependencyBlock(module, function(cacheDependency) {
+            var resolveId = JSON.stringify(
+              [module.context, cacheDependency.request]
+            );
+            var resolveItem = resolveCache[resolveId];
+            dependsOnRequest = dependsOnRequest ||
+              resolveItem && resolveItem.userRequest === file;
+          });
+          if (dependsOnRequest) {
+            moduleCache[key] = null;
+          }
+        });
+
+        if (err.code === "ENOENT") {return;}
+        throw err;
       });
-    }, cb);
+    }))
+    .then(function() {cb();}, cb);
   });
 
   compiler.plugin('compilation', function(compilation, params) {
