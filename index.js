@@ -22,218 +22,16 @@ catch (_) {
 var AsyncDependenciesBlock = require('webpack/lib/AsyncDependenciesBlock');
 var ConstDependency = require('webpack/lib/dependencies/ConstDependency');
 var ContextDependency = require('webpack/lib/dependencies/ContextDependency');
-var DependenciesBlockVariable = require('webpack/lib/DependenciesBlockVariable');
-var ModuleDependency = require('webpack/lib/dependencies/ModuleDependency');
 var NormalModule = require('webpack/lib/NormalModule');
-var NullDependency = require('webpack/lib/dependencies/NullDependency');
 var NullDependencyTemplate = require('webpack/lib/dependencies/NullDependencyTemplate');
 var NullFactory = require('webpack/lib/NullFactory');
-var RawModule = require('webpack/lib/RawModule');
 
-var RawSource = require('webpack-sources').RawSource;
-var Source = require('webpack-sources').Source;
+var HardModuleDependency = require('./lib/dependencies').HardModuleDependency;
+var HardContextDependency = require('./lib/dependencies').HardContextDependency;
+var HardNullDependency = require('./lib/dependencies').HardNullDependency;
+var HardHarmonyExportDependency = require('./lib/dependencies').HardHarmonyExportDependency;
 
-var SourceNode = require('source-map').SourceNode;
-var SourceMapConsumer = require('source-map').SourceMapConsumer;
-
-var fromStringWithSourceMap = require('source-list-map').fromStringWithSourceMap;
-
-function HardModuleDependency(request) {
-  ModuleDependency.call(this, request);
-}
-HardModuleDependency.prototype = Object.create(ModuleDependency.prototype);
-HardModuleDependency.prototype.constructor = HardModuleDependency;
-
-function HardContextDependency(request, recursive, regExp) {
-  ContextDependency.call(this, request, recursive, regExp);
-}
-HardContextDependency.prototype = Object.create(ContextDependency.prototype);
-HardContextDependency.prototype.constructor = HardContextDependency;
-
-function HardNullDependency() {
-  NullDependency.call(this);
-}
-HardNullDependency.prototype = Object.create(NullDependency.prototype);
-HardNullDependency.prototype.constructor = HardNullDependency;
-
-function HardModuleDependencyTemplate() {
-}
-HardModuleDependencyTemplate.prototype.apply = function() {};
-HardModuleDependencyTemplate.prototype.applyAsTemplateArgument = function() {};
-
-function HardHarmonyExportDependency(originModule, id, name, precedence) {
-  NullDependency.call(this);
-  this.originModule = originModule;
-  this.id = id;
-  this.name = name;
-  this.precedence = precedence;
-}
-HardHarmonyExportDependency.prototype = Object.create(ModuleDependency.prototype);
-HardHarmonyExportDependency.prototype.constructor = HardHarmonyExportDependency;
-HardHarmonyExportDependency.prototype.describeHarmonyExport = function() {
-  return {
-    exportedName: this.name,
-    precedence: this.precedence,
-  }
-};
-
-function HardSource(cacheItem) {
-  RawSource.call(this, cacheItem.source);
-  this.cacheItem = cacheItem;
-}
-HardSource.prototype = Object.create(RawSource.prototype);
-HardSource.prototype.constructor = HardSource;
-
-function chooseMap(options, cacheItem) {
-  if (options && Object.keys(options).length) {
-    return cacheItem.map;
-  }
-  else {
-    return cacheItem.baseMap;
-  }
-}
-
-HardSource.prototype.map = function(options) {
-  return chooseMap(options, this.cacheItem);
-};
-
-// We need a function to help rehydrate source keys, webpack 1 uses source-map
-// 0.4 which needs an appended $. webpack 2 uses source-map 0.5 which may append
-// $. Either way setSourceContent will provide the needed behaviour. This is
-// pretty round about and ugly but this is less prone to failure than trying to
-// determine whether we're in webpack 1 or 2 and if they are using webpack-core
-// or webpack-sources and the version of source-map in that.
-var SourceNode_setSourceContent = new RawModule('')
-.source().node().setSourceContent;
-
-HardSource.prototype.node = function(options) {
-  var node = SourceNode.fromStringWithSourceMap(
-    this.cacheItem.source,
-    new SourceMapConsumer(chooseMap(options, this.cacheItem))
-  );
-  var sources = Object.keys(node.sourceContents);
-  for (var i = 0; i < sources.length; i++) {
-    var key = sources[i];
-    var content = node.sourceContents[key];
-    delete node.sourceContents[key];
-    SourceNode_setSourceContent.call(node, key, content);
-  }
-  return node;
-};
-
-HardSource.prototype.listMap = function(options) {
-  return fromStringWithSourceMap(
-    this.cacheItem.source,
-    chooseMap(options, this.cacheItem)
-  );
-};
-
-function HardModule(cacheItem) {
-  RawModule.call(this, cacheItem.source, cacheItem.identifier, cacheItem.readableIdentifier);
-
-  this.cacheItem = cacheItem;
-
-  this.context = cacheItem.context;
-  this.request = cacheItem.request;
-
-  this.strict = cacheItem.strict;
-  this.meta = cacheItem.meta;
-  this.buildTimestamp = cacheItem.buildTimestamp;
-  this.fileDependencies = cacheItem.fileDependencies;
-  this.contextDependencies = cacheItem.contextDependencies;
-}
-HardModule.prototype = Object.create(RawModule.prototype);
-HardModule.prototype.constructor = HardModule;
-
-function needRebuild(buildTimestamp, fileDependencies, contextDependencies, fileTimestamps, contextTimestamps) {
-  var timestamp = 0;
-  fileDependencies.forEach(function(file) {
-    var ts = fileTimestamps[file];
-    if(!ts) timestamp = Infinity;
-    if(ts > timestamp) timestamp = ts;
-  });
-  contextDependencies.forEach(function(context) {
-    var ts = contextTimestamps[context];
-    if(!ts) timestamp = Infinity;
-    if(ts > timestamp) timestamp = ts;
-  });
-  return timestamp >= buildTimestamp;
-}
-HardModule.prototype.needRebuild = function(fileTimestamps, contextTimestamps) {
-  return needRebuild(this.buildTimestamp, this.fileDependencies, this.contextDependencies, fileTimestamps, contextTimestamps);
-};
-
-HardModule.prototype.source = function() {
-  return this._renderedSource;
-};
-
-HardModule.prototype.updateHash = function(hash) {
-  hash.update(this.cacheItem.hashContent);
-};
-
-HardModule.prototype.isUsed = function(exportName) {
-  return exportName ? exportName : false;
-};
-
-HardModule.prototype.build = function build(options, compilation, resolver, fs, callback) {
-  function deserializeDependencies(deps, parent) {
-    return deps.map(function(req) {
-      if (req.contextDependency) {
-        return new HardContextDependency(req.request, req.recursive, req.regExp ? new RegExp(req.regExp) : null);
-      }
-      if (req.constDependency) {
-        return new HardNullDependency();
-      }
-      if (req.harmonyExport) {
-        return new HardHarmonyExportDependency(parent, req.harmonyId, req.harmonyName, req.harmonyPrecedence);
-      }
-      return new HardModuleDependency(req.request);
-    });
-  }
-  function deserializeVariables(vars, parent) {
-    return vars.map(function(req) {
-      return new DependenciesBlockVariable(req.name, req.expression, deserializeDependencies(req.dependencies, parent));
-    });
-  }
-  function deserializeBlocks(blocks, parent) {
-    blocks.map(function(req) {
-      if (req.async) {
-        var block = new AsyncDependenciesBlock(req.name, parent);
-        block.dependencies = deserializeDependencies(req.dependencies, parent);
-        block.variables = deserializeVariables(req.variables, parent);
-        deserializeBlocks(req.blocks, block);
-        return block;
-      }
-    })
-    .filter(Boolean)
-    .forEach(function(block) {
-      parent.addBlock(block);
-    });
-  }
-
-  // Non-rendered source used by Stats.
-  if (this.cacheItem.rawSource) {
-    this._source = new RawSource(this.cacheItem.rawSource);
-  }
-  // Rendered source used in built output.
-  this._renderedSource = new HardSource(this.cacheItem);
-
-  this.dependencies = deserializeDependencies(this.cacheItem.dependencies, this);
-  this.variables = deserializeVariables(this.cacheItem.variables, this);
-  deserializeBlocks(this.cacheItem.blocks, this);
-
-  var cacheItem = this.cacheItem;
-  this.assets = Object.keys(cacheItem.assets).reduce(function(carry, key) {
-    var source = cacheItem.assets[key];
-    if (source.type === 'Buffer') {
-      source = new Buffer(source);
-    }
-    carry[key] = new RawSource(source);
-    return carry;
-  }, {});
-
-  callback();
-};
+var HardModule = require('./lib/hard-module');
 
 function requestHash(request) {
   return crypto.createHash('sha1').update(request).digest().hexSlice();
@@ -243,6 +41,59 @@ var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
 var fsReaddir = Promise.promisify(fs.readdir, {context: fs});
 var fsStat = Promise.promisify(fs.stat, {context: fs});
 var fsWriteFile = Promise.promisify(fs.writeFile, {context: fs});
+
+function serializeDependencies(deps) {
+  return deps
+  .map(function(dep) {
+    if (dep.originModule) {
+      return {
+        harmonyExport: true,
+        harmonyId: dep.id,
+        harmonyName: dep.describeHarmonyExport().exportedName,
+        harmonyPrecedence: dep.describeHarmonyExport().exportedName,
+      };
+    }
+    return {
+      contextDependency: dep instanceof ContextDependency,
+      constDependency: dep instanceof ConstDependency,
+      request: dep.request,
+      recursive: dep.recursive,
+      regExp: dep.regExp ? dep.regExp.source : null,
+    };
+  })
+  .filter(function(req) {
+    return req.request || req.constDependency || req.harmonyExport;
+  });
+}
+function serializeVariables(vars) {
+  return vars.map(function(variable) {
+    return {
+      name: variable.name,
+      expression: variable.expression,
+      dependencies: serializeDependencies(variable.dependencies),
+    }
+  });
+}
+function serializeBlocks(blocks) {
+  return blocks.map(function(block) {
+    return {
+      async: block instanceof AsyncDependenciesBlock,
+      name: block.chunkName,
+      dependencies: serializeDependencies(block.dependencies),
+      variables: serializeVariables(block.variables),
+      blocks: serializeBlocks(block.blocks),
+    };
+  });
+}
+function serializeHashContent(module) {
+  var content = [];
+  module.updateHash({
+    update: function(str) {
+      content.push(str);
+    },
+  });
+  return content.join('');
+}
 
 function HardSourceWebpackPlugin(options) {
   this.options = options;
@@ -492,7 +343,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               }, {});
               moduleCache[result.request] = cacheItem;
             }
-            if (!needRebuild(
+            if (!HardModule.needRebuild(
               cacheItem.buildTimestamp,
               cacheItem.fileDependencies,
               cacheItem.contextDependencies,
@@ -527,59 +378,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     if (!active) {return cb();}
 
     var startCacheTime = Date.now();
-
-    function serializeDependencies(deps) {
-      return deps
-      .map(function(dep) {
-        if (dep.originModule) {
-          return {
-            harmonyExport: true,
-            harmonyId: dep.id,
-            harmonyName: dep.describeHarmonyExport().exportedName,
-            harmonyPrecedence: dep.describeHarmonyExport().exportedName,
-          };
-        }
-        return {
-          contextDependency: dep instanceof ContextDependency,
-          constDependency: dep instanceof ConstDependency,
-          request: dep.request,
-          recursive: dep.recursive,
-          regExp: dep.regExp ? dep.regExp.source : null,
-        };
-      })
-      .filter(function(req) {
-        return req.request || req.constDependency || req.harmonyExport;
-      });
-    }
-    function serializeVariables(vars) {
-      return vars.map(function(variable) {
-        return {
-          name: variable.name,
-          expression: variable.expression,
-          dependencies: serializeDependencies(variable.dependencies),
-        }
-      });
-    }
-    function serializeBlocks(blocks) {
-      return blocks.map(function(block) {
-        return {
-          async: block instanceof AsyncDependenciesBlock,
-          name: block.chunkName,
-          dependencies: serializeDependencies(block.dependencies),
-          variables: serializeVariables(block.variables),
-          blocks: serializeBlocks(block.blocks),
-        };
-      });
-    }
-    function serializeHashContent(module) {
-      var content = [];
-      module.updateHash({
-        update: function(str) {
-          content.push(str);
-        },
-      });
-      return content.join('');
-    }
 
     var devtoolOptions;
     var devtool = compiler.options.devtool || compiler.options.devTool;
