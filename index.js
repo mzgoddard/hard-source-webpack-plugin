@@ -38,15 +38,28 @@ var SourceMapConsumer = require('source-map').SourceMapConsumer;
 
 var fromStringWithSourceMap = require('source-list-map').fromStringWithSourceMap;
 
-function RawModuleDependency(request) {
+function HardModuleDependency(request) {
   ModuleDependency.call(this, request);
 }
-RawModuleDependency.prototype = Object.create(ModuleDependency.prototype);
-RawModuleDependency.prototype.constructor = RawModuleDependency;
-function RawModuleDependencyTemplate() {
+HardModuleDependency.prototype = Object.create(ModuleDependency.prototype);
+HardModuleDependency.prototype.constructor = HardModuleDependency;
+
+function HardContextDependency(request, recursive, regExp) {
+  ContextDependency.call(this, request, recursive, regExp);
 }
-RawModuleDependencyTemplate.prototype.apply = function() {};
-RawModuleDependencyTemplate.prototype.applyAsTemplateArgument = function() {};
+HardContextDependency.prototype = Object.create(ContextDependency.prototype);
+HardContextDependency.prototype.constructor = HardContextDependency;
+
+function HardNullDependency() {
+  NullDependency.call(this);
+}
+HardNullDependency.prototype = Object.create(NullDependency.prototype);
+HardNullDependency.prototype.constructor = HardNullDependency;
+
+function HardModuleDependencyTemplate() {
+}
+HardModuleDependencyTemplate.prototype.apply = function() {};
+HardModuleDependencyTemplate.prototype.applyAsTemplateArgument = function() {};
 
 function HardHarmonyExportDependency(originModule, id, name, precedence) {
   NullDependency.call(this);
@@ -64,51 +77,64 @@ HardHarmonyExportDependency.prototype.describeHarmonyExport = function() {
   }
 };
 
-function CacheModule(cacheItem) {
+function HardSource(cacheItem) {
+  RawSource.call(this, cacheItem.source);
+  this.cacheItem = cacheItem;
+}
+HardSource.prototype = Object.create(RawSource.prototype);
+HardSource.prototype.constructor = HardSource;
+
+function chooseMap(options, cacheItem) {
+  if (options && Object.keys(options).length) {
+    return cacheItem.map;
+  }
+  else {
+    return cacheItem.baseMap;
+  }
+}
+
+HardSource.prototype.map = function(options) {
+  return chooseMap(options, this.cacheItem);
+};
+
+// We need a function to help rehydrate source keys, webpack 1 uses source-map
+// 0.4 which needs an appended $. webpack 2 uses source-map 0.5 which may append
+// $. Either way setSourceContent will provide the needed behaviour. This is
+// pretty round about and ugly but this is less prone to failure than trying to
+// determine whether we're in webpack 1 or 2 and if they are using webpack-core
+// or webpack-sources and the version of source-map in that.
+var SourceNode_setSourceContent = new RawModule('')
+.source().node().setSourceContent;
+
+HardSource.prototype.node = function(options) {
+  var node = SourceNode.fromStringWithSourceMap(
+    this.cacheItem.source,
+    new SourceMapConsumer(chooseMap(options, this.cacheItem))
+  );
+  var sources = Object.keys(node.sourceContents);
+  for (var i = 0; i < sources.length; i++) {
+    var key = sources[i];
+    var content = node.sourceContents[key];
+    delete node.sourceContents[key];
+    SourceNode_setSourceContent.call(node, key, content);
+  }
+  return node;
+};
+
+HardSource.prototype.listMap = function(options) {
+  return fromStringWithSourceMap(
+    this.cacheItem.source,
+    chooseMap(options, this.cacheItem)
+  );
+};
+
+function HardModule(cacheItem) {
   RawModule.call(this, cacheItem.source, cacheItem.identifier, cacheItem.readableIdentifier);
 
   this.context = cacheItem.context;
   this.request = cacheItem.request;
-  // this.map = function() {return cacheItem.map;};
-  var source = new RawSource(cacheItem.source);
-  function chooseMap(options, cacheItem) {
-    if (options && Object.keys(options).length) {
-      return cacheItem.map;
-    }
-    else {
-      return cacheItem.baseMap;
-    }
-  }
-  source.map = function(options) {
-    return chooseMap(options, cacheItem);
-  };
-  source.node = function(options) {
-    var node = SourceNode.fromStringWithSourceMap(
-      cacheItem.source,
-      new SourceMapConsumer(chooseMap(options, cacheItem))
-    );
-    // Rehydrate source keys, webpack 1 uses source-map 0.4 which needs an
-    // appended $. webpack 2 uses source-map 0.5 which may append $. Either way
-    // setSourceContent will provide the needed behaviour. This is pretty round
-    // about and ugly but this is less prone to failure than trying to determine
-    // whether we're in webpack 1 or 2 and if they are using webpack-core or
-    // webpack-sources and the version of source-map in that.
-    var setSourceContent = new RawModule('').source().node().setSourceContent;
-    var sources = Object.keys(node.sourceContents);
-    for (var i = 0; i < sources.length; i++) {
-      var key = sources[i];
-      var content = node.sourceContents[key];
-      delete node.sourceContents[key];
-      setSourceContent.call(node, key, content);
-    }
-    return node;
-  };
-  source.listMap = function(options) {
-    return fromStringWithSourceMap(
-      cacheItem.source,
-      chooseMap(options, cacheItem)
-    );
-  };
+
+  var source = new HardSource(cacheItem);
   // Non-rendered source used by Stats.
   if (cacheItem.rawSource) {
     this._source = new RawSource(cacheItem.rawSource);
@@ -139,15 +165,15 @@ function CacheModule(cacheItem) {
   function deserializeDependencies(deps, parent) {
     return deps.map(function(req) {
       if (req.contextDependency) {
-        return new ContextDependency(req.request, req.recursive, req.regExp ? new RegExp(req.regExp) : null);
+        return new HardContextDependency(req.request, req.recursive, req.regExp ? new RegExp(req.regExp) : null);
       }
       if (req.constDependency) {
-        return new NullDependency();
+        return new HardNullDependency();
       }
       if (req.harmonyExport) {
         return new HardHarmonyExportDependency(parent, req.harmonyId, req.harmonyName, req.harmonyPrecedence);
       }
-      return new RawModuleDependency(req.request);
+      return new HardModuleDependency(req.request);
     });
   }
   function deserializeVariables(vars, parent) {
@@ -174,8 +200,8 @@ function CacheModule(cacheItem) {
   this.variables = deserializeVariables(cacheItem.variables, this);
   deserializeBlocks(cacheItem.blocks, this);
 }
-CacheModule.prototype = Object.create(RawModule.prototype);
-CacheModule.prototype.constructor = CacheModule;
+HardModule.prototype = Object.create(RawModule.prototype);
+HardModule.prototype.constructor = HardModule;
 function needRebuild(buildTimestamp, fileDependencies, contextDependencies, fileTimestamps, contextTimestamps) {
   var timestamp = 0;
   fileDependencies.forEach(function(file) {
@@ -190,7 +216,7 @@ function needRebuild(buildTimestamp, fileDependencies, contextDependencies, file
   });
   return timestamp >= buildTimestamp;
 }
-CacheModule.prototype.needRebuild = function(fileTimestamps, contextTimestamps) {
+HardModule.prototype.needRebuild = function(fileTimestamps, contextTimestamps) {
   return needRebuild(this.buildTimestamp, this.fileDependencies, this.contextDependencies, fileTimestamps, contextTimestamps);
 };
 
@@ -379,14 +405,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     compilation.fileTimestamps = fileTimestamps;
 
-    compilation.dependencyFactories.set(RawModuleDependency, params.normalModuleFactory);
-    compilation.dependencyTemplates.set(RawModuleDependency, new RawModuleDependencyTemplate);
+    compilation.dependencyFactories.set(HardModuleDependency, params.normalModuleFactory);
+    compilation.dependencyTemplates.set(HardModuleDependency, new NullDependencyTemplate);
 
-    compilation.dependencyFactories.set(ContextDependency, params.contextModuleFactory);
-    compilation.dependencyTemplates.set(ContextDependency, new RawModuleDependencyTemplate);
+    compilation.dependencyFactories.set(HardContextDependency, params.contextModuleFactory);
+    compilation.dependencyTemplates.set(HardContextDependency, new NullDependencyTemplate);
 
-    compilation.dependencyFactories.set(NullDependency, new NullFactory());
-    compilation.dependencyTemplates.set(NullDependency, new NullDependencyTemplate);
+    compilation.dependencyFactories.set(HardNullDependency, new NullFactory());
+    compilation.dependencyTemplates.set(HardNullDependency, new NullDependencyTemplate);
 
     compilation.dependencyFactories.set(HardHarmonyExportDependency, new NullFactory());
     compilation.dependencyTemplates.set(HardHarmonyExportDependency, new NullDependencyTemplate);
@@ -459,7 +485,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               fileTimestamps,
               compiler.contextTimestamps
             )) {
-              var module = new CacheModule(cacheItem);
+              var module = new HardModule(cacheItem);
               return cb(null, module);
             }
           }
@@ -599,7 +625,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     // mkdirp.sync(cacheAssetDirPath);
 
     compilation.modules.forEach(function(module, cb) {
-      if (module.request && module.cacheable && !(module instanceof CacheModule) && (module instanceof NormalModule)) {
+      if (module.request && module.cacheable && !(module instanceof HardModule) && (module instanceof NormalModule)) {
         var source = module.source(
           compilation.dependencyTemplates,
           compilation.moduleTemplate.outputOptions, 
