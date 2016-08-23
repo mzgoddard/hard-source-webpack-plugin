@@ -7,6 +7,7 @@ describe('basic webpack use compiles identically', function() {
 
   itCompilesTwice('base-1dep');
   itCompilesTwice('base-10deps-1nest');
+  itCompilesTwice('base-context');
   itCompilesTwice('base-process-env');
   itCompilesTwice('base-code-split');
   itCompilesTwice('base-code-split-process');
