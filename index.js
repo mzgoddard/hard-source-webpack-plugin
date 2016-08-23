@@ -32,6 +32,7 @@ var HardNullDependency = require('./lib/dependencies').HardNullDependency;
 var HardHarmonyExportDependency = require('./lib/dependencies').HardHarmonyExportDependency;
 
 var HardModule = require('./lib/hard-module');
+var makeDevtoolOptions = require('./lib/devtool-options');
 
 function requestHash(request) {
   return crypto.createHash('sha1').update(request).digest().hexSlice();
@@ -379,32 +380,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     var startCacheTime = Date.now();
 
-    var devtoolOptions;
-    var devtool = compiler.options.devtool || compiler.options.devTool;
-    if(devtool && (devtool.indexOf("sourcemap") >= 0 || devtool.indexOf("source-map") >= 0)) {
-      var hidden = devtool.indexOf("hidden") >= 0;
-      var inline = devtool.indexOf("inline") >= 0;
-      var evalWrapped = devtool.indexOf("eval") >= 0;
-      var cheap = devtool.indexOf("cheap") >= 0;
-      var moduleMaps = devtool.indexOf("module") >= 0;
-      var noSources = devtool.indexOf("nosources") >= 0;
-      var legacy = devtool.indexOf("@") >= 0;
-      var modern = devtool.indexOf("#") >= 0;
-      var comment = legacy && modern ? "\n/*\n//@ sourceMappingURL=[url]\n//# sourceMappingURL=[url]\n*/" :
-        legacy ? "\n/*\n//@ sourceMappingURL=[url]\n*/" :
-        modern ? "\n//# sourceMappingURL=[url]" :
-        null;
-      devtoolOptions = {
-        filename: inline ? null : compiler.options.output.sourceMapFilename,
-        moduleFilenameTemplate: compiler.options.output.devtoolModuleFilenameTemplate,
-        fallbackModuleFilenameTemplate: compiler.options.output.devtoolFallbackModuleFilenameTemplate,
-        append: hidden ? false : comment,
-        module: moduleMaps ? true : cheap ? false : true,
-        columns: cheap ? false : true,
-        lineToLine: compiler.options.output.devtoolLineToLine,
-        noSources: noSources,
-      };
-    }
+    var devtoolOptions = makeDevtoolOptions(compiler.options);
 
     // fs.writeFileSync(
     //   path.join(cacheDirPath, 'file-dependencies.json'),
