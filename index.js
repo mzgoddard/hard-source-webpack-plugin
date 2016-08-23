@@ -131,37 +131,51 @@ HardSource.prototype.listMap = function(options) {
 function HardModule(cacheItem) {
   RawModule.call(this, cacheItem.source, cacheItem.identifier, cacheItem.readableIdentifier);
 
+  this.cacheItem = cacheItem;
+
   this.context = cacheItem.context;
   this.request = cacheItem.request;
 
-  var source = new HardSource(cacheItem);
-  // Non-rendered source used by Stats.
-  if (cacheItem.rawSource) {
-    this._source = new RawSource(cacheItem.rawSource);
-  }
-  // Rendered source used in built output.
-  this.source = function() {
-    return source;
-  };
-  this.updateHash = function(hash) {
-    hash.update(cacheItem.hashContent);
-  };
-  this.assets = Object.keys(cacheItem.assets).reduce(function(carry, key) {
-    var source = cacheItem.assets[key];
-    if (source.type === 'Buffer') {
-      source = new Buffer(source);
-    }
-    carry[key] = new RawSource(source);
-    return carry;
-  }, {});
-  this.isUsed = function(exportName) {
-    return exportName ? exportName : false;
-  };
   this.strict = cacheItem.strict;
   this.meta = cacheItem.meta;
   this.buildTimestamp = cacheItem.buildTimestamp;
   this.fileDependencies = cacheItem.fileDependencies;
   this.contextDependencies = cacheItem.contextDependencies;
+}
+HardModule.prototype = Object.create(RawModule.prototype);
+HardModule.prototype.constructor = HardModule;
+
+function needRebuild(buildTimestamp, fileDependencies, contextDependencies, fileTimestamps, contextTimestamps) {
+  var timestamp = 0;
+  fileDependencies.forEach(function(file) {
+    var ts = fileTimestamps[file];
+    if(!ts) timestamp = Infinity;
+    if(ts > timestamp) timestamp = ts;
+  });
+  contextDependencies.forEach(function(context) {
+    var ts = contextTimestamps[context];
+    if(!ts) timestamp = Infinity;
+    if(ts > timestamp) timestamp = ts;
+  });
+  return timestamp >= buildTimestamp;
+}
+HardModule.prototype.needRebuild = function(fileTimestamps, contextTimestamps) {
+  return needRebuild(this.buildTimestamp, this.fileDependencies, this.contextDependencies, fileTimestamps, contextTimestamps);
+};
+
+HardModule.prototype.source = function() {
+  return this._renderedSource;
+};
+
+HardModule.prototype.updateHash = function(hash) {
+  hash.update(this.cacheItem.hashContent);
+};
+
+HardModule.prototype.isUsed = function(exportName) {
+  return exportName ? exportName : false;
+};
+
+HardModule.prototype.build = function build(options, compilation, resolver, fs, callback) {
   function deserializeDependencies(deps, parent) {
     return deps.map(function(req) {
       if (req.contextDependency) {
@@ -196,28 +210,29 @@ function HardModule(cacheItem) {
       parent.addBlock(block);
     });
   }
-  this.dependencies = deserializeDependencies(cacheItem.dependencies, this);
-  this.variables = deserializeVariables(cacheItem.variables, this);
-  deserializeBlocks(cacheItem.blocks, this);
-}
-HardModule.prototype = Object.create(RawModule.prototype);
-HardModule.prototype.constructor = HardModule;
-function needRebuild(buildTimestamp, fileDependencies, contextDependencies, fileTimestamps, contextTimestamps) {
-  var timestamp = 0;
-  fileDependencies.forEach(function(file) {
-    var ts = fileTimestamps[file];
-    if(!ts) timestamp = Infinity;
-    if(ts > timestamp) timestamp = ts;
-  });
-  contextDependencies.forEach(function(context) {
-    var ts = contextTimestamps[context];
-    if(!ts) timestamp = Infinity;
-    if(ts > timestamp) timestamp = ts;
-  });
-  return timestamp >= buildTimestamp;
-}
-HardModule.prototype.needRebuild = function(fileTimestamps, contextTimestamps) {
-  return needRebuild(this.buildTimestamp, this.fileDependencies, this.contextDependencies, fileTimestamps, contextTimestamps);
+
+  // Non-rendered source used by Stats.
+  if (this.cacheItem.rawSource) {
+    this._source = new RawSource(this.cacheItem.rawSource);
+  }
+  // Rendered source used in built output.
+  this._renderedSource = new HardSource(this.cacheItem);
+
+  this.dependencies = deserializeDependencies(this.cacheItem.dependencies, this);
+  this.variables = deserializeVariables(this.cacheItem.variables, this);
+  deserializeBlocks(this.cacheItem.blocks, this);
+
+  var cacheItem = this.cacheItem;
+  this.assets = Object.keys(cacheItem.assets).reduce(function(carry, key) {
+    var source = cacheItem.assets[key];
+    if (source.type === 'Buffer') {
+      source = new Buffer(source);
+    }
+    carry[key] = new RawSource(source);
+    return carry;
+  }, {});
+
+  callback();
 };
 
 function requestHash(request) {
