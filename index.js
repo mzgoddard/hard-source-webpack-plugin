@@ -243,6 +243,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         Object.keys(moduleCache).forEach(function(key) {
           if (key === 'fileDependencies') {return;}
           var module = moduleCache[key];
+          if (!module) {return;}
           if (typeof module === 'string') {
             module = JSON.parse(module);
             moduleCache[key] = module;
