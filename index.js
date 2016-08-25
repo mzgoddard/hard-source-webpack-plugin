@@ -31,7 +31,9 @@ var HardContextDependency = require('./lib/dependencies').HardContextDependency;
 var HardNullDependency = require('./lib/dependencies').HardNullDependency;
 var HardHarmonyExportDependency = require('./lib/dependencies').HardHarmonyExportDependency;
 
+var FileSerializer = require('./lib/cache-serializers').FileSerializer;
 var HardModule = require('./lib/hard-module');
+var LevelDbSerializer = require('./lib/cache-serializers').LevelDbSerializer;
 var makeDevtoolOptions = require('./lib/devtool-options');
 
 function requestHash(request) {
@@ -39,7 +41,6 @@ function requestHash(request) {
 }
 
 var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
-var fsReaddir = Promise.promisify(fs.readdir, {context: fs});
 var fsStat = Promise.promisify(fs.stat, {context: fs});
 var fsWriteFile = Promise.promisify(fs.writeFile, {context: fs});
 
@@ -96,6 +97,23 @@ function serializeHashContent(module) {
   return content.join('');
 }
 
+// function AssetCache() {
+//
+// }
+//
+// function ModuleCache() {
+//   this.cache = {};
+//   this.serializer = null;
+// }
+//
+// ModuleCache.prototype.get = function(identifier) {
+//
+// };
+//
+// ModuleCache.prototype.save = function(modules) {
+//
+// };
+
 function HardSourceWebpackPlugin(options) {
   this.options = options;
 }
@@ -120,6 +138,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var currentStamp = '';
 
   var fileTimestamps = {};
+
+  var assetCacheSerializer = this.assetCacheSerializer =
+    new FileSerializer({cacheDirPath: path.join(cacheDirPath, 'assets')});
+  var moduleCacheSerializer = this.moduleCacheSerializer =
+    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'modules')});
 
   compiler.plugin('after-plugins', function() {
     if (
@@ -173,38 +196,16 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         .then(JSON.parse)
         .then(function(_resolveCache) {resolveCache = _resolveCache}),
 
-        Promise.all(fs.readdirSync(cacheAssetDirPath).map(function(name) {
-          return fsReadFile(path.join(cacheAssetDirPath, name))
-          .then(function(asset) {
-            assets[name] = asset;
-          });
-        })),
+        assetCacheSerializer.read()
+        .then(function(_assetCache) {assets = _assetCache;}),
 
-        (function() {
-          var start = Date.now();
-          return Promise.promisify(level)(path.join(cacheDirPath, 'modules'))
-          .then(function(db) {
-            return new Promise(function(resolve, reject) {
-              var dbClose = Promise.promisify(db.close, {context: db});
-              db.createReadStream()
-              .on('data', function(data) {
-                var value = data.value;
-                if (!moduleCache[data.key]) {
-                  moduleCache[data.key] = value;
-                }
-              })
-              .on('end', function() {
-                dbClose().then(resolve, reject);
-              });
-            });
-          })
-          .then(function() {
-            // console.log('cache in - modules', Date.now() - start);
-            if (typeof moduleCache.fileDependencies === 'string') {
-              moduleCache.fileDependencies = JSON.parse(moduleCache.fileDependencies);
-            }
-          });
-        })(),
+        moduleCacheSerializer.read()
+        .then(function(_moduleCache) {moduleCache = _moduleCache;})
+        .then(function() {
+          if (typeof moduleCache.fileDependencies === 'string') {
+            moduleCache.fileDependencies = JSON.parse(moduleCache.fileDependencies);
+          }
+        }),
       ])
       .then(function() {
         // console.log('cache in', Date.now() - start);
@@ -369,12 +370,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     });
   });
 
-  var leveldbLock = Promise.resolve();
-
-  // compiler.plugin('this-compilation', function() {
-  //   leveldbLock = Promise.resolve();
-  // });
-
   compiler.plugin('after-compile', function(compilation, cb) {
     if (!active) {return cb();}
 
@@ -397,9 +392,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       .concat(fileDependenciesDiff);
 
       ops.push({
-        type: 'put',
         key: 'fileDependencies',
-        value: moduleCache.fileDependencies,
+        value: JSON.stringify(moduleCache.fileDependencies),
       });
     }
 
@@ -421,7 +415,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           compilation.moduleTemplate.requestShortener
         );
         var assets = Object.keys(module.assets || {}).map(function(key) {
-          return [requestHash(key), module.assets[key].source()];
+          return {
+            key: requestHash(key),
+            value: module.assets[key].source(),
+          };
         });
         moduleCache[module.request] = {
           moduleId: module.id,
@@ -453,9 +450,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         };
 
         ops.push({
-          type: 'put',
           key: module.request,
-          value: moduleCache[module.request],
+          value: JSON.stringify(moduleCache[module.request]),
         });
 
         if (assets.length) {
@@ -467,28 +463,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     Promise.all([
       fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
       fsWriteFile(resolveCachePath, JSON.stringify(resolveCache), 'utf8'),
-      (function() {
-        return Promise.all(assetOps.map(function(asset) {
-          var assetPath = path.join(cacheAssetDirPath, asset[0]);
-          return fsWriteFile(assetPath, asset[1]);
-        }));
-      })(),
-      (function() {
-        if (ops.length === 0) {
-          return;
-        }
-        return leveldbLock = leveldbLock
-        .then(function() {
-          return Promise.promisify(level)(path.join(cacheDirPath, 'modules'), {valueEncoding: 'json'});
-        })
-        .then(function(db) {
-          return Promise.promisify(db.batch, {context: db})(ops)
-          .then(function() {return db;});
-        })
-        .then(function(db) {
-          return Promise.promisify(db.close, {context: db})();
-        });
-      })(),
+      assetCacheSerializer.write(assetOps),
+      moduleCacheSerializer.write(ops),
     ])
     .then(function() {
       // console.log('cache out', Date.now() - startCacheTime);
