@@ -67,10 +67,20 @@ describe('basic webpack use builds changes', function() {
       'module.exports = 6;',
     ].join('\n'),
     'b/6/index.js': null,
+    // Change a second file make sure multiple invalidations don't
+    // break everything.
+    'b/7.js': [
+      'module.exports = 7;',
+    ].join('\n'),
+    'b/7/index.js': null,
   }, {
     'b/6.js': null,
     'b/6/index.js': [
       'module.exports = 6;',
+    ].join('\n'),
+    'b/7.js': null,
+    'b/7/index.js': [
+      'module.exports = 7;',
     ].join('\n'),
   }, function(output) {
     var oldId = /var b = module.exports =\n\s+__webpack_require__\((\d+)\)/
