@@ -258,6 +258,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               resolveItem && resolveItem.userRequest === file;
           });
           if (dependsOnRequest) {
+            module.invalid = true;
             moduleCache[key] = null;
           }
         });
