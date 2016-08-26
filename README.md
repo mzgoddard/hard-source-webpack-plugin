@@ -60,3 +60,21 @@ Here are the options as documented in `env-hash`.
 ## Please contribute!
 
 This plugin is pretty young and we don't know what it has trouble with yet. Trying the plugin in a project and its creating errors or doesn't notice changes to original source, let us know your loaders and plugins or other build process details in an issue. Have a fix for something you've encountered, send us a fix.
+
+# Change Log
+
+- `0.0.23` Fix to error in resolve invalidation
+- `0.0.19` Store separate non-devtool related base map for Uglify support
+- `0.0.18` Invalidate modules depending on a now invalid resolve value
+- `0.0.17` Support webpack-isomorphic-tools
+- `0.0.16` Incomplete resolve invalidation
+- `0.0.15` Invalidate whole cache when environment (node_modules, etc) change
+- `0.0.13` Freeze and thaw module's `_source` used by Stats
+- `0.0.11` Store modules in a leveldb store
+- `0.0.10` Store assets separate for performance
+- `0.0.9` Support ExtractText and Uglify
+- `0.0.8` relative `cacheDirectory` support
+- `0.0.7` Support Harmony modules by disabling tree shaking
+- `0.0.5` First ReadME, travis badge, cacheDirectory change
+- `0.0.4` Add source map tests, improve source map thawing
+- `0.0.3` Add tests
