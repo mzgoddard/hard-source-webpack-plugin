@@ -21,8 +21,8 @@ module.exports = {
     new HardSourceWebpackPlugin({
       // Either an absolute path or relative to output.path.
       cacheDirectory: 'path/to/cache',
-      // Optional field showing defaults. This field determines when to throw
-      // away the whole cache if for example npm modules were updated.
+      // Optional field. This field determines when to throw away the whole
+      // cache if for example npm modules were updated.
       environmentPaths: {
         root: process.cwd(),
         directories: ['node_modules'],
@@ -36,6 +36,12 @@ module.exports = {
 ```
 
 ## Options
+
+### `cacheDirectory`
+
+A absolute or relative path to store intermediate webpack details to support faster subsequent builds for dependencies that did not change inbetween builds.
+
+This directory is best unique per webpack configuration in a project. HardSourceWebpackPlugin cannot detect differences in webpack configurations inbetween runs. Instead using the same directory will pollute a build with build items from another configuration. You can naturally have sub directories for each config like `hard-source-cache/dev` and `hard-source-cache/prod`.
 
 ### `environmentPaths`
 
