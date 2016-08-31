@@ -3,7 +3,7 @@ var expect = require('chai').expect;
 var itCompilesTwice = require('./util').itCompilesTwice;
 var itCompilesChange = require('./util').itCompilesChange;
 
-describe('basic webpack use compiles identically', function() {
+describe('basic webpack use - compiles identically', function() {
 
   itCompilesTwice('base-1dep');
   itCompilesTwice('base-10deps-1nest');
@@ -20,7 +20,7 @@ describe('basic webpack use compiles identically', function() {
 
 });
 
-describe('basic webpack use builds changes', function() {
+describe('basic webpack use - builds changes', function() {
 
   itCompilesChange('base-change-1dep', {
     'fib.js': [

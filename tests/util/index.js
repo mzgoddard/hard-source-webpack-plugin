@@ -102,13 +102,40 @@ exports.writeFiles = function(fixturePath, files) {
   }));
 };
 
+exports.readFiles = function(outputPath) {
+  outputPath = path.join(__dirname, '..', 'fixtures', outputPath);
+
+  var fsReaddir = Promise.promisify(fs.readdir, {context: fs});
+  var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
+  var fsStat = Promise.promisify(fs.stat, {context: fs});
+
+  return fsReaddir(outputPath)
+  .map(function(name) {
+    var fullname = path.join(outputPath, name);
+    return fsStat(fullname)
+    .then(function(stat) {
+      if (stat.isFile()) {
+        return fsReadFile(fullname)
+        .then(function(file) {return [name, file];});
+      }
+    });
+  })
+  .reduce(function(carry, values) {
+    if (values) {
+      carry[values[0]] = values[1];
+    }
+    return carry;
+  }, {});
+};
+
 exports.itCompilesChange = function(fixturePath, filesA, filesB, expectHandle) {
   before(function() {
     return exports.clean(fixturePath);
   });
 
   it('builds changes in ' + fixturePath + ' fixture', function() {
-    this.timeout(10000);
+    this.timeout(20000);
+    this.slow(4000);
     var run1;
     return Promise.resolve()
     .then(function() {
@@ -117,6 +144,10 @@ exports.itCompilesChange = function(fixturePath, filesA, filesB, expectHandle) {
     .then(function() {
       run1 = exports.compile(fixturePath);
       return run1;
+    })
+    // Delay enough time so that file timestamps are different.
+    .then(function() {
+      return new Promise(function(resolve) {setTimeout(resolve, 1000);});
     })
     .then(function() {
       return exports.writeFiles(fixturePath, filesB);

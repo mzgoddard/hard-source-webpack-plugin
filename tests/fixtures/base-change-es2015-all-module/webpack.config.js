@@ -1,5 +1,3 @@
-var UglifyJsPlugin = require('webpack').optimize.UglifyJsPlugin;
-
 var HardSourceWebpackPlugin = require('../../..');
 
 module.exports = {
@@ -16,9 +14,6 @@ module.exports = {
       environmentPaths: {
         root: __dirname + '/../../..',
       },
-    }),
-    new UglifyJsPlugin({
-      sourceMap: false,
     }),
   ],
 };
