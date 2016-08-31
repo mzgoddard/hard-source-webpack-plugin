@@ -25,11 +25,26 @@ var ContextDependency = require('webpack/lib/dependencies/ContextDependency');
 var NormalModule = require('webpack/lib/NormalModule');
 var NullDependencyTemplate = require('webpack/lib/dependencies/NullDependencyTemplate');
 var NullFactory = require('webpack/lib/NullFactory');
+var SingleEntryDependency = require('webpack/lib/dependencies/SingleEntryDependency');
+
+var HarmonyImportDependency, HarmonyImportSpecifierDependency, HarmonyExportImportedSpecifierDependency;
+
+try {
+  HarmonyImportDependency = require('webpack/lib/dependencies/HarmonyImportDependency');
+  HarmonyImportSpecifierDependency = require('webpack/lib/dependencies/HarmonyImportSpecifierDependency');
+  HarmonyExportImportedSpecifierDependency = require('webpack/lib/dependencies/HarmonyExportImportedSpecifierDependency');
+}
+catch (_) {}
 
 var HardModuleDependency = require('./lib/dependencies').HardModuleDependency;
 var HardContextDependency = require('./lib/dependencies').HardContextDependency;
 var HardNullDependency = require('./lib/dependencies').HardNullDependency;
 var HardHarmonyExportDependency = require('./lib/dependencies').HardHarmonyExportDependency;
+var HardHarmonyImportDependency =
+require('./lib/dependencies').HardHarmonyImportDependency;
+var HardHarmonyImportSpecifierDependency =
+require('./lib/dependencies').HardHarmonyImportSpecifierDependency;
+var HardHarmonyExportImportedSpecifierDependency = require('./lib/dependencies').HardHarmonyExportImportedSpecifierDependency;
 
 var FileSerializer = require('./lib/cache-serializers').FileSerializer;
 var HardModule = require('./lib/hard-module');
@@ -47,12 +62,34 @@ var fsWriteFile = Promise.promisify(fs.writeFile, {context: fs});
 function serializeDependencies(deps) {
   return deps
   .map(function(dep) {
+    if (typeof HarmonyImportDependency !== 'undefined') {
+      if (dep instanceof HarmonyImportDependency) {
+        return {
+          harmonyImport: true,
+          request: dep.request,
+        };
+      }
+      if (dep instanceof HarmonyExportImportedSpecifierDependency) {
+        return {
+          harmonyExportImportedSpecifier: true,
+          harmonyId: dep.id,
+          harmonyName: dep.name,
+        };
+      }
+      if (dep instanceof HarmonyImportSpecifierDependency) {
+        return {
+          harmonyImportSpecifier: true,
+          harmonyId: dep.id,
+          harmonyName: dep.name,
+        };
+      }
+    }
     if (dep.originModule) {
       return {
         harmonyExport: true,
         harmonyId: dep.id,
         harmonyName: dep.describeHarmonyExport().exportedName,
-        harmonyPrecedence: dep.describeHarmonyExport().exportedName,
+        harmonyPrecedence: dep.describeHarmonyExport().precedence,
       };
     }
     return {
@@ -64,7 +101,7 @@ function serializeDependencies(deps) {
     };
   })
   .filter(function(req) {
-    return req.request || req.constDependency || req.harmonyExport;
+    return req.request || req.constDependency || req.harmonyExport || req.harmonyImportSpecifier || req.harmonyExportImportedSpecifier;
   });
 }
 function serializeVariables(vars) {
@@ -230,7 +267,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         // Invalidate modules that depend on this userRequest.
         var walkDependencyBlock = function(block, callback) {
-          // console.log(block);
           block.dependencies.forEach(callback);
           block.variables.forEach(function(variable) {
             variable.dependencies.forEach(callback);
@@ -286,6 +322,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     compilation.dependencyFactories.set(HardHarmonyExportDependency, new NullFactory());
     compilation.dependencyTemplates.set(HardHarmonyExportDependency, new NullDependencyTemplate);
+
+    compilation.dependencyFactories.set(HardHarmonyImportDependency, params.normalModuleFactory);
+    compilation.dependencyTemplates.set(HardHarmonyImportDependency, new NullDependencyTemplate);
+
+    compilation.dependencyFactories.set(HardHarmonyImportSpecifierDependency, new NullFactory());
+    compilation.dependencyTemplates.set(HardHarmonyImportSpecifierDependency, new NullDependencyTemplate);
+
+    compilation.dependencyFactories.set(HardHarmonyExportImportedSpecifierDependency, new NullFactory());
+    compilation.dependencyTemplates.set(HardHarmonyExportImportedSpecifierDependency, new NullDependencyTemplate);
 
     params.normalModuleFactory.plugin('resolver', function(fn) {
       return function(request, cb) {
