@@ -303,6 +303,66 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         throw err;
       });
     }))
+    .then(function() {
+      // Ensure records have been read before we use the sub-compiler to
+      // invlidate packages before the normal compiler executes.
+      if (Object.keys((compiler.compiler || compiler).records).length === 0) {
+        return Promise.promisify(
+          (compiler.compiler || compiler).readRecords,
+          {context: (compiler.compiler || compiler)}
+        )();
+      }
+    })
+    .then(function() {
+      var _compiler = compiler.compiler || compiler;
+      // Create a childCompiler but set it up and run it like it is the original
+      // compiler except that it won't finalize the work ('after-compile' step
+      // that renders chunks).
+      var childCompiler = _compiler.createChildCompiler();
+      // Copy 'this-compilation' and 'make' as well as other plugins.
+      for(var name in _compiler._plugins) {
+        if(["compile", "emit", "after-emit", "invalid", "done"].indexOf(name) < 0)
+          childCompiler._plugins[name] = _compiler._plugins[name].slice();
+      }
+      // Use the parent's records.
+      childCompiler.records = (compiler.compiler || compiler).records;
+
+      var params = childCompiler.newCompilationParams();
+      childCompiler.applyPlugins("compile", params);
+
+      var compilation = childCompiler.newCompilation(params);
+
+      // Run make and seal. This is enough to find out if any module should be
+      // invalidated due to some built state.
+      return Promise.promisify(childCompiler.applyPluginsParallel, {context: childCompiler})("make", compilation)
+      .then(function() {
+        return Promise.promisify(compilation.seal, {context: compilation})();
+      })
+      .then(function() {return compilation;});
+    })
+    .then(function(compilation) {
+      // Iterate the sub-compiler's modules and invalidate modules whose cached
+      // used and usedExports do not match their new values due to a dependent
+      // module changing what it uses.
+      compilation.modules.forEach(function(module) {
+        if (!(module instanceof HardModule)) {
+          return;
+        }
+
+        var cacheItem = moduleCache[module.request];
+        if (!cacheItem) {
+          return;
+        }
+
+        if (
+          !lodash.isEqual(cacheItem.used, module.used) ||
+          !lodash.isEqual(cacheItem.usedExports, module.usedExports)
+        ) {
+          cacheItem.invalid = true;
+          moduleCache[module.request] = null;
+        }
+      });
+    })
     .then(function() {cb();}, cb);
   });
 
@@ -410,9 +470,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     });
 
     params.normalModuleFactory.plugin('module', function(module) {
-      module.isUsed = function(exportName) {
-        return exportName ? exportName : false;
-      };
+      // module.isUsed = function(exportName) {
+      //   return exportName ? exportName : false;
+      // };
       return module;
     });
   });
@@ -454,6 +514,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     // mkdirp.sync(cacheAssetDirPath);
 
+    function walkCompilations(compilation, fn) {
+      fn(compilation);
+      compilation.children.forEach(function(compilation) {
+        walkCompilations(compilation, fn);
+      });
+    }
+
     compilation.modules.forEach(function(module, cb) {
       if (module.request && module.cacheable && !(module instanceof HardModule) && (module instanceof NormalModule)) {
         var source = module.source(
@@ -478,6 +545,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           buildTimestamp: module.buildTimestamp,
           strict: module.strict,
           meta: module.meta,
+          used: module.used,
+          usedExports: module.usedExports,
 
           rawSource: module._source ? module._source.source() : null,
           source: source.source(),
