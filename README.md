@@ -17,7 +17,7 @@ module.exports = {
   output: // ...
   // Can be constructed with __dirname and path.join.
   recordsPath: '/absolute/path/to/records.json',
-  plugins: {
+  plugins: [
     new HardSourceWebpackPlugin({
       // Either an absolute path or relative to output.path.
       cacheDirectory: 'path/to/cache',
@@ -31,7 +31,7 @@ module.exports = {
         files: ['package.json', 'webpack.config.js'],
       },
     }),
-  },
+  ],
 };
 ```
 
