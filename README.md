@@ -63,6 +63,7 @@ This plugin is pretty young and we don't know what it has trouble with yet. Tryi
 
 # Change Log
 
+- `0.0.26` Invalidate modules based on webpack 2 tree shaking
 - `0.0.23` Fix to error in resolve invalidation
 - `0.0.19` Store separate non-devtool related base map for Uglify support
 - `0.0.18` Invalidate modules depending on a now invalid resolve value
