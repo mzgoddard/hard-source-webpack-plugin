@@ -63,6 +63,7 @@ This plugin is pretty young and we don't know what it has trouble with yet. Tryi
 
 # Change Log
 
+- `0.0.28` Help ensure cacheDirectory is used as users expect
 - `0.0.27` Use pre-emptive compile when supporting isUsed (webpack 2)
 - `0.0.26` Invalidate modules based on webpack 2 tree shaking
 - `0.0.23` Fix to error in resolve invalidation
