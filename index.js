@@ -267,44 +267,48 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }, function(err) {
         fileTs[file] = 0;
 
-        // Invalidate modules that depend on this userRequest.
-        var walkDependencyBlock = function(block, callback) {
-          block.dependencies.forEach(callback);
-          block.variables.forEach(function(variable) {
-            variable.dependencies.forEach(callback);
-          });
-          block.blocks.forEach(function(block) {
-            walkDependencyBlock(block, callback);
-          });
-        };
-        // Remove the out of date cache modules.
-        Object.keys(moduleCache).forEach(function(key) {
-          if (key === 'fileDependencies') {return;}
-          var module = moduleCache[key];
-          if (!module) {return;}
-          if (typeof module === 'string') {
-            module = JSON.parse(module);
-            moduleCache[key] = module;
-          }
-          var dependsOnRequest = false;
-          walkDependencyBlock(module, function(cacheDependency) {
-            var resolveId = JSON.stringify(
-              [module.context, cacheDependency.request]
-            );
-            var resolveItem = resolveCache[resolveId];
-            dependsOnRequest = dependsOnRequest ||
-              resolveItem && resolveItem.userRequest === file;
-          });
-          if (dependsOnRequest) {
-            module.invalid = true;
-            moduleCache[key] = null;
-          }
-        });
-
         if (err.code === "ENOENT") {return;}
         throw err;
       });
     }))
+    .then(function() {
+      // Invalidate modules that depend on a userRequest that is no longer
+      // valid.
+      var walkDependencyBlock = function(block, callback) {
+        block.dependencies.forEach(callback);
+        block.variables.forEach(function(variable) {
+          variable.dependencies.forEach(callback);
+        });
+        block.blocks.forEach(function(block) {
+          walkDependencyBlock(block, callback);
+        });
+      };
+      // Remove the out of date cache modules.
+      Object.keys(moduleCache).forEach(function(key) {
+        if (key === 'fileDependencies') {return;}
+        var module = moduleCache[key];
+        if (!module) {return;}
+        if (typeof module === 'string') {
+          module = JSON.parse(module);
+          moduleCache[key] = module;
+        }
+        var validDepends = true;
+        walkDependencyBlock(module, function(cacheDependency) {
+          var resolveId = JSON.stringify(
+            [module.context, cacheDependency.request]
+          );
+          var resolveItem = resolveCache[resolveId];
+          validDepends = validDepends &&
+            resolveItem &&
+            resolveItem.userRequest &&
+            fileTs[resolveItem.userRequest] !== 0;
+        });
+        if (!validDepends) {
+          module.invalid = true;
+          moduleCache[key] = null;
+        }
+      });
+    })
     .then(function() {
       if (!NormalModule.prototype.isUsed) {
         return Promise.resolve();
