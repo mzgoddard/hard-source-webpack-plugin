@@ -81,6 +81,7 @@ function serializeDependencies(deps) {
           harmonyImportSpecifier: true,
           harmonyId: dep.id,
           harmonyName: dep.name,
+          loc: dep.loc,
         };
       }
     }
@@ -94,10 +95,12 @@ function serializeDependencies(deps) {
     }
     return {
       contextDependency: dep instanceof ContextDependency,
+      contextCritical: dep.critical,
       constDependency: dep instanceof ConstDependency,
       request: dep.request,
       recursive: dep.recursive,
       regExp: dep.regExp ? dep.regExp.source : null,
+      loc: dep.loc,
     };
   })
   .filter(function(req) {
@@ -303,7 +306,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         var validDepends = true;
         walkDependencyBlock(cacheItem, function(cacheDependency) {
           if (
-            !cacheDependency || typeof cacheDependency.request === 'undefined'
+            !cacheDependency ||
+            cacheDependency.contextDependency ||
+            typeof cacheDependency.request === 'undefined'
           ) {
             return;
           }
