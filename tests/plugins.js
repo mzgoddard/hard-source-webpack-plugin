@@ -9,6 +9,7 @@ describe('plugin webpack use', function() {
   itCompilesTwice('plugin-extract-text-uglify');
   itCompilesTwice('plugin-extract-text-uglify-source-map');
   itCompilesTwice('plugin-extract-text-uglify-eval-source-map');
+  itCompilesTwice('plugin-extract-text-html-uglify');
   itCompilesTwice('plugin-isomorphic-tools');
 
 });
