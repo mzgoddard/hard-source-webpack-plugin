@@ -4,6 +4,8 @@ var itCompilesTwice = require('./util').itCompilesTwice;
 
 describe('plugin webpack use', function() {
 
+  itCompilesTwice('plugin-dll');
+  itCompilesTwice('plugin-dll-reference');
   itCompilesTwice('plugin-extract-text');
   itCompilesTwice('plugin-uglify-1dep');
   itCompilesTwice('plugin-extract-text-uglify');
