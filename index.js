@@ -286,16 +286,22 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       // Remove the out of date cache modules.
       Object.keys(moduleCache).forEach(function(key) {
         if (key === 'fileDependencies') {return;}
-        var module = moduleCache[key];
-        if (!module) {return;}
-        if (typeof module === 'string') {
-          module = JSON.parse(module);
-          moduleCache[key] = module;
+        var cacheItem = moduleCache[key];
+        if (!cacheItem) {return;}
+        if (typeof cacheItem === 'string') {
+          cacheItem = JSON.parse(cacheItem);
+          moduleCache[key] = cacheItem;
         }
         var validDepends = true;
-        walkDependencyBlock(module, function(cacheDependency) {
+        walkDependencyBlock(cacheItem, function(cacheDependency) {
+          if (
+            !cacheDependency || typeof cacheDependency.request === 'undefined'
+          ) {
+            return;
+          }
+
           var resolveId = JSON.stringify(
-            [module.context, cacheDependency.request]
+            [cacheItem.context, cacheDependency.request]
           );
           var resolveItem = resolveCache[resolveId];
           validDepends = validDepends &&
@@ -304,7 +310,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             fileTs[resolveItem.userRequest] !== 0;
         });
         if (!validDepends) {
-          module.invalid = true;
+          cacheItem.invalid = true;
           moduleCache[key] = null;
         }
       });
@@ -458,12 +464,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             var cacheItem = moduleCache[result.request];
             if (typeof cacheItem === 'string') {
               cacheItem = JSON.parse(cacheItem);
+              moduleCache[result.request] = cacheItem;
+            }
+            if (Array.isArray(cacheItem.assets)) {
               cacheItem.assets = (cacheItem.assets || [])
               .reduce(function(carry, key) {
                 carry[key] = assets[requestHash(key)];
                 return carry;
               }, {});
-              moduleCache[result.request] = cacheItem;
             }
             if (!HardModule.needRebuild(
               cacheItem.buildTimestamp,
