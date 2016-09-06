@@ -173,7 +173,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var resolveCache = {};
   var moduleCache = {};
-  var assets = {};
+  var assetCache = {};
+  var dataCache = {};
   var currentStamp = '';
 
   var fileTimestamps = {};
@@ -182,6 +183,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     new FileSerializer({cacheDirPath: path.join(cacheDirPath, 'assets')});
   var moduleCacheSerializer = this.moduleCacheSerializer =
     new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'modules')});
+  var dataCacheSerializer = this.dataCacheSerializer =
+    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'data')});
 
   compiler.plugin('after-plugins', function() {
     if (
@@ -223,7 +226,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         // Reset the cache, we can't use it do to an environment change.
         resolveCache = {};
         moduleCache = {};
-        assets = {};
+        assetCache = {};
+        dataCache = {};
         fileTimestamps = {};
         return;
       }
@@ -236,14 +240,19 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         .then(function(_resolveCache) {resolveCache = _resolveCache}),
 
         assetCacheSerializer.read()
-        .then(function(_assetCache) {assets = _assetCache;}),
+        .then(function(_assetCache) {assetCache = _assetCache;}),
 
         moduleCacheSerializer.read()
-        .then(function(_moduleCache) {moduleCache = _moduleCache;})
+        .then(function(_moduleCache) {moduleCache = _moduleCache;}),
+
+        dataCacheSerializer.read()
+        .then(function(_dataCache) {dataCache = _dataCache;})
         .then(function() {
-          if (typeof moduleCache.fileDependencies === 'string') {
-            moduleCache.fileDependencies = JSON.parse(moduleCache.fileDependencies);
-          }
+          Object.keys(dataCache).forEach(function(key) {
+            if (typeof dataCache[key] === 'string') {
+              dataCache[key] = JSON.parse(dataCache[key]);
+            }
+          });
         }),
       ])
       .then(function() {
@@ -256,11 +265,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
     if (!active) {return cb();}
 
-    if(!moduleCache.fileDependencies) return cb();
+    if(!dataCache.fileDependencies) return cb();
     // var fs = compiler.inputFileSystem;
     var fileTs = compiler.fileTimestamps = fileTimestamps = {};
 
-    return Promise.all(moduleCache.fileDependencies.map(function(file) {
+    return Promise.all(dataCache.fileDependencies.map(function(file) {
       return fsStat(file)
       .then(function(stat) {
         fileTs[file] = stat.mtime || Infinity;
@@ -285,7 +294,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       };
       // Remove the out of date cache modules.
       Object.keys(moduleCache).forEach(function(key) {
-        if (key === 'fileDependencies') {return;}
         var cacheItem = moduleCache[key];
         if (!cacheItem) {return;}
         if (typeof cacheItem === 'string') {
@@ -469,7 +477,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             if (Array.isArray(cacheItem.assets)) {
               cacheItem.assets = (cacheItem.assets || [])
               .reduce(function(carry, key) {
-                carry[key] = assets[requestHash(key)];
+                carry[key] = assetCache[requestHash(key)];
                 return carry;
               }, {});
             }
@@ -511,22 +519,23 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     //   'utf8'
     // );
 
-    var ops = [];
+    var moduleOps = [];
+    var dataOps = [];
     var assetOps = [];
 
-    var fileDependenciesDiff = lodash.difference(compilation.fileDependencies, moduleCache.fileDependencies || []);
+    var fileDependenciesDiff = lodash.difference(compilation.fileDependencies, dataCache.fileDependencies || []);
     if (fileDependenciesDiff.length) {
-      moduleCache.fileDependencies = (moduleCache.fileDependencies || [])
+      dataCache.fileDependencies = (dataCache.fileDependencies || [])
       .concat(fileDependenciesDiff);
 
-      ops.push({
+      dataOps.push({
         key: 'fileDependencies',
-        value: JSON.stringify(moduleCache.fileDependencies),
+        value: JSON.stringify(dataCache.fileDependencies),
       });
     }
 
     // moduleCache.fileDependencies = compilation.fileDependencies;
-    // ops.push({
+    // moduleOps.push({
     //   type: 'put',
     //   key: 'fileDependencies',
     //   // value: JSON.stringify(compilation.fileDependencies),
@@ -586,7 +595,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           contextDependencies: module.contextDependencies,
         };
 
-        ops.push({
+        moduleOps.push({
           key: module.request,
           value: JSON.stringify(moduleCache[module.request]),
         });
@@ -601,7 +610,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
       fsWriteFile(resolveCachePath, JSON.stringify(resolveCache), 'utf8'),
       assetCacheSerializer.write(assetOps),
-      moduleCacheSerializer.write(ops),
+      moduleCacheSerializer.write(moduleOps),
+      dataCacheSerializer.write(dataOps),
     ])
     .then(function() {
       // console.log('cache out', Date.now() - startCacheTime);
