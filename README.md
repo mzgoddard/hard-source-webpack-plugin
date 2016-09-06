@@ -63,6 +63,7 @@ This plugin is pretty young and we don't know what it has trouble with yet. Tryi
 
 # Change Log
 
+- `0.0.33` Add HardModule.libIdent to support DllPlugin
 - `0.0.32` Fix webpack 2 dependency warnings
 - `0.0.30` Fix asset thawing and unnecessary dependency invalidation
 - `0.0.28` Help ensure cacheDirectory is used as users expect
