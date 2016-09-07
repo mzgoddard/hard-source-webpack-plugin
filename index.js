@@ -71,6 +71,7 @@ function serializeDependencies(deps) {
       }
       if (dep instanceof HarmonyExportImportedSpecifierDependency) {
         return {
+          harmonyRequest: dep.importDependency.request,
           harmonyExportImportedSpecifier: true,
           harmonyId: dep.id,
           harmonyName: dep.name,
@@ -78,6 +79,7 @@ function serializeDependencies(deps) {
       }
       if (dep instanceof HarmonyImportSpecifierDependency) {
         return {
+          harmonyRequest: dep.importDependency.request,
           harmonyImportSpecifier: true,
           harmonyId: dep.id,
           harmonyName: dep.name,
