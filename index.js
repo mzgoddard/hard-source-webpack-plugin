@@ -323,7 +323,7 @@ HarmonyDependencyThawPlugin.prototype.apply = function(hardSource) {
 
   hardSource.plugin('thaw-dependency', function(carry, req, state) {
     if (req.harmonyExport) {
-      return new HardHarmonyExportDependency(parent, req.harmonyId, req.harmonyName, req.harmonyPrecedence);
+      return new HardHarmonyExportDependency(state.parent, req.harmonyId, req.harmonyName, req.harmonyPrecedence);
     }
     if (req.harmonyImport) {
       if (state.imports[req.request]) {
@@ -340,7 +340,7 @@ HarmonyDependencyThawPlugin.prototype.apply = function(hardSource) {
       if (!state.imports[req.harmonyRequest]) {
         state.imports[req.harmonyRequest] = new HardHarmonyImportDependency(req.harmonyRequest);
       }
-      return new HardHarmonyExportImportedSpecifierDependency(parent, state.imports[req.harmonyRequest], req.harmonyId, req.harmonyName);
+      return new HardHarmonyExportImportedSpecifierDependency(state.parent, state.imports[req.harmonyRequest], req.harmonyId, req.harmonyName);
     }
     return carry;
   });
@@ -435,7 +435,7 @@ FileTimestampPlugin.prototype.apply = function(hardSource) {
   var _this = hardSource.__fileTimestampPlugin = this;
 
   hardSource.plugin('reset', function() {
-    _this.fileDependencies = {};
+    _this.fileTimestamps = {};
   });
 
   hardSource.plugin('compiler', function(compiler) {
@@ -443,6 +443,10 @@ FileTimestampPlugin.prototype.apply = function(hardSource) {
       compilation.fileTimestamps = _this.fileTimestamps;
     });
   });
+
+  // hardSource.plugin('thaw-compilation-data', function(dataCache) {
+  //   _this.fileTimestamps = dataCache.fileTimestamps
+  // });
 
   hardSource.plugin('before-dependency-bust', function(cb) {
     var dataCache = this.getDataCache();
@@ -482,17 +486,27 @@ FileTimestampPlugin.prototype.apply = function(hardSource) {
 
 function ResolveCachePlugin() {}
 
+ResolveCachePlugin.getCache = function(hardSource) {
+  return hardSource.__resolveCachePlugin.resolveCache;
+};
+
 ResolveCachePlugin.prototype.apply = function(hardSource) {
+  if (hardSource.__resolveCachePlugin) {return;}
+
+  hardSource.__resolveCachePlugin = this;
+
   new FileTimestampPlugin().apply(hardSource);
 
-  var resolveCache = {};
+  var resolveCache = this.resolveCache = {};
+
+  var _this = this;
 
   hardSource.plugin('reset', function() {
-    resolveCache = {};
+    resolveCache = _this.resolveCache = {};
   });
 
   hardSource.plugin('thaw-compilation-data', function(dataCache) {
-    resolveCache = dataCache.resolve;
+    resolveCache = _this.resolveCache = dataCache.resolve;
   });
 
   hardSource.plugin('freeze-compilation-data', function(dataOut) {
@@ -594,7 +608,7 @@ BustModuleByDependencyPlugin.prototype.apply = function(hardSource) {
       var validDepends = true;
       walkDependencyBlock(cacheItem, function(cacheDependency) {
         validDepends = validDepends &&
-        hardSource.applyPluginsBailResult1('check-dependency', cacheDependency, cacheItem);
+        hardSource.applyPluginsBailResult('check-dependency', cacheDependency, cacheItem) !== false;
       });
       if (!validDepends) {
         cacheItem.invalid = true;
@@ -609,17 +623,22 @@ function CheckDependencyCanResolvePlugin() {
 
 CheckDependencyCanResolvePlugin.prototype.apply = function(hardSource) {
   new FileTimestampPlugin().apply(hardSource);
+  new ResolveCachePlugin().apply(hardSource);
 
-  var fileTs;
+  var fileTs, resolveCache;
 
   hardSource.plugin('before-dependency-bust', function(cb) {
     fileTs = null;
+    resolveCache = null;
     cb();
   });
 
   hardSource.plugin('check-dependency', function(cacheDependency, cacheItem) {
     if (!fileTs) {
       fileTs = FileTimestampPlugin.getStamps(hardSource);
+    }
+    if (!resolveCache || Object.keys(resolveCache).length === 0) {
+      resolveCache = ResolveCachePlugin.getCache(hardSource);
     }
 
     if (
@@ -653,6 +672,12 @@ PreemptCompilerPlugin.prototype.apply = function(hardSource) {
   if (hardSource.__preemptCompilerPlugin) {return;}
 
   var _this = hardSource.__preemptCompilerPlugin = this;
+
+  // hardSource.plugin('compiler', function(compiler) {
+  //   compiler.plugin('need-additional-pass', function() {
+  //
+  //   });
+  // });
 
   hardSource.plugin('before-module-bust', function(cb) {
     var compiler = this.compiler;
@@ -709,7 +734,7 @@ BustModulePlugin.prototype.apply = function(hardSource) {
       if (cacheItem) {
         if (hardSource.applyPluginsBailResult1('check-module', cacheItem) === false) {
           cacheItem.invalid = true;
-          moduleCache[module.request] = null;
+          moduleCache[cacheItem.identifier] = null;
         }
       }
     });
@@ -722,7 +747,7 @@ function CheckModuleUsedFlagPlugin() {
 CheckModuleUsedFlagPlugin.prototype.apply = function(hardSource) {
   if (!NormalModule.prototype.isUsed) {return;}
 
-  new PreemptCompilerPlugin().apply(hardSource);
+  // new PreemptCompilerPlugin().apply(hardSource);
 
   var _modules;
   function modules() {
@@ -740,24 +765,72 @@ CheckModuleUsedFlagPlugin.prototype.apply = function(hardSource) {
     return _modules;
   }
 
-  hardSource.plugin('before-module-bust', function(cb) {
-    _modules = {};
-    cb();
+  var needRebuild = false;
+
+  hardSource.plugin('compiler', function(compiler) {
+    compiler.plugin('compilation', function(compilation) {
+      var _modules;
+      function modules() {
+        if (_modules) {return _modules;}
+
+        _modules = {};
+        compilation.modules.forEach(function(module) {
+          if (!(module instanceof HardModule)) {
+            return;
+          }
+
+          _modules[module.identifier()] = module;
+        });
+        return _modules;
+      }
+
+      var needAdditionalPass;
+
+      compilation.plugin('after-seal', function(cb) {
+        var moduleCache = hardSource.getModuleCache();
+        needAdditionalPass = compilation.modules.reduce(function(carry, module) {
+          var cacheItem = moduleCache[module.identifier()];
+          // var module = modules()[cacheItem.identifier];
+          if (cacheItem && (
+            !lodash.isEqual(cacheItem.used, module.used) ||
+            !lodash.isEqual(cacheItem.usedExports, module.usedExports)
+          )) {
+            cacheItem.invalid = true;
+            moduleCache[module.identifier()] = null;
+            return true;
+          }
+          return carry;
+        }, false);
+        cb();
+      });
+
+      compilation.plugin('need-additional-pass', function() {
+        if (needAdditionalPass) {
+          needAdditionalPass = false;
+          return true;
+        }
+      });
+    });
   });
 
-  hardSource.plugin('check-module', function(cacheItem) {
-    var module = modules()[cacheItem.identifier];
-    if (!module) {return;}
-    // Check with the module in the sub-compiler and invalidate if cached one
-    // used and usedExports do not match their new values due to a dependent
-    // module changing what it uses.
-    if (
-      !lodash.isEqual(cacheItem.used, module.used) ||
-      !lodash.isEqual(cacheItem.usedExports, module.usedExports)
-    ) {
-      return false;
-    }
-  });
+  // hardSource.plugin('before-module-bust', function(cb) {
+  //   _modules = {};
+  //   cb();
+  // });
+  //
+  // hardSource.plugin('check-module', function(out, module) {
+  //   var module = modules()[cacheItem.identifier];
+  //   if (!module) {return;}
+  //   // Check with the module in the sub-compiler and invalidate if cached one
+  //   // used and usedExports do not match their new values due to a dependent
+  //   // module changing what it uses.
+  //   if (
+  //     !lodash.isEqual(cacheItem.used, module.used) ||
+  //     !lodash.isEqual(cacheItem.usedExports, module.usedExports)
+  //   ) {
+  //     return false;
+  //   }
+  // });
 };
 
 function HardSourceWebpackPlugin(options) {
@@ -769,6 +842,7 @@ function HardSourceWebpackPlugin(options) {
   new HarmonyDependencySerializePlugin().apply(this);
   new HarmonyDependencyThawPlugin().apply(this);
 
+  new FileTimestampPlugin().apply(this);
   new ResolveCachePlugin().apply(this);
   new BustModuleByDependencyPlugin().apply(this);
   new CheckDependencyCanResolvePlugin().apply(this);
@@ -946,9 +1020,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         // Reset the cache, we can't use it do to an environment change.
         _this.applyPlugins('reset');
-        moduleCache = this.moduleCache = {};
-        assetCache = this.assetCache = {};
-        dataCache = this.dataCache = {};
+        moduleCache = _this.moduleCache = {};
+        assetCache = _this.assetCache = {};
+        dataCache = _this.dataCache = {};
         return;
       }
 
@@ -956,13 +1030,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
       return Promise.all([
         assetCacheSerializer.read()
-        .then(function(_assetCache) {assetCache = _assetCache;}),
+        .then(function(_assetCache) {assetCache = _this.assetCache = _assetCache;}),
 
         moduleCacheSerializer.read()
-        .then(function(_moduleCache) {moduleCache = _moduleCache;}),
+        .then(function(_moduleCache) {moduleCache = _this.moduleCache = _moduleCache;}),
 
         dataCacheSerializer.read()
-        .then(function(_dataCache) {dataCache = _dataCache;})
+        .then(function(_dataCache) {dataCache = _this.dataCache = _dataCache;})
         .then(function() {
           Object.keys(dataCache).forEach(function(key) {
             if (typeof dataCache[key] === 'string') {
@@ -997,6 +1071,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     if (!active) {return;}
 
     compilation.__hardSource = _this;
+
+    fileTimestamps = FileTimestampPlugin.getStamps(_this);
 
     compilation.dependencyFactories.set(HardModuleDependency, params.normalModuleFactory);
     compilation.dependencyTemplates.set(HardModuleDependency, new NullDependencyTemplate);
