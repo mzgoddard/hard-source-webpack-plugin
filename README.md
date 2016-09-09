@@ -63,6 +63,7 @@ This plugin is pretty young and we don't know what it has trouble with yet. Tryi
 
 # Change Log
 
+- `0.0.35` Use additional pass in compilation instead of pre-emptive pass. Fixes use with HMR
 - `0.0.34` Correctly thaw harmony specifier dependencies
 - `0.0.33` Add HardModule.libIdent to support DllPlugin
 - `0.0.32` Fix webpack 2 dependency warnings
