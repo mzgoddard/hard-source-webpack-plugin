@@ -146,20 +146,22 @@ exports.readFiles = function(outputPath) {
   }, {});
 };
 
-exports.itCompilesChange = function(fixturePath, filesA, filesB, expectHandle) {
+exports.itCompiles = function(name, fixturePath, fnA, fnB, expectHandle) {
   before(function() {
     return exports.clean(fixturePath);
   });
 
-  it('builds changes in ' + fixturePath + ' fixture', function() {
+  it(name, function() {
     this.timeout(20000);
     this.slow(4000);
     var run1;
+    var setup1, setup2;
     return Promise.resolve()
     .then(function() {
-      return exports.writeFiles(fixturePath, filesA);
+      return fnA();
     })
-    .then(function() {
+    .then(function(_setup1) {
+      setup1 = _setup1;
       run1 = exports.compile(fixturePath);
       return run1;
     })
@@ -168,9 +170,10 @@ exports.itCompilesChange = function(fixturePath, filesA, filesB, expectHandle) {
       return new Promise(function(resolve) {setTimeout(resolve, 1000);});
     })
     .then(function() {
-      return exports.writeFiles(fixturePath, filesB);
+      return fnB();
     })
-    .then(function() {
+    .then(function(_setup2) {
+      setup2 = _setup2;
       var run2 = exports.compile(fixturePath);
       return Promise.all([run1, run2]);
     })
@@ -178,8 +181,21 @@ exports.itCompilesChange = function(fixturePath, filesA, filesB, expectHandle) {
       expectHandle({
         run1: runs[0],
         run2: runs[1],
+        setup1: setup1,
+        setup2: setup2,
       });
     });
+  });
+};
+
+exports.itCompilesChange = function(fixturePath, filesA, filesB, expectHandle) {
+  exports.itCompiles('builds changes in ' + fixturePath + ' fixture', fixturePath, function() {
+    return exports.writeFiles(fixturePath, filesA);
+  }, function() {
+    return exports.writeFiles(fixturePath, filesB);
+  }, expectHandle);
+  before(function() {
+    return exports.clean(fixturePath);
   });
 };
 
