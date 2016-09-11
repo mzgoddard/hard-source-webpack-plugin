@@ -517,7 +517,18 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     }
 
     compilation.modules.forEach(function(module, cb) {
-      if (module.request && module.cacheable && !(module instanceof HardModule) && (module instanceof NormalModule)) {
+      var existingCacheItem = moduleCache[module.identifier()];
+      if (
+        module.request &&
+        module.cacheable &&
+        !(module instanceof HardModule) &&
+        (module instanceof NormalModule) &&
+        (
+          existingCacheItem &&
+          module.buildTimestamp > existingCacheItem.buildTimestamp ||
+          !existingCacheItem
+        )
+      ) {
         var source = module.source(
           compilation.dependencyTemplates,
           compilation.moduleTemplate.outputOptions, 
