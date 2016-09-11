@@ -538,8 +538,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           resource: module.resource,
           loaders: module.loaders,
           identifier: module.identifier(),
-          readableIdentifier: module
-          .readableIdentifier(compilation.moduleTemplate.requestShortener),
           // libIdent: module.libIdent &&
           // module.libIdent({context: compiler.options.context}),
           assets: Object.keys(module.assets || {}),
