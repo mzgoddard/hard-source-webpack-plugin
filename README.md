@@ -92,6 +92,8 @@ Here are the options as documented in `env-hash`.
 > - `files` is an array of relative or absolute file paths. Defaults to `['package.json']`
 > - `directories` is an array of relative or absolute directory paths. Defaults to `['node_modules']`
 
+If you have many config files, placing them in a directory and include it as one of the paths to the `directories` option. Or you can use a package like `glob` as part of the array to the `files` option.
+
 ## Please contribute!
 
 This plugin is pretty young and we don't know what it has trouble with yet. Trying the plugin in a project and its creating errors or doesn't notice changes to original source, let us know your loaders and plugins or other build process details in an issue. Have a fix for something you've encountered, send us a fix.
