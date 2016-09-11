@@ -160,19 +160,71 @@ function HardSourceWebpackPlugin(options) {
   this.options = options;
 }
 
+HardSourceWebpackPlugin.prototype.getPath = function(dirName, suffix) {
+  var confighashIndex = dirName.search(/\[confighash\]/);
+  if (confighashIndex !== -1) {
+    dirName = dirName.replace(/\[confighash\]/, this.configHash);
+  }
+  var cachePath = path.resolve(
+    process.cwd(), this.compilerOutputOptions.path, dirName
+  );
+  if (suffix) {
+    cachePath = path.join(cachePath, suffix);
+  }
+  return cachePath;
+};
+
+HardSourceWebpackPlugin.prototype.getCachePath = function(suffix) {
+  return this.getPath(this.options.cacheDirectory, suffix);
+};
+
 module.exports = HardSourceWebpackPlugin;
 HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var options = this.options;
   var active = true;
-  var cacheDirName = options.cacheDirectory;
-  if (!cacheDirName) {
+  if (!options.cacheDirectory) {
     console.error('HardSourceWebpackPlugin requires a cacheDirectory setting.');
     active = false;
     return;
   }
-  var cacheDirPath = path.resolve(
-    process.cwd(), compiler.options.output.path, cacheDirName
-  );
+
+  this.compilerOutputOptions = compiler.options.output;
+  if (options.configHash) {
+    if (typeof options.configHash === 'string') {
+      this.configHash = options.configHash;
+    }
+    else if (typeof options.configHash === 'function') {
+      this.configHash = options.configHash(compiler.options);
+    }
+  }
+  var configHashInDirectory =
+    options.cacheDirectory.search(/\[confighash\]/) !== -1;
+  if (configHashInDirectory && !this.configHash) {
+    console.error('HardSourceWebpackPlugin cannot use [confighash] in cacheDirectory without configHash option being set and returning a non-falsy value.');
+    active = false;
+    return;
+  }
+
+  if (options.recordsInputPath || options.recordsPath) {
+    if (compiler.options.recordsInputPath || compiler.options.recordsPath) {
+      console.error('HardSourceWebpackPlugin will not set recordsInputPath when it is already set. Using current value:', compiler.options.recordsInputPath || compiler.options.recordsPath);
+    }
+    else {
+      compiler.options.recordsInputPath =
+        this.getPath(options.recordsInputPath || options.recordsPath);
+    }
+  }
+  if (options.recordsOutputPath || options.recordsPath) {
+    if (compiler.options.recordsOutputPath || compiler.options.recordsPath) {
+      console.error('HardSourceWebpackPlugin will not set recordsOutputPath when it is already set. Using current value:', compiler.options.recordsOutputPath || compiler.options.recordsPath);
+    }
+    else {
+      compiler.options.recordsOutputPath =
+        this.getPath(options.recordsOutputPath || options.recordsPath);
+    }
+  }
+
+  var cacheDirPath = this.getCachePath();
   var cacheAssetDirPath = path.join(cacheDirPath, 'assets');
   var resolveCachePath = path.join(cacheDirPath, 'resolve.json');
 
@@ -191,10 +243,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var dataCacheSerializer = this.dataCacheSerializer =
     new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'data')});
 
+  var _this = this;
+
   compiler.plugin('after-plugins', function() {
     if (
-      !compiler.recordsInputPath ||
-      compiler.recordsInputPath !== compiler.recordsOutputPath
+      !compiler.recordsInputPath || !compiler.recordsOutputPath
     ) {
       console.error('HardSourceWebpackPlugin requires recordsPath to be set.');
       active = false;
@@ -204,7 +257,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
     if (!active) {return cb();}
 
-    mkdirp.sync(cacheAssetDirPath);
+    try {
+      fs.statSync(cacheAssetDirPath);
+    }
+    catch (_) {
+      mkdirp.sync(cacheAssetDirPath);
+      if (configHashInDirectory) {
+        console.log('HardSourceWebpackPlugin is writing to a new confighash path for the first time:', cacheDirPath);
+      }
+    }
     var start = Date.now();
 
     Promise.all([
@@ -221,6 +282,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     .then(function(stamps) {
       var stamp = stamps[0];
       var hash = stamps[1];
+
+      if (!configHashInDirectory && options.configHash) {
+        hash += '_' + _this.configHash;
+      }
 
       currentStamp = hash;
       if (!hash || hash !== stamp) {

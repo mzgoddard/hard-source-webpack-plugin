@@ -1,5 +1,6 @@
 var fs = require('fs');
 var path = require('path');
+var vm = require('vm');
 
 var expect = require('chai').expect;
 var MemoryFS = require('memory-fs');
@@ -8,9 +9,26 @@ var Promise = require('bluebird');
 var rimraf = require('rimraf');
 var webpack = require('webpack');
 
+function wrapModule(code) {
+  return '(function(exports, require, module, __filename, __dirname) {' +
+    code +
+  '})';
+}
+
+function callModule(fn, filename) {
+  var module = {exports: {}};
+  fn(module.exports, Object.assign(function(modulename) {
+    if (/\W/.test(modulename[0])) {
+      return require(path.join(path.dirname(filename), modulename));
+    }
+    return require(modulename);
+  }, require), module, filename, path.dirname(filename));
+  return module.exports;
+}
+
 exports.compile = function(fixturePath) {
-  var configPath = path.join(__dirname, '..', 'fixtures', fixturePath, 'webpack.config');
-  var compiler = webpack(require(configPath));
+  var configPath = path.join(__dirname, '..', 'fixtures', fixturePath, 'webpack.config.js');
+  var compiler = webpack(callModule(vm.runInThisContext(wrapModule(fs.readFileSync(configPath, 'utf8')), {filename: configPath}), configPath));
   var outputfs = compiler.outputFileSystem = new MemoryFS();
   var readdir = Promise.promisify(outputfs.readdir, {context: outputfs});
   var readFile = Promise.promisify(outputfs.readFile, {context: outputfs});
