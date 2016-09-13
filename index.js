@@ -138,66 +138,6 @@ function cachePrefix(compilation) {
   return compilation[cachePrefixNS];
 }
 
-function flattenPrototype(obj) {
-  var copy = {};
-  for (var key in obj) {
-    copy[key] = obj[key];
-  }
-  return copy;
-}
-
-function serializeError(error) {
-  var serialized = {
-    message: error.message,
-  };
-  if (error.origin) {
-    serialized.origin = serializeDependencies([error.origin])[0];
-  }
-  if (error.dependencies) {
-    serialized.dependencies = serializeDependencies(error.dependencies);
-  }
-  return serialized;
-}
-function serializeDependencies(deps) {
-  return deps
-  .map(function(dep) {
-    return this.applyPluginsWaterfall('freeze-dependency', null, dep);
-  }, this)
-  .filter(Boolean);
-  // .filter(function(req) {
-  //   return req.request || req.constDependency || req.harmonyExport || req.harmonyImportSpecifier || req.harmonyExportImportedSpecifier;
-  // });
-}
-function serializeVariables(vars) {
-  return vars.map(function(variable) {
-    return {
-      name: variable.name,
-      expression: variable.expression,
-      dependencies: serializeDependencies.call(this, variable.dependencies),
-    }
-  }, this);
-}
-function serializeBlocks(blocks) {
-  return blocks.map(function(block) {
-    return {
-      async: block instanceof AsyncDependenciesBlock,
-      name: block.chunkName,
-      dependencies: serializeDependencies.call(this, block.dependencies),
-      variables: serializeVariables.call(this, block.variables),
-      blocks: serializeBlocks.call(this, block.blocks),
-    };
-  }, this);
-}
-function serializeHashContent(module) {
-  var content = [];
-  module.updateHash({
-    update: function(str) {
-      content.push(str);
-    },
-  });
-  return content.join('');
-}
-
 // function AssetCache() {
 //
 // }
@@ -215,10 +155,39 @@ function serializeHashContent(module) {
 //
 // };
 
-function DependencySerializePlugin() {
+function flattenPrototype(obj) {
+  var copy = {};
+  for (var key in obj) {
+    copy[key] = obj[key];
+  }
+  return copy;
 }
 
-DependencySerializePlugin.prototype.apply = function(hardSource) {
+function CommonDependencyPlugin() {
+}
+
+CommonDependencyPlugin.prototype.apply = function(hardSource) {
+  new CommonDependencyFreezePlugin().apply(hardSource);
+  new CommonDependencyThawPlugin().apply(hardSource);
+
+  hardSource.plugin('compiler', function(compiler) {
+    compiler.plugin('compilation', function(compilation, params) {
+      compilation.dependencyFactories.set(HardModuleDependency, params.normalModuleFactory);
+      compilation.dependencyTemplates.set(HardModuleDependency, new NullDependencyTemplate);
+
+      compilation.dependencyFactories.set(HardContextDependency, params.contextModuleFactory);
+      compilation.dependencyTemplates.set(HardContextDependency, new NullDependencyTemplate);
+
+      compilation.dependencyFactories.set(HardNullDependency, new NullFactory());
+      compilation.dependencyTemplates.set(HardNullDependency, new NullDependencyTemplate);
+    });
+  });
+};
+
+function CommonDependencyFreezePlugin() {
+}
+
+CommonDependencyFreezePlugin.prototype.apply = function(hardSource) {
   hardSource.plugin('freeze-dependency', function(carry, dep) {
     if (dep instanceof ContextDependency) {
       return {
@@ -248,10 +217,10 @@ DependencySerializePlugin.prototype.apply = function(hardSource) {
   });
 };
 
-function DependencyThawPlugin() {
+function CommonDependencyThawPlugin() {
 }
 
-DependencyThawPlugin.prototype.apply = function(hardSource) {
+CommonDependencyThawPlugin.prototype.apply = function(hardSource) {
   hardSource.plugin('thaw-dependency', function(carry, req) {
     if (req.contextDependency) {
       var dep = new HardContextDependency(req.request, req.recursive, req.regExp ? new RegExp(req.regExp) : null);
@@ -269,10 +238,33 @@ DependencyThawPlugin.prototype.apply = function(hardSource) {
   });
 };
 
-function HarmonyDependencySerializePlugin() {
+function HarmonyDependencyPlugin() {}
+
+HarmonyDependencyPlugin.prototype.apply = function(hardSource) {
+  new HarmonyDependencyFreezePlugin().apply(hardSource);
+  new HarmonyDependencyThawPlugin().apply(hardSource);
+
+  hardSource.plugin('compiler', function(compiler) {
+    compiler.plugin('compilation', function(compilation, params) {
+      compilation.dependencyFactories.set(HardHarmonyExportDependency, new NullFactory());
+      compilation.dependencyTemplates.set(HardHarmonyExportDependency, new NullDependencyTemplate);
+
+      compilation.dependencyFactories.set(HardHarmonyImportDependency, params.normalModuleFactory);
+      compilation.dependencyTemplates.set(HardHarmonyImportDependency, new NullDependencyTemplate);
+
+      compilation.dependencyFactories.set(HardHarmonyImportSpecifierDependency, new NullFactory());
+      compilation.dependencyTemplates.set(HardHarmonyImportSpecifierDependency, new NullDependencyTemplate);
+
+      compilation.dependencyFactories.set(HardHarmonyExportImportedSpecifierDependency, new NullFactory());
+      compilation.dependencyTemplates.set(HardHarmonyExportImportedSpecifierDependency, new NullDependencyTemplate);
+    });
+  });
+};
+
+function HarmonyDependencyFreezePlugin() {
 }
 
-HarmonyDependencySerializePlugin.prototype.apply = function(hardSource) {
+HarmonyDependencyFreezePlugin.prototype.apply = function(hardSource) {
   if (typeof HarmonyImportDependency === 'undefined') {
     return;
   }
@@ -346,115 +338,307 @@ HarmonyDependencyThawPlugin.prototype.apply = function(hardSource) {
   });
 };
 
-function ModuleSerializePlugin() {
+function NormalModuleFreezePlugin() {
 }
 
-ModuleSerializePlugin.prototype.apply = function(hardSource) {
-  hardSource.plugin('freeze-module', function(carry, module, compilation) {
-    var devtoolOptions = this.devtoolOptions;
-
-    var identifierPrefix = cachePrefix(compilation);
-    if (identifierPrefix === null) {
-      return;
+NormalModuleFreezePlugin.prototype.apply = function(hardSource) {
+  function serializeError(error) {
+    var serialized = {
+      message: error.message,
+    };
+    if (error.origin) {
+      serialized.origin = serializeDependencies([error.origin])[0];
     }
-    var identifier = identifierPrefix + module.identifier();
-
-    var existingCacheItem = this.getModuleCache()[identifier];
-
-    if (
-      module.request &&
-      module.cacheable &&
-      !(module instanceof HardModule) &&
-      (module instanceof NormalModule) &&
-      (
-        existingCacheItem &&
-        module.buildTimestamp > existingCacheItem.buildTimestamp ||
-        !existingCacheItem
-      )
-    ) {
-      var source = module.source(
-        compilation.dependencyTemplates,
-        compilation.moduleTemplate.outputOptions, 
-        compilation.moduleTemplate.requestShortener
-      );
+    if (error.dependencies) {
+      serialized.dependencies = serializeDependencies(error.dependencies);
+    }
+    return serialized;
+  }
+  function serializeDependencies(deps) {
+    return deps
+    .map(function(dep) {
+      return hardSource.applyPluginsWaterfall('freeze-dependency', null, dep);
+    })
+    .filter(Boolean);
+    // .filter(function(req) {
+    //   return req.request || req.constDependency || req.harmonyExport || req.harmonyImportSpecifier || req.harmonyExportImportedSpecifier;
+    // });
+  }
+  function serializeVariables(vars) {
+    return vars.map(function(variable) {
       return {
-        moduleId: module.id,
-        context: module.context,
-        request: module.request,
-        userRequest: module.userRequest,
-        rawRequest: module.rawRequest,
-        resource: module.resource,
-        loaders: module.loaders,
-        identifier: module.identifier(),
-        // libIdent: module.libIdent &&
-        // module.libIdent({context: compiler.options.context}),
-        assets: Object.keys(module.assets || {}),
-        buildTimestamp: module.buildTimestamp,
-        strict: module.strict,
-        meta: module.meta,
-        used: module.used,
-        usedExports: module.usedExports,
-
-        rawSource: module._source ? module._source.source() : null,
-        source: source.source(),
-        map: devtoolOptions && source.map(devtoolOptions),
-        // Some plugins (e.g. UglifyJs) set useSourceMap on a module. If that
-        // option is set we should always store some source map info and
-        // separating it from the normal devtool options may be necessary.
-        baseMap: module.useSourceMap && source.map(),
-        hashContent: serializeHashContent(module),
-
-        dependencies: serializeDependencies.call(this, module.dependencies),
-        variables: serializeVariables.call(this, module.variables),
-        blocks: serializeBlocks.call(this, module.blocks),
-
-        fileDependencies: module.fileDependencies,
-        contextDependencies: module.contextDependencies,
-
-        errors: module.errors.map(serializeError),
-        warnings: module.warnings.map(serializeError),
+        name: variable.name,
+        expression: variable.expression,
+        dependencies: serializeDependencies.call(hardSource, variable.dependencies),
+      }
+    });
+  }
+  function serializeBlocks(blocks) {
+    return blocks.map(function(block) {
+      return {
+        async: block instanceof AsyncDependenciesBlock,
+        name: block.chunkName,
+        dependencies: serializeDependencies.call(hardSource, block.dependencies),
+        variables: serializeVariables.call(hardSource, block.variables),
+        blocks: serializeBlocks.call(hardSource, block.blocks),
       };
-    }
-    return carry;
+    });
+  }
+  function serializeHashContent(module) {
+    var content = [];
+    module.updateHash({
+      update: function(str) {
+        content.push(str);
+      },
+    });
+    return content.join('');
+  }
+
+  hardSource.plugin('freeze-module-data', function(moduleOut, compilation) {
+    compilation.modules.forEach(function(module, cb) {
+      var devtoolOptions = hardSource.getDevtoolOptions();
+
+      var identifierPrefix = cachePrefix(compilation);
+      if (identifierPrefix === null) {
+        return;
+      }
+      var identifier = identifierPrefix + module.identifier();
+
+      var existingCacheItem = hardSource.getModuleCache()[identifier];
+
+      if (
+        module.request &&
+        module.cacheable &&
+        !(module instanceof HardModule) &&
+        (module instanceof NormalModule) &&
+        (
+          existingCacheItem &&
+          module.buildTimestamp > existingCacheItem.buildTimestamp ||
+          !existingCacheItem
+        )
+      ) {
+        var source = module.source(
+          compilation.dependencyTemplates,
+          compilation.moduleTemplate.outputOptions, 
+          compilation.moduleTemplate.requestShortener
+        );
+        moduleOut[identifier] = {
+          moduleId: module.id,
+          context: module.context,
+          request: module.request,
+          userRequest: module.userRequest,
+          rawRequest: module.rawRequest,
+          resource: module.resource,
+          loaders: module.loaders,
+          identifier: module.identifier(),
+          // libIdent: module.libIdent &&
+          // module.libIdent({context: compiler.options.context}),
+          assets: Object.keys(module.assets || {}),
+          buildTimestamp: module.buildTimestamp,
+          strict: module.strict,
+          meta: module.meta,
+          used: module.used,
+          usedExports: module.usedExports,
+
+          rawSource: module._source ? module._source.source() : null,
+          source: source.source(),
+          map: devtoolOptions && source.map(devtoolOptions),
+          // Some plugins (e.g. UglifyJs) set useSourceMap on a module. If that
+          // option is set we should always store some source map info and
+          // separating it from the normal devtool options may be necessary.
+          baseMap: module.useSourceMap && source.map(),
+          hashContent: serializeHashContent(module),
+
+          dependencies: serializeDependencies(module.dependencies),
+          variables: serializeVariables(module.variables),
+          blocks: serializeBlocks(module.blocks),
+
+          fileDependencies: module.fileDependencies,
+          contextDependencies: module.contextDependencies,
+
+          errors: module.errors.map(serializeError),
+          warnings: module.warnings.map(serializeError),
+        };
+
+        // Custom plugin handling for common plugins.
+        // This will be moved in a pluginified HardSourcePlugin.
+        //
+        // Ignore the modules that kick off child compilers in extract text.
+        // These modules must always be built so the child compilers run so
+        // that assets get built.
+        if (module[extractTextNS] || module.meta[extractTextNS]) {
+          moduleOut[identifier] = null;
+          return;
+        }
+      }
+    });
   });
 
-  hardSource.plugin('freeze-asset', function(carry, asset, module) {
-    return asset.source();
+  hardSource.plugin('freeze-asset-data', function(assetOut, compilation) {
+    compilation.modules.forEach(function(module, cb) {
+      var identifierPrefix = cachePrefix(compilation);
+      if (identifierPrefix === null) {
+        return;
+      }
+      var identifier = identifierPrefix + module.identifier();
+
+      var existingCacheItem = hardSource.getModuleCache()[identifier];
+
+      if (
+        module.request &&
+        module.cacheable &&
+        !(module instanceof HardModule) &&
+        (module instanceof NormalModule) &&
+        (
+          existingCacheItem &&
+          module.buildTimestamp > existingCacheItem.buildTimestamp ||
+          !existingCacheItem
+        )
+      ) {
+        if (module.assets) {
+          Object.keys(module.assets).forEach(function(key) {
+            var asset = module.assets[key];
+            var frozen = asset.source();
+            var frozenKey = requestHash(key);
+
+            assetOut[frozenKey] = frozen;
+          });
+        }
+      }
+    });
+  });
+};
+
+function NormalModuleThawPlugin() {}
+
+NormalModuleThawPlugin.prototype.apply = function(hardSource) {
+  new FileTimestampPlugin().apply(hardSource);
+
+  hardSource.plugin('compiler', function(compiler) {
+    compiler.plugin('compilation', function(compliation, params) {
+      var fileTimestamps = FileTimestampPlugin.getStamps(hardSource);
+      var assetCache = hardSource.getAssetCache();
+      var moduleCache = hardSource.getModuleCache();
+
+      params.normalModuleFactory.plugin('resolver', function(fn) {
+        return function(request, cb) {
+          fn.call(null, request, function(err, result) {
+            var identifierPrefix = cachePrefix(compilation);
+            if (identifierPrefix === null) {
+              return cb(err, result);
+            }
+            var identifier = identifierPrefix + result.request;
+
+            if (err) {return cb(err);}
+            else if (moduleCache[identifier]) {
+              var cacheItem = moduleCache[identifier];
+              if (typeof cacheItem === 'string') {
+                cacheItem = JSON.parse(cacheItem);
+                moduleCache[identifier] = cacheItem;
+              }
+              if (Array.isArray(cacheItem.assets)) {
+                cacheItem.assets = (cacheItem.assets || [])
+                .reduce(function(carry, key) {
+                  carry[key] = assetCache[requestHash(key)];
+                  return carry;
+                }, {});
+              }
+              if (!HardModule.needRebuild(
+                cacheItem.buildTimestamp,
+                cacheItem.fileDependencies,
+                cacheItem.contextDependencies,
+                // [],
+                fileTimestamps,
+                compiler.contextTimestamps
+              )) {
+                var module = new HardModule(cacheItem);
+                return cb(null, module);
+              }
+            }
+            return cb(null, result);
+          });
+        };
+      });
+    });
+  });
+};
+
+function FileDependenciesPlugin() {}
+
+var FileDependenciesPluginNamespace = '__fileDependenciesPlugin_' + Date.now();
+
+FileDependenciesPlugin.getDependencies = function(hardSource) {
+  return hardSource[FileDependenciesPluginNamespace].dependencies || [];
+};
+
+FileDependenciesPlugin.prototype.apply = function(hardSource) {
+  if (hardSource[FileDependenciesPluginNamespace]) {return;}
+
+  var _this = hardSource[FileDependenciesPluginNamespace] = this;
+
+  _this.dependencies = [];
+
+  hardSource.plugin('reset', function() {
+    _this.dependencies = [];
+  });
+
+  hardSource.plugin('thaw-compilation-data', function(dataCache) {
+    _this.dependencies = dataCache.fileDependencies;
+  });
+
+  hardSource.plugin('freeze-compilation-data', function(out, compilation) {
+    var fileDependenciesDiff = lodash.difference(
+      compilation.fileDependencies,
+      _this.dependencies || []
+    );
+    if (fileDependenciesDiff.length) {
+      _this.dependencies = (_this.dependencies || [])
+      .concat(fileDependenciesDiff);
+
+      out.fileDependencies = _this.dependencies;
+    }
   });
 };
 
 function FileTimestampPlugin() {}
 
+var FileTimestampPluginNamespace = '__fileTimestampPlugin_' + Date.now();
+
 FileTimestampPlugin.getStamps = function(hardSource) {
-  return hardSource.__fileTimestampPlugin.fileTimestamps;
+  return hardSource[FileTimestampPluginNamespace].fileTimestamps;
 };
 
 FileTimestampPlugin.prototype.apply = function(hardSource) {
-  if (hardSource.__fileTimestampPlugin) {return;}
+  if (hardSource[FileTimestampPluginNamespace]) {return;}
 
-  var _this = hardSource.__fileTimestampPlugin = this;
+  var _this = hardSource[FileTimestampPluginNamespace] = this;
+
+  new FileDependenciesPlugin().apply(hardSource);
+
+  _this.fileTimestamps = {};
+
+  var compiler;
 
   hardSource.plugin('reset', function() {
     _this.fileTimestamps = {};
   });
 
-  hardSource.plugin('compiler', function(compiler) {
+  hardSource.plugin('compiler', function(_compiler) {
+    compiler = _compiler;
+
     compiler.plugin('compilation', function(compilation) {
       compilation.fileTimestamps = _this.fileTimestamps;
     });
   });
 
-  // hardSource.plugin('thaw-compilation-data', function(dataCache) {
-  //   _this.fileTimestamps = dataCache.fileTimestamps
-  // });
-
   hardSource.plugin('before-dependency-bust', function(cb) {
     var dataCache = this.getDataCache();
     // if(!this.cache.data.fileDependencies) return cb();
     // var fs = compiler.inputFileSystem;
-    var fileTs = this.compiler.fileTimestamps = _this.fileTimestamps = {};
+    var fileTs = compiler.fileTimestamps = _this.fileTimestamps = {};
+    var fileDependencies = FileDependenciesPlugin.getDependencies(hardSource);
 
-    return Promise.all((dataCache.fileDependencies || []).map(function(file) {
+    return Promise.all((fileDependencies).map(function(file) {
       return fsStat(file)
       .then(function(stat) {
         fileTs[file] = stat.mtime || Infinity;
@@ -467,33 +651,20 @@ FileTimestampPlugin.prototype.apply = function(hardSource) {
     }))
     .then(function() {cb();}, cb);
   });
-
-  hardSource.plugin('freeze-compilation-data', function(out, compilation) {
-    var dataCache = this.getDataCache();
-
-    var fileDependenciesDiff = lodash.difference(
-      compilation.fileDependencies,
-      dataCache.fileDependencies || []
-    );
-    if (fileDependenciesDiff.length) {
-      dataCache.fileDependencies = (dataCache.fileDependencies || [])
-      .concat(fileDependenciesDiff);
-
-      out.fileDependencies = dataCache.fileDependencies;
-    }
-  });
 };
 
 function ResolveCachePlugin() {}
 
+var ResolveCachePluginNamespace = '__resolveCachePlugin_' + Date.now();
+
 ResolveCachePlugin.getCache = function(hardSource) {
-  return hardSource.__resolveCachePlugin.resolveCache;
+  return hardSource[ResolveCachePluginNamespace].resolveCache;
 };
 
 ResolveCachePlugin.prototype.apply = function(hardSource) {
-  if (hardSource.__resolveCachePlugin) {return;}
+  if (hardSource[ResolveCachePluginNamespace]) {return;}
 
-  hardSource.__resolveCachePlugin = this;
+  hardSource[ResolveCachePluginNamespace] = this;
 
   new FileTimestampPlugin().apply(hardSource);
 
@@ -662,67 +833,6 @@ CheckDependencyCanResolvePlugin.prototype.apply = function(hardSource) {
   });
 };
 
-function PreemptCompilerPlugin() {}
-
-PreemptCompilerPlugin.getCompilation = function(hardSource) {
-  return hardSource.__preemptCompilerPlugin.compilation;
-};
-
-PreemptCompilerPlugin.prototype.apply = function(hardSource) {
-  if (hardSource.__preemptCompilerPlugin) {return;}
-
-  var _this = hardSource.__preemptCompilerPlugin = this;
-
-  // hardSource.plugin('compiler', function(compiler) {
-  //   compiler.plugin('need-additional-pass', function() {
-  //
-  //   });
-  // });
-
-  hardSource.plugin('before-module-bust', function(cb) {
-    var compiler = this.compiler;
-
-    Promise.resolve()
-    .then(function() {
-      // Ensure records have been read before we use the sub-compiler to
-      // invlidate packages before the normal compiler executes.
-      if (Object.keys((compiler.compiler || compiler).records).length === 0) {
-        return Promise.promisify(
-          (compiler.compiler || compiler).readRecords,
-          {context: (compiler.compiler || compiler)}
-        )();
-      }
-    })
-    .then(function() {
-      var _compiler = compiler.compiler || compiler;
-      // Create a childCompiler but set it up and run it like it is the original
-      // compiler except that it won't finalize the work ('after-compile' step
-      // that renders chunks).
-      var childCompiler = _compiler.createChildCompiler();
-      // Copy 'this-compilation' and 'make' as well as other plugins.
-      for(var name in _compiler._plugins) {
-        if(["compile", "emit", "after-emit", "invalid", "done"].indexOf(name) < 0)
-          childCompiler._plugins[name] = _compiler._plugins[name].slice();
-      }
-      // Use the parent's records.
-      childCompiler.records = (compiler.compiler || compiler).records;
-
-      var params = childCompiler.newCompilationParams();
-      childCompiler.applyPlugins("compile", params);
-
-      var compilation = _this.compilation = childCompiler.newCompilation(params);
-
-      // Run make and seal. This is enough to find out if any module should be
-      // invalidated due to some built state.
-      return Promise.promisify(childCompiler.applyPluginsParallel, {context: childCompiler})("make", compilation)
-      .then(function() {
-        return Promise.promisify(compilation.seal, {context: compilation})();
-      });
-    })
-    .then(function() {cb();}, cb);
-  });
-};
-
 function BustModulePlugin() {}
 
 BustModulePlugin.prototype.apply = function(hardSource) {
@@ -734,7 +844,7 @@ BustModulePlugin.prototype.apply = function(hardSource) {
       if (cacheItem) {
         if (hardSource.applyPluginsBailResult1('check-module', cacheItem) === false) {
           cacheItem.invalid = true;
-          moduleCache[cacheItem.identifier] = null;
+          moduleCache[key] = null;
         }
       }
     });
@@ -746,8 +856,6 @@ function CheckModuleUsedFlagPlugin() {
 
 CheckModuleUsedFlagPlugin.prototype.apply = function(hardSource) {
   if (!NormalModule.prototype.isUsed) {return;}
-
-  // new PreemptCompilerPlugin().apply(hardSource);
 
   var _modules;
   function modules() {
@@ -789,14 +897,22 @@ CheckModuleUsedFlagPlugin.prototype.apply = function(hardSource) {
       compilation.plugin('after-seal', function(cb) {
         var moduleCache = hardSource.getModuleCache();
         needAdditionalPass = compilation.modules.reduce(function(carry, module) {
-          var cacheItem = moduleCache[module.identifier()];
+
+          var identifierPrefix = cachePrefix(compilation);
+          if (identifierPrefix === null) {
+            return;
+          }
+          var identifier = identifierPrefix + module.request;
+
+          var cacheItem = moduleCache[identifier];
           // var module = modules()[cacheItem.identifier];
           if (cacheItem && (
             !lodash.isEqual(cacheItem.used, module.used) ||
             !lodash.isEqual(cacheItem.usedExports, module.usedExports)
           )) {
             cacheItem.invalid = true;
-            moduleCache[module.identifier()] = null;
+
+            moduleCache[identifier] = null;
             return true;
           }
           return carry;
@@ -812,35 +928,14 @@ CheckModuleUsedFlagPlugin.prototype.apply = function(hardSource) {
       });
     });
   });
-
-  // hardSource.plugin('before-module-bust', function(cb) {
-  //   _modules = {};
-  //   cb();
-  // });
-  //
-  // hardSource.plugin('check-module', function(out, module) {
-  //   var module = modules()[cacheItem.identifier];
-  //   if (!module) {return;}
-  //   // Check with the module in the sub-compiler and invalidate if cached one
-  //   // used and usedExports do not match their new values due to a dependent
-  //   // module changing what it uses.
-  //   if (
-  //     !lodash.isEqual(cacheItem.used, module.used) ||
-  //     !lodash.isEqual(cacheItem.usedExports, module.usedExports)
-  //   ) {
-  //     return false;
-  //   }
-  // });
 };
 
 function HardSourceWebpackPlugin(options) {
   Tapable.call(this);
   this.options = options;
 
-  new DependencySerializePlugin().apply(this);
-  new DependencyThawPlugin().apply(this);
-  new HarmonyDependencySerializePlugin().apply(this);
-  new HarmonyDependencyThawPlugin().apply(this);
+  new CommonDependencyPlugin().apply(this);
+  new HarmonyDependencyPlugin().apply(this);
 
   new FileTimestampPlugin().apply(this);
   new ResolveCachePlugin().apply(this);
@@ -849,8 +944,13 @@ function HardSourceWebpackPlugin(options) {
   new BustModulePlugin().apply(this);
   new CheckModuleUsedFlagPlugin().apply(this);
 
-  new ModuleSerializePlugin().apply(this);
+  new NormalModuleFreezePlugin().apply(this);
+  new NormalModuleThawPlugin().apply(this);
+
+  this.apply = this.apply.bind(this);
 }
+
+module.exports = HardSourceWebpackPlugin;
 
 HardSourceWebpackPlugin.prototype = Object.create(Tapable.prototype);
 HardSourceWebpackPlugin.prototype.constructor = HardSourceWebpackPlugin;
@@ -877,18 +977,6 @@ HardSourceWebpackPlugin.prototype.applyPluginsPromise = function(name, args) {
   return Promise.promisify(this.applyPluginsAsync).apply(this, arguments);
 };
 
-HardSourceWebpackPlugin.prototype.freeze = function(supertype, object) {
-  return this.applyPluginsWaterfall('freeze-' + supertype, null, object);
-};
-
-HardSourceWebpackPlugin.prototype.thaw = function(supertype, object) {
-  return this.applyPluginsWaterfall('thaw-' + supertype, null, object);
-};
-
-HardSourceWebpackPlugin.prototype.valid = function(supertype, object) {
-  return this.applyPluginsBailResult1('valid-' + supertype, object);
-};
-
 HardSourceWebpackPlugin.prototype.getModuleCache = function() {
   return this.moduleCache;
 };
@@ -901,7 +989,10 @@ HardSourceWebpackPlugin.prototype.getDataCache = function() {
   return this.dataCache;
 };
 
-module.exports = HardSourceWebpackPlugin;
+HardSourceWebpackPlugin.prototype.getDevtoolOptions = function() {
+  return this.devtoolOptions;
+};
+
 HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var _this = this;
   var options = this.options;
@@ -966,8 +1057,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var dataCacheSerializer = this.dataCacheSerializer =
     new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'data')});
 
-  _this.compiler = compiler;
-
   _this.applyPlugins('compiler', compiler);
 
   compiler.plugin('after-plugins', function() {
@@ -1030,10 +1119,22 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
       return Promise.all([
         assetCacheSerializer.read()
-        .then(function(_assetCache) {assetCache = _this.assetCache = _assetCache;}),
+        .then(function(_assetCache) {assetCache = _this.assetCache = _assetCache;})
+        .then(function() {
+          _this.applyPlugins('thaw-asset-data', assetCache);
+        }),
 
         moduleCacheSerializer.read()
-        .then(function(_moduleCache) {moduleCache = _this.moduleCache = _moduleCache;}),
+        .then(function(_moduleCache) {moduleCache = _this.moduleCache = _moduleCache;})
+        .then(function() {
+          Object.keys(moduleCache).forEach(function(key) {
+            if (typeof moduleCache[key] === 'string') {
+              moduleCache[key] = JSON.parse(moduleCache[key]);
+            }
+          });
+
+          _this.applyPlugins('thaw-module-data', moduleCache);
+        }),
 
         dataCacheSerializer.read()
         .then(function(_dataCache) {dataCache = _this.dataCache = _dataCache;})
@@ -1074,100 +1175,30 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     fileTimestamps = FileTimestampPlugin.getStamps(_this);
 
-    compilation.dependencyFactories.set(HardModuleDependency, params.normalModuleFactory);
-    compilation.dependencyTemplates.set(HardModuleDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardContextDependency, params.contextModuleFactory);
-    compilation.dependencyTemplates.set(HardContextDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardNullDependency, new NullFactory());
-    compilation.dependencyTemplates.set(HardNullDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardHarmonyExportDependency, new NullFactory());
-    compilation.dependencyTemplates.set(HardHarmonyExportDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardHarmonyImportDependency, params.normalModuleFactory);
-    compilation.dependencyTemplates.set(HardHarmonyImportDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardHarmonyImportSpecifierDependency, new NullFactory());
-    compilation.dependencyTemplates.set(HardHarmonyImportSpecifierDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardHarmonyExportImportedSpecifierDependency, new NullFactory());
-    compilation.dependencyTemplates.set(HardHarmonyExportImportedSpecifierDependency, new NullDependencyTemplate);
-
-    var needAdditionalPass;
-
-    compilation.plugin('after-seal', function(cb) {
-      needAdditionalPass = compilation.modules.reduce(function(carry, module) {
-        var cacheItem = moduleCache[module.identifier()];
-        if (cacheItem && (
-          !lodash.isEqual(cacheItem.used, module.used) ||
-          !lodash.isEqual(cacheItem.usedExports, module.usedExports)
-        )) {
-          cacheItem.invalid = true;
-          moduleCache[module.request] = null;
-          return true;
-        }
-        return carry;
-      }, false);
-      cb();
-    });
-
-    compilation.plugin('need-additional-pass', function() {
-      if (needAdditionalPass) {
-        needAdditionalPass = false;
-        return true;
-      }
-    });
-
-    params.normalModuleFactory.plugin('resolver', function(fn) {
-      return function(request, cb) {
-        fn.call(null, request, function(err, result) {
-          if (err) {return cb(err);}
-
-          var identifierPrefix = cachePrefix(compilation);
-          if (identifierPrefix === null) {
-            return cb(err, result);
-          }
-          var identifier = identifierPrefix + result.request;
-
-          if (moduleCache[identifier]) {
-            var cacheItem = moduleCache[identifier];
-            if (typeof cacheItem === 'string') {
-              cacheItem = JSON.parse(cacheItem);
-              moduleCache[identifier] = cacheItem;
-            }
-            if (Array.isArray(cacheItem.assets)) {
-              cacheItem.assets = (cacheItem.assets || [])
-              .reduce(function(carry, key) {
-                carry[key] = assetCache[requestHash(key)];
-                return carry;
-              }, {});
-            }
-            if (!HardModule.needRebuild(
-              cacheItem.buildTimestamp,
-              cacheItem.fileDependencies,
-              cacheItem.contextDependencies,
-              // [],
-              fileTimestamps,
-              compiler.contextTimestamps
-            )) {
-              var module = new HardModule(cacheItem);
-
-              return cb(null, module);
-            }
-          }
-          return cb(null, result);
-        });
-      };
-    });
-
-    params.normalModuleFactory.plugin('module', function(module) {
-      // module.isUsed = function(exportName) {
-      //   return exportName ? exportName : false;
-      // };
-      return module;
-    });
+    // var needAdditionalPass;
+    //
+    // compilation.plugin('after-seal', function(cb) {
+    //   needAdditionalPass = compilation.modules.reduce(function(carry, module) {
+    //     var cacheItem = moduleCache[module.identifier()];
+    //     if (cacheItem && (
+    //       !lodash.isEqual(cacheItem.used, module.used) ||
+    //       !lodash.isEqual(cacheItem.usedExports, module.usedExports)
+    //     )) {
+    //       cacheItem.invalid = true;
+    //       moduleCache[module.request] = null;
+    //       return true;
+    //     }
+    //     return carry;
+    //   }, false);
+    //   cb();
+    // });
+    //
+    // compilation.plugin('need-additional-pass', function() {
+    //   if (needAdditionalPass) {
+    //     needAdditionalPass = false;
+    //     return true;
+    //   }
+    // });
   });
 
   compiler.plugin('after-compile', function(compilation, cb) {
@@ -1176,12 +1207,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     var startCacheTime = Date.now();
 
     var devtoolOptions = _this.devtoolOptions = makeDevtoolOptions(compiler.options);
-
-    // fs.writeFileSync(
-    //   path.join(cacheDirPath, 'file-dependencies.json'),
-    //   JSON.stringify({fileDependencies: compilation.fileDependencies}),
-    //   'utf8'
-    // );
 
     var moduleOps = [];
     var dataOps = [];
@@ -1192,58 +1217,48 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     Object.keys(dataOut).forEach(function(key) {
       var data = dataOut[key];
-      dataCache[key] = data;
       dataOps.push({
         key: key,
         value: JSON.stringify(data),
       });
     });
 
-    compilation.modules.forEach(function(module) {
-      var identifierPrefix = cachePrefix(compilation);
-      if (identifierPrefix === null) {
-        return;
-      }
-      var identifier = identifierPrefix + module.identifier();
+    var moduleOut = {};
+    _this.applyPlugins('freeze-module-data', moduleOut, compilation);
 
-      var frozenModule = this.applyPluginsWaterfall('freeze-module', null, module, compilation);
-      if (frozenModule) {
-        moduleCache[identifier] = frozenModule;
+    Object.keys(moduleOut).forEach(function(key) {
+      var data = moduleOut[key];
+      moduleOps.push({
+        key: key,
+        value: JSON.stringify(data),
+      });
+    });
 
-        // Custom plugin handling for common plugins.
-        // This will be moved in a pluginified HardSourcePlugin.
-        //
-        // Ignore the modules that kick off child compilers in extract text.
-        // These modules must always be built so the child compilers run so
-        // that assets get built.
-        if (module[extractTextNS] || module.meta[extractTextNS]) {
-          moduleCache[identifier] = null;
-          return;
-        }
+    var assetOut = {};
+    _this.applyPlugins('freeze-asset-data', assetOut, compilation);
 
-        moduleOps.push({
-          key: identifier,
-          value: JSON.stringify(frozenModule),
-        });
+    Object.keys(assetOut).forEach(function(key) {
+      var data = assetOut[key];
+      assetOps.push({
+        key: key,
+        value: data,
+      });
+    });
 
-        if (module.assets) {
-          Object.keys(module.assets).forEach(function(key) {
-            var asset = module.assets[key];
-            var frozen = this.applyPluginsWaterfall('freeze-asset', null, asset, module);
-            if (frozen) {
-              var frozenKey = requestHash(key);
+    Object.keys(dataOut).forEach(function(key) {
+      var data = dataOut[key];
+      dataCache[key] = data;
+    });
 
-              assetCache[frozenKey] = frozen;
+    Object.keys(moduleOut).forEach(function(key) {
+      var data = moduleOut[key];
+      moduleCache[key] = data;
+    });
 
-              assetOps.push({
-                key: frozenKey,
-                value: frozen,
-              });
-            }
-          }, this);
-        }
-      }
-    }, _this);
+    Object.keys(assetOut).forEach(function(key) {
+      var data = assetOut[key];
+      assetCache[key] = data;
+    });
 
     Promise.all([
       fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
