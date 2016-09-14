@@ -338,10 +338,246 @@ HarmonyDependencyThawPlugin.prototype.apply = function(hardSource) {
   });
 };
 
+var CachePluginHelper = {
+  thawObjectCache: function(cache) {
+    Object.keys(cache).forEach(function(key) {
+      if (typeof cache[key] === 'string') {
+        cache[key] = JSON.parse(cache[key]);
+      }
+    });
+  },
+
+  writeObjectCache: function(cache, out, serializer, cb) {
+    Object.keys(cache).forEach(function(key) {
+      if (!cache[key] && !out[key]) {
+        out[key] = null;
+        delete cache[key];
+      }
+    });
+
+    var ops = [];
+    Object.keys(out).forEach(function(key) {
+      var data = out[key];
+      cache[key] = data;
+      if (data) {
+        ops.push({
+          key: key,
+          value: JSON.stringify(data),
+        });
+      }
+      else {
+        ops.push({
+          key: key,
+          value: null,
+        });
+      }
+    });
+
+    serializer.write(ops)
+    .then(function() {cb();}, cb);
+  },
+
+  writeBufferCache: function(cache, out, serializer, cb) {
+    Object.keys(cache).forEach(function(key) {
+      if (!cache[key] && !out[key]) {
+        out[key] = null;
+        delete cache[key];
+      }
+    });
+
+    var ops = [];
+    Object.keys(out).forEach(function(key) {
+      var data = out[key];
+      cache[key] = data;
+      if (data) {
+        ops.push({
+          key: key,
+          value: data,
+        });
+      }
+      else {
+        ops.push({
+          key: key,
+          value: null,
+        });
+      }
+    });
+
+    serializer.write(ops)
+    .then(function() {cb();}, cb);
+  },
+};
+
+function AssetCachePlugin() {}
+
+var AssetCachePluginNamespace = '__hardSourceAssetCachePlugin';
+
+AssetCachePlugin.getCache = function(hardSource) {
+  return hardSource[AssetCachePluginNamespace].cache;
+};
+
+AssetCachePlugin.prototype.apply = function(hardSource) {
+  if (hardSource[AssetCachePluginNamespace]) {return;}
+
+  hardSource[AssetCachePluginNamespace] = this;
+
+  var _this = this;
+
+  var cache = this.cache = {};
+  var serializer;
+
+  hardSource.plugin('create-cache', function() {
+    serializer = new FileSerializer({
+      cacheDirPath: hardSource.getCachePath('assets'),
+    });
+  });
+
+  hardSource.plugin('reset', function() {
+    cache = _this.cache = {};
+  });
+
+  hardSource.plugin('read-cache', function(cb) {
+    serializer.read()
+    .then(function(_cache) {
+      cache = _this.cache = _cache;
+    })
+    .then(function() {cb();}, cb);
+  });
+
+  hardSource.plugin('thaw-cache', function() {
+    hardSource.applyPlugins('thaw-asset-data', cache);
+  });
+
+  hardSource.plugin('freeze-cache', function(compilation) {
+    var out = {};
+    hardSource.applyPlugins('freeze-asset-data', out, compilation);
+    compilation.__hardSourceAssetCacheOut = out;
+  });
+
+  hardSource.plugin('write-cache', function(compilation, cb) {
+    var out = compilation.__hardSourceAssetCacheOut;
+
+    CachePluginHelper.writeBufferCache(cache, out, serializer, cb);
+  });
+};
+
+function DataCachePlugin() {}
+
+var DataCachePluginNamespace = '__hardSourceDataCachePlugin';
+
+DataCachePlugin.getCache = function(hardSource) {
+  return hardSource[DataCachePluginNamespace].cache;
+};
+
+DataCachePlugin.prototype.apply = function(hardSource) {
+  if (hardSource[DataCachePluginNamespace]) {return;}
+
+  hardSource[DataCachePluginNamespace] = this;
+
+  var _this = this;
+
+  var cache = this.cache = {};
+  var serializer;
+
+  hardSource.plugin('create-cache', function() {
+    serializer = new LevelDbSerializer({
+      cacheDirPath: hardSource.getCachePath('data'),
+    });
+  });
+
+  hardSource.plugin('reset', function() {
+    cache = _this.cache = {};
+  });
+
+  hardSource.plugin('read-cache', function(cb) {
+    serializer.read()
+    .then(function(_cache) {
+      cache = _this.cache = _cache;
+    })
+    .then(function() {cb();}, cb);
+  });
+
+  hardSource.plugin('thaw-cache', function() {
+    CachePluginHelper.thawObjectCache(cache);
+
+    hardSource.applyPlugins('thaw-compilation-data', cache);
+  });
+
+  hardSource.plugin('freeze-cache', function(compilation) {
+    var out = {};
+    hardSource.applyPlugins('freeze-compilation-data', out, compilation);
+    compilation.__hardSourceDataCacheOut = out;
+  });
+
+  hardSource.plugin('write-cache', function(compilation, cb) {
+    var out = compilation.__hardSourceDataCacheOut;
+
+    CachePluginHelper.writeObjectCache(cache, out, serializer, cb);
+  });
+};
+
+function ModuleCachePlugin() {
+}
+
+var ModuleCachePluginNamespace = '__hardSourceModuleCachePlugin';
+
+ModuleCachePlugin.getCache = function(hardSource) {
+  return hardSource[ModuleCachePluginNamespace].cache;
+};
+
+ModuleCachePlugin.prototype.apply = function(hardSource) {
+  if (hardSource[ModuleCachePluginNamespace]) {return;}
+
+  hardSource[ModuleCachePluginNamespace] = this;
+
+  var _this = this;
+
+  var cache = this.cache = {};
+  var serializer;
+
+  hardSource.plugin('create-cache', function() {
+    serializer = new LevelDbSerializer({
+      cacheDirPath: hardSource.getCachePath('modules'),
+    });
+  });
+
+  hardSource.plugin('reset', function() {
+    cache = _this.cache = {};
+  });
+
+  hardSource.plugin('read-cache', function(cb) {
+    serializer.read()
+    .then(function(_cache) {
+      cache = _this.cache = _cache;
+    })
+    .then(function() {cb();}, cb);
+  });
+
+  hardSource.plugin('thaw-cache', function() {
+    CachePluginHelper.thawObjectCache(cache);
+
+    hardSource.applyPlugins('thaw-module-data', cache);
+  });
+
+  hardSource.plugin('freeze-cache', function(compilation) {
+    var moduleOut = {};
+    hardSource.applyPlugins('freeze-module-data', moduleOut, compilation);
+    compilation.__hardSourceModuleCacheOut = moduleOut;
+  });
+
+  hardSource.plugin('write-cache', function(compilation, cb) {
+    var moduleOut = compilation.__hardSourceModuleCacheOut;
+
+    CachePluginHelper.writeObjectCache(cache, moduleOut, serializer, cb);
+  });
+};
+
 function NormalModuleFreezePlugin() {
 }
 
 NormalModuleFreezePlugin.prototype.apply = function(hardSource) {
+  new ModuleCachePlugin().apply(hardSource);
+
   function serializeError(error) {
     var serialized = {
       message: error.message,
@@ -404,7 +640,7 @@ NormalModuleFreezePlugin.prototype.apply = function(hardSource) {
       }
       var identifier = identifierPrefix + module.identifier();
 
-      var existingCacheItem = hardSource.getModuleCache()[identifier];
+      var existingCacheItem = ModuleCachePlugin.getCache(hardSource)[identifier];
 
       if (
         module.request &&
@@ -482,7 +718,7 @@ NormalModuleFreezePlugin.prototype.apply = function(hardSource) {
       }
       var identifier = identifierPrefix + module.identifier();
 
-      var existingCacheItem = hardSource.getModuleCache()[identifier];
+      var existingCacheItem = ModuleCachePlugin.getCache(hardSource)[identifier];
 
       if (
         module.request &&
@@ -513,12 +749,14 @@ function NormalModuleThawPlugin() {}
 
 NormalModuleThawPlugin.prototype.apply = function(hardSource) {
   new FileTimestampPlugin().apply(hardSource);
+  new ModuleCachePlugin().apply(hardSource);
+  new AssetCachePlugin().apply(hardSource);
 
   hardSource.plugin('compiler', function(compiler) {
     compiler.plugin('compilation', function(compliation, params) {
       var fileTimestamps = FileTimestampPlugin.getStamps(hardSource);
-      var assetCache = hardSource.getAssetCache();
-      var moduleCache = hardSource.getModuleCache();
+      var assetCache = AssetCachePlugin.getCache(hardSource);
+      var moduleCache = ModuleCachePlugin.getCache(hardSource);
 
       params.normalModuleFactory.plugin('resolver', function(fn) {
         return function(request, cb) {
@@ -576,6 +814,8 @@ FileDependenciesPlugin.prototype.apply = function(hardSource) {
 
   var _this = hardSource[FileDependenciesPluginNamespace] = this;
 
+  new DataCachePlugin().apply(hardSource);
+
   _this.dependencies = [];
 
   hardSource.plugin('reset', function() {
@@ -632,7 +872,6 @@ FileTimestampPlugin.prototype.apply = function(hardSource) {
   });
 
   hardSource.plugin('before-dependency-bust', function(cb) {
-    var dataCache = this.getDataCache();
     // if(!this.cache.data.fileDependencies) return cb();
     // var fs = compiler.inputFileSystem;
     var fileTs = compiler.fileTimestamps = _this.fileTimestamps = {};
@@ -669,24 +908,51 @@ ResolveCachePlugin.prototype.apply = function(hardSource) {
   new FileTimestampPlugin().apply(hardSource);
 
   var resolveCache = this.resolveCache = {};
+  var serializer;
 
   var _this = this;
+
+  hardSource.plugin('create-cache', function() {
+    serializer = new LevelDbSerializer({
+      cacheDirPath: hardSource.getCachePath('resolve'),
+    });
+  });
+
+  hardSource.plugin('read-cache', function(cb) {
+    serializer.read()
+    .then(function(_cache) {
+      resolveCache = _this.resolveCache = _cache;
+    })
+    .then(function() {cb();}, cb);
+  });
+
+  hardSource.plugin('thaw-cache', function() {
+    CachePluginHelper.thawObjectCache(resolveCache);
+  });
+
+  hardSource.plugin('write-cache', function(compilation, cb) {
+    var resolveOut = compilation.__hardSourceResolveCachePluginChanges;
+
+    CachePluginHelper.writeObjectCache(resolveCache, resolveOut, serializer, cb);
+  });
 
   hardSource.plugin('reset', function() {
     resolveCache = _this.resolveCache = {};
   });
 
-  hardSource.plugin('thaw-compilation-data', function(dataCache) {
-    resolveCache = _this.resolveCache = dataCache.resolve;
-  });
-
-  hardSource.plugin('freeze-compilation-data', function(dataOut) {
-    dataOut.resolve = resolveCache;
-  });
+  // hardSource.plugin('thaw-compilation-data', function(dataCache) {
+  //   resolveCache = _this.resolveCache = dataCache.resolve;
+  // });
+  //
+  // hardSource.plugin('freeze-compilation-data', function(dataOut) {
+  //   dataOut.resolve = resolveCache;
+  // });
 
   hardSource.plugin('compiler', function(compiler) {
     compiler.plugin('compilation', function(compilation, params) {
       var fileTimestamps = FileTimestampPlugin.getStamps(hardSource);
+
+      compilation.__hardSourceResolveCachePluginChanges = {};
 
       // Webpack 2 can use different parsers based on config rule sets.
       params.normalModuleFactory.plugin('parser', function(parser, options) {
@@ -712,6 +978,7 @@ ResolveCachePlugin.prototype.apply = function(hardSource) {
                   parserOptions: request.parser[NS + '/parser-options'],
                   dependencies: null,
                 });
+                compilation.__hardSourceResolveCachePluginChanges[cacheId] = resolveCache[cacheId];
               }
               cb.apply(null, arguments);
             });
@@ -737,6 +1004,8 @@ ResolveCachePlugin.prototype.apply = function(hardSource) {
                 return fromCache();
               }
 
+              resolveCache[cacheId] = null;
+              compilation.__hardSourceResolveCachePluginChanges[cacheId] = null;
               next();
             });
           }
@@ -752,9 +1021,10 @@ function BustModuleByDependencyPlugin() {}
 
 BustModuleByDependencyPlugin.prototype.apply = function(hardSource) {
   new FileTimestampPlugin().apply(hardSource);
+  new ModuleCachePlugin().apply(hardSource);
 
   hardSource.plugin('dependency-bust', function() {
-    var moduleCache = this.getModuleCache();
+    var moduleCache = ModuleCachePlugin.getCache(hardSource);
 
     // Invalidate modules that depend on a userRequest that is no longer
     // valid.
@@ -836,8 +1106,10 @@ CheckDependencyCanResolvePlugin.prototype.apply = function(hardSource) {
 function BustModulePlugin() {}
 
 BustModulePlugin.prototype.apply = function(hardSource) {
+  new ModuleCachePlugin().apply(hardSource);
+
   hardSource.plugin('module-bust', function() {
-    var moduleCache = hardSource.getModuleCache();
+    var moduleCache = ModuleCachePlugin.getCache(hardSource);
 
     Object.keys(moduleCache).forEach(function(key) {
       var cacheItem = moduleCache[key];
@@ -856,6 +1128,8 @@ function CheckModuleUsedFlagPlugin() {
 
 CheckModuleUsedFlagPlugin.prototype.apply = function(hardSource) {
   if (!NormalModule.prototype.isUsed) {return;}
+
+  new ModuleCachePlugin().apply(hardSource);
 
   var _modules;
   function modules() {
@@ -895,7 +1169,7 @@ CheckModuleUsedFlagPlugin.prototype.apply = function(hardSource) {
       var needAdditionalPass;
 
       compilation.plugin('after-seal', function(cb) {
-        var moduleCache = hardSource.getModuleCache();
+        var moduleCache = ModuleCachePlugin.getCache(hardSource);
         needAdditionalPass = compilation.modules.reduce(function(carry, module) {
 
           var identifierPrefix = cachePrefix(compilation);
@@ -977,6 +1251,10 @@ HardSourceWebpackPlugin.prototype.applyPluginsPromise = function(name, args) {
   return Promise.promisify(this.applyPluginsAsync).apply(this, arguments);
 };
 
+HardSourceWebpackPlugin.prototype.applyPluginsParallelPromise = function(name, args) {
+  return Promise.promisify(this.applyPluginsParallel).apply(this, arguments);
+};
+
 HardSourceWebpackPlugin.prototype.getModuleCache = function() {
   return this.moduleCache;
 };
@@ -1043,19 +1321,23 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var cacheAssetDirPath = path.join(cacheDirPath, 'assets');
   var resolveCachePath = path.join(cacheDirPath, 'resolve.json');
 
-  var moduleCache = this.moduleCache = {};
+  _this.applyPlugins('create-cache');
+
+  // var moduleCache = this.moduleCache = {};
   var assetCache = this.assetCache = {};
-  var dataCache = this.dataCache = {};
+  // var dataCache = this.dataCache = {};
   var currentStamp = '';
 
   var fileTimestamps = {};
 
-  var assetCacheSerializer = this.assetCacheSerializer =
-    new FileSerializer({cacheDirPath: path.join(cacheDirPath, 'assets')});
-  var moduleCacheSerializer = this.moduleCacheSerializer =
-    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'modules')});
-  var dataCacheSerializer = this.dataCacheSerializer =
-    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'data')});
+  _this.applyPlugins('create-cache-serializer');
+
+  // var assetCacheSerializer = this.assetCacheSerializer =
+  //   new FileSerializer({cacheDirPath: path.join(cacheDirPath, 'assets')});
+  // var moduleCacheSerializer = this.moduleCacheSerializer =
+  //   new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'modules')});
+  // var dataCacheSerializer = this.dataCacheSerializer =
+  //   new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'data')});
 
   _this.applyPlugins('compiler', compiler);
 
@@ -1109,45 +1391,27 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         // Reset the cache, we can't use it do to an environment change.
         _this.applyPlugins('reset');
-        moduleCache = _this.moduleCache = {};
-        assetCache = _this.assetCache = {};
-        dataCache = _this.dataCache = {};
+        // moduleCache = _this.moduleCache = {};
+        // assetCache = _this.assetCache = {};
+        // dataCache = _this.dataCache = {};
         return;
       }
 
-      if (Object.keys(moduleCache).length) {return Promise.resolve();}
+      // if (Object.keys(moduleCache).length) {return Promise.resolve();}
 
-      return Promise.all([
-        assetCacheSerializer.read()
-        .then(function(_assetCache) {assetCache = _this.assetCache = _assetCache;})
-        .then(function() {
-          _this.applyPlugins('thaw-asset-data', assetCache);
-        }),
-
-        moduleCacheSerializer.read()
-        .then(function(_moduleCache) {moduleCache = _this.moduleCache = _moduleCache;})
-        .then(function() {
-          Object.keys(moduleCache).forEach(function(key) {
-            if (typeof moduleCache[key] === 'string') {
-              moduleCache[key] = JSON.parse(moduleCache[key]);
-            }
-          });
-
-          _this.applyPlugins('thaw-module-data', moduleCache);
-        }),
-
-        dataCacheSerializer.read()
-        .then(function(_dataCache) {dataCache = _this.dataCache = _dataCache;})
-        .then(function() {
-          Object.keys(dataCache).forEach(function(key) {
-            if (typeof dataCache[key] === 'string') {
-              dataCache[key] = JSON.parse(dataCache[key]);
-            }
-          });
-
-          _this.applyPlugins('thaw-compilation-data', dataCache);
-        }),
-      ])
+      return _this.applyPluginsParallelPromise('read-cache')
+      .then(function() {
+        return _this.applyPlugins('thaw-cache');
+      })
+      // .then(function() {
+      //   return Promise.all([
+      //     assetCacheSerializer.read()
+      //     .then(function(_assetCache) {assetCache = _this.assetCache = _assetCache;})
+      //     .then(function() {
+      //       _this.applyPlugins('thaw-asset-data', assetCache);
+      //     }),
+      //   ]);
+      // })
       .then(function() {
         // console.log('cache in', Date.now() - start);
       });
@@ -1212,59 +1476,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     var dataOps = [];
     var assetOps = [];
 
-    var dataOut = {};
-    _this.applyPlugins('freeze-compilation-data', dataOut, compilation);
+    _this.applyPlugins('freeze-cache', compilation);
 
-    Object.keys(dataOut).forEach(function(key) {
-      var data = dataOut[key];
-      dataOps.push({
-        key: key,
-        value: JSON.stringify(data),
-      });
-    });
-
-    var moduleOut = {};
-    _this.applyPlugins('freeze-module-data', moduleOut, compilation);
-
-    Object.keys(moduleOut).forEach(function(key) {
-      var data = moduleOut[key];
-      moduleOps.push({
-        key: key,
-        value: JSON.stringify(data),
-      });
-    });
-
-    var assetOut = {};
-    _this.applyPlugins('freeze-asset-data', assetOut, compilation);
-
-    Object.keys(assetOut).forEach(function(key) {
-      var data = assetOut[key];
-      assetOps.push({
-        key: key,
-        value: data,
-      });
-    });
-
-    Object.keys(dataOut).forEach(function(key) {
-      var data = dataOut[key];
-      dataCache[key] = data;
-    });
-
-    Object.keys(moduleOut).forEach(function(key) {
-      var data = moduleOut[key];
-      moduleCache[key] = data;
-    });
-
-    Object.keys(assetOut).forEach(function(key) {
-      var data = assetOut[key];
-      assetCache[key] = data;
-    });
-
-    Promise.all([
+    return Promise.all([
       fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
-      assetCacheSerializer.write(assetOps),
-      moduleCacheSerializer.write(moduleOps),
-      dataCacheSerializer.write(dataOps),
+      _this.applyPluginsParallelPromise('write-cache', compilation),
+      // assetCacheSerializer.write(assetOps),
+      // moduleCacheSerializer.write(moduleOps),
+      // dataCacheSerializer.write(dataOps),
     ])
     .then(function() {
       // console.log('cache out', Date.now() - startCacheTime);
