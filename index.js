@@ -609,8 +609,17 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       });
     }
 
-    function getMessage(obj) {
-      return obj.message;
+    function serializeError(error) {
+      var serialized = {
+        message: error.message,
+      };
+      if (error.origin) {
+        serialized.origin = serializeDependencies([error.origin])[0];
+      }
+      if (error.dependencies) {
+        serialized.dependencies = serializeDependencies(error.dependencies);
+      }
+      return serialized;
     }
 
     compilation.modules.forEach(function(module, cb) {
@@ -671,8 +680,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           fileDependencies: module.fileDependencies,
           contextDependencies: module.contextDependencies,
 
-          errors: module.errors.map(getMessage),
-          warnings: module.warnings.map(getMessage),
+          errors: module.errors.map(serializeError),
+          warnings: module.warnings.map(serializeError),
         };
 
         // Custom plugin handling for common plugins.

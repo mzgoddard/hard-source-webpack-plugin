@@ -29,8 +29,8 @@ describe('loader webpack warnings & errors', function() {
         expect(runs[0].out).to.eql(runs[1].out);
         expect(runs[0].warnings.length).to.greaterThan(0);
         expect(runs[0].errors.length).to.greaterThan(0);
-        expect(runs[0].warnings).to.eql(runs[1].warnings);
-        expect(runs[0].errors).to.eql(runs[1].errors);
+        expect(runs[1].warnings).to.eql(runs[0].warnings);
+        expect(runs[1].errors).to.eql(runs[0].errors);
       });
   });
 
