@@ -624,7 +624,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       ) {
         var source = module.source(
           compilation.dependencyTemplates,
-          compilation.moduleTemplate.outputOptions, 
+          compilation.moduleTemplate.outputOptions,
           compilation.moduleTemplate.requestShortener
         );
         var assets = Object.keys(module.assets || {}).map(function(key) {

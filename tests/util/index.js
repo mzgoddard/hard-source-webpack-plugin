@@ -26,7 +26,7 @@ function callModule(fn, filename) {
   return module.exports;
 }
 
-exports.compile = function(fixturePath) {
+exports.compile = function(fixturePath, exportStats) {
   var configPath = path.join(__dirname, '..', 'fixtures', fixturePath, 'webpack.config.js');
   var compiler = webpack(callModule(vm.runInThisContext(wrapModule(fs.readFileSync(configPath, 'utf8')), {filename: configPath}), configPath));
   var outputfs = compiler.outputFileSystem = new MemoryFS();
@@ -39,7 +39,7 @@ exports.compile = function(fixturePath) {
   var run = Promise.promisify(compiler.run, {context: compiler});
 
   return run()
-  .then(function() {
+  .then(function(stats) {
     return Promise.all([
       readdir(compiler.options.output.path)
       .map(function(name) {
@@ -66,14 +66,30 @@ exports.compile = function(fixturePath) {
     ])
     .then(function(files) {
       return files[0].concat(files[1]);
+    })
+    .reduce(function(carry, values) {
+      if (values) {
+        carry[values[0]] = values[1];
+      }
+      return carry;
+    }, {})
+    .then(function(carry) {
+      if (exportStats) {
+        var statsJson = stats.toJson({
+          errors: true,
+          warnings: true,
+        });
+        return {
+          out: carry,
+          warnings: statsJson.warnings,
+          errors: statsJson.errors,
+        };
+      } else {
+        return carry;
+      }
     });
   })
-  .reduce(function(carry, values) {
-    if (values) {
-      carry[values[0]] = values[1];
-    }
-    return carry;
-  }, {});
+  ;
 };
 
 exports.compileTwiceEqual = function(fixturePath) {
