@@ -27,6 +27,8 @@ describe('loader webpack warnings & errors', function() {
         return Promise.all([run1, compile(fixturePath, true)])
       }).then(function(runs) {
         expect(runs[0].out).to.eql(runs[1].out);
+        expect(runs[0].warnings.length).to.greaterThan(0);
+        expect(runs[0].errors.length).to.greaterThan(0);
         expect(runs[0].warnings).to.eql(runs[1].warnings);
         expect(runs[0].errors).to.eql(runs[1].errors);
       });
