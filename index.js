@@ -581,6 +581,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       });
     }
 
+    function getMessage(obj) {
+      return obj.message;
+    }
+
     compilation.modules.forEach(function(module, cb) {
       var existingCacheItem = moduleCache[module.identifier()];
       if (
@@ -638,6 +642,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
           fileDependencies: module.fileDependencies,
           contextDependencies: module.contextDependencies,
+
+          errors: module.errors.map(getMessage),
+          warnings: module.warnings.map(getMessage),
         };
 
         moduleOps.push({
