@@ -22,9 +22,9 @@ describe('loader webpack warnings & errors', function() {
 
   it('should cache errors & warnings from loader', function() {
     this.timeout(10000);
-    return compile(fixturePath, true)
+    return compile(fixturePath, {exportStats: true})
       .then(function(run1) {
-        return Promise.all([run1, compile(fixturePath, true)])
+        return Promise.all([run1, compile(fixturePath, {exportStats: true})])
       }).then(function(runs) {
         expect(runs[0].out).to.eql(runs[1].out);
         expect(runs[0].warnings.length).to.greaterThan(0);
