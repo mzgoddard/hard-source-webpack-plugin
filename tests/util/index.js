@@ -26,7 +26,7 @@ function callModule(fn, filename) {
   return module.exports;
 }
 
-exports.compile = function(fixturePath, exportStats) {
+exports.compile = function(fixturePath, options) {
   var configPath = path.join(__dirname, '..', 'fixtures', fixturePath, 'webpack.config.js');
   var compiler = webpack(callModule(vm.runInThisContext(wrapModule(fs.readFileSync(configPath, 'utf8')), {filename: configPath}), configPath));
   var outputfs = compiler.outputFileSystem = new MemoryFS();
@@ -74,7 +74,7 @@ exports.compile = function(fixturePath, exportStats) {
       return carry;
     }, {})
     .then(function(carry) {
-      if (exportStats) {
+      if (options && options.exportStats) {
         var statsJson = stats.toJson({
           errors: true,
           warnings: true,
