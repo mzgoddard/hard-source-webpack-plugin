@@ -35,6 +35,9 @@ module.exports = {
     new ExtractTextPlugin('style.css'),
     new HardSourceWebpackPlugin({
       cacheDirectory: 'cache',
+      environmentPaths: {
+        root: __dirname + '/../../..',
+      },
     }),
   ],
 };
