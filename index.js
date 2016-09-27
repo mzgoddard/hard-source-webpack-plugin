@@ -59,6 +59,15 @@ var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
 var fsStat = Promise.promisify(fs.stat, {context: fs});
 var fsWriteFile = Promise.promisify(fs.writeFile, {context: fs});
 
+var NS, extractTextNS;
+
+NS = fs.realpathSync(__dirname);
+
+try {
+  extractTextNS = path.dirname(require.resolve('extract-text-webpack-plugin'));
+}
+catch (_) {}
+
 function serializeDependencies(deps) {
   return deps
   .map(function(dep) {
@@ -449,6 +458,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
     });
 
+    // Webpack 2 can use different parsers based on config rule sets.
+    params.normalModuleFactory.plugin('parser', function(parser, options) {
+      // Store the options somewhere that can not conflict with another plugin
+      // on the parser so we can look it up and store those options with a
+      // cached module resolution.
+      parser[NS + '/parser-options'] = options;
+    });
+
     params.normalModuleFactory.plugin('resolver', function(fn) {
       return function(request, cb) {
         var cacheId = JSON.stringify([request.context, request.request]);
@@ -462,6 +479,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             if (!request.source) {
               resolveCache[cacheId] = Object.assign({}, request, {
                 parser: null,
+                parserOptions: request.parser[NS + '/parser-options'],
                 dependencies: null,
               });
             }
@@ -473,6 +491,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           var result = Object.assign({}, resolveCache[cacheId]);
           result.dependencies = request.dependencies;
           result.parser = compilation.compiler.parser;
+          if (!result.parser || !result.parser.parse) {
+            result.parser = params.normalModuleFactory.getParser(result.parserOptions);
+          }
           return cb(null, result);
         };
 
@@ -520,6 +541,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               compiler.contextTimestamps
             )) {
               var module = new HardModule(cacheItem);
+
+              // Custom plugin handling for common plugins.
+              // This will be moved in a pluginified HardSourcePlugin.
+              if (cacheItem.extractTextPluginMeta) {
+                module[extractTextNS] = cacheItem.extractTextPluginMeta;
+              }
+
               return cb(null, module);
             }
           }
@@ -639,6 +667,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           fileDependencies: module.fileDependencies,
           contextDependencies: module.contextDependencies,
         };
+
+        // Custom plugin handling for common plugins.
+        // This will be moved in a pluginified HardSourcePlugin.
+        moduleCache[module.request].extractTextPluginMeta =
+          module[extractTextNS];
 
         moduleOps.push({
           key: module.request,
