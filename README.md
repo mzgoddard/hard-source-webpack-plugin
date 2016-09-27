@@ -100,6 +100,7 @@ This plugin is pretty young and we don't know what it has trouble with yet. Tryi
 
 # Change Log
 
+- `0.0.41` Freeze and thaw module warnings and errors
 - `0.0.40` Support latest webpack 2 beta (2.1.0-beta.25)
 - `0.0.38` Add `configHash` option
 - `0.0.37` Add a little logic to avoid re-serializing already serialized modules
