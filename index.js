@@ -68,6 +68,72 @@ try {
 }
 catch (_) {}
 
+var cachePrefixNS = NS + '/cachePrefix';
+var cachePrefixErrorOnce = true;
+
+function cachePrefix(compilation) {
+  if (typeof compilation[cachePrefixNS] === 'undefined') {
+    var prefix = '';
+    var nextCompilation = compilation;
+
+    while (nextCompilation.compiler.parentCompilation) {
+      var parentCompilation = nextCompilation.compiler.parentCompilation;
+      if (!nextCompilation.cache) {
+        if (cachePrefixErrorOnce) {
+          cachePrefixErrorOnce = false;
+          console.error([
+            'A child compiler (' + compilation.compiler.name + ') does not',
+            'have a memory cache. Enable a memory cache with webpack\'s',
+            '`cache` configuration option. HardSourceWebpackPlugin will be',
+            'disabled for this child compiler until then.',
+          ].join('\n'));
+        }
+        prefix = null;
+        break;
+      }
+
+      var cache = nextCompilation.cache;
+      var parentCache = parentCompilation.cache;
+
+      if (cache === parentCache) {
+        nextCompilation = parentCompilation;
+        continue;
+      }
+
+      var cacheKey;
+      for (var key in parentCache) {
+        if (key && parentCache[key] === cache) {
+          cacheKey = key;
+          break;
+        }
+      }
+
+      if (!cacheKey) {
+        if (cachePrefixErrorOnce) {
+          cachePrefixErrorOnce = false;
+          console.error([
+            'A child compiler (' + compilation.compiler.name + ') has a',
+            'memory cache but its cache name is unknown.',
+            'HardSourceWebpackPlugin will be disabled for this child',
+            'compiler.',
+          ].join('\n'));
+        }
+        prefix = null;
+        break;
+      }
+      else {
+        prefix = cacheKey + prefix;
+      }
+
+      nextCompilation = parentCompilation;
+    }
+
+    compilation[cachePrefixNS] = prefix;
+  }
+
+  return compilation[cachePrefixNS];
+}
+
 function flattenPrototype(obj) {
   var copy = {};
   for (var key in obj) {
@@ -526,12 +592,18 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     params.normalModuleFactory.plugin('resolver', function(fn) {
       return function(request, cb) {
         fn.call(null, request, function(err, result) {
+          var identifierPrefix = cachePrefix(compilation);
+          if (identifierPrefix === null) {
+            return cb(err, result);
+          }
+          var identifier = identifierPrefix + result.request;
+
           if (err) {return cb(err);}
-          else if (moduleCache[result.request]) {
-            var cacheItem = moduleCache[result.request];
+          else if (moduleCache[identifier]) {
+            var cacheItem = moduleCache[identifier];
             if (typeof cacheItem === 'string') {
               cacheItem = JSON.parse(cacheItem);
-              moduleCache[result.request] = cacheItem;
+              moduleCache[identifier] = cacheItem;
             }
             if (Array.isArray(cacheItem.assets)) {
               cacheItem.assets = (cacheItem.assets || [])
@@ -630,8 +702,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       return serialized;
     }
 
-    compilation.modules.forEach(function(module, cb) {
-      var existingCacheItem = moduleCache[module.identifier()];
+    compilation.modules.forEach(function(module) {
+      var identifierPrefix = cachePrefix(compilation);
+      if (identifierPrefix === null) {
+        return;
+      }
+      var identifier = identifierPrefix + module.identifier();
+      var existingCacheItem = moduleCache[identifier];
+
       if (
         module.request &&
         module.cacheable &&
@@ -654,7 +732,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             value: module.assets[key].source(),
           };
         });
-        moduleCache[module.request] = {
+        moduleCache[identifier] = {
           moduleId: module.id,
           context: module.context,
           request: module.request,
@@ -694,12 +772,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         // Custom plugin handling for common plugins.
         // This will be moved in a pluginified HardSourcePlugin.
-        moduleCache[module.request].extractTextPluginMeta =
+        moduleCache[identifier].extractTextPluginMeta =
           module[extractTextNS];
 
         moduleOps.push({
-          key: module.request,
-          value: JSON.stringify(moduleCache[module.request]),
+          key: identifier,
+          value: JSON.stringify(moduleCache[identifier]),
         });
 
         if (assets.length) {
