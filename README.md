@@ -100,6 +100,7 @@ This plugin is pretty young and we don't know what it has trouble with yet. Tryi
 
 # Change Log
 
+- `0.0.43` Flatten dependency `loc` field (HMR fix for 0.0.41)
 - `0.0.42` Support out of order harmony module export specifier dependencies
 - `0.0.41` Freeze and thaw module warnings and errors
 - `0.0.40` Support latest webpack 2 beta (2.1.0-beta.25)
