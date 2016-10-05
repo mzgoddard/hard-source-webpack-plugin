@@ -68,6 +68,14 @@ try {
 }
 catch (_) {}
 
+function flattenPrototype(obj) {
+  var copy = {};
+  for (var key in obj) {
+    copy[key] = obj[key];
+  }
+  return copy;
+}
+
 function serializeDependencies(deps) {
   return deps
   .map(function(dep) {
@@ -111,7 +119,7 @@ function serializeDependencies(deps) {
       request: dep.request,
       recursive: dep.recursive,
       regExp: dep.regExp ? dep.regExp.source : null,
-      loc: dep.loc,
+      loc: flattenPrototype(dep.loc),
     };
   })
   .filter(function(req) {
