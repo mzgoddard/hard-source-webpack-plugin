@@ -92,11 +92,11 @@ exports.compile = function(fixturePath, options) {
   ;
 };
 
-exports.compileTwiceEqual = function(fixturePath) {
-  var run1 = exports.compile(fixturePath);
+exports.compileTwiceEqual = function(fixturePath, compileOptions) {
+  var run1 = exports.compile(fixturePath, compileOptions);
   return run1
   .then(function() {
-    var run2 = exports.compile(fixturePath);
+    var run2 = exports.compile(fixturePath, compileOptions);
     return Promise.all([run1, run2]);
   })
   .then(function(runs) {
@@ -104,14 +104,14 @@ exports.compileTwiceEqual = function(fixturePath) {
   });
 };
 
-exports.itCompilesTwice = function(fixturePath) {
+exports.itCompilesTwice = function(fixturePath, compileOptions) {
   before(function() {
     return exports.clean(fixturePath);
   });
 
   it('builds identical ' + fixturePath + ' fixture', function() {
     this.timeout(10000);
-    return exports.compileTwiceEqual(fixturePath);
+    return exports.compileTwiceEqual(fixturePath, compileOptions);
   });
 };
 
