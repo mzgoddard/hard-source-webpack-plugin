@@ -98,36 +98,4 @@ If you have many config files, placing them in a directory and include it as one
 
 This plugin is pretty young and we don't know what it has trouble with yet. Trying the plugin in a project and its creating errors or doesn't notice changes to original source, let us know your loaders and plugins or other build process details in an issue. Have a fix for something you've encountered, send us a fix.
 
-# Change Log
-
-- `0.0.44` Prefix module cache identifier by child compiler subcache name
-- `0.0.43` Flatten dependency `loc` field (HMR fix for 0.0.41)
-- `0.0.42` Support out of order harmony module export specifier dependencies
-- `0.0.41` Freeze and thaw module warnings and errors
-- `0.0.40` Support latest webpack 2 beta (2.1.0-beta.25)
-- `0.0.38` Add `configHash` option
-- `0.0.37` Add a little logic to avoid re-serializing already serialized modules
-- `0.0.36` Freeze and thaw some common fields that weren't before
-- `0.0.35` Use additional pass in compilation instead of pre-emptive pass. Fixes use with HMR
-- `0.0.34` Correctly thaw harmony specifier dependencies
-- `0.0.33` Add HardModule.libIdent to support DllPlugin
-- `0.0.32` Fix webpack 2 dependency warnings
-- `0.0.30` Fix asset thawing and unnecessary dependency invalidation
-- `0.0.28` Help ensure cacheDirectory is used as users expect
-- `0.0.27` Use pre-emptive compile when supporting isUsed (webpack 2)
-- `0.0.26` Invalidate modules based on webpack 2 tree shaking
-- `0.0.23` Fix to error in resolve invalidation
-- `0.0.19` Store separate non-devtool related base map for Uglify support
-- `0.0.18` Invalidate modules depending on a now invalid resolve value
-- `0.0.17` Support webpack-isomorphic-tools
-- `0.0.16` Incomplete resolve invalidation
-- `0.0.15` Invalidate whole cache when environment (node_modules, etc) change
-- `0.0.13` Freeze and thaw module's `_source` used by Stats
-- `0.0.11` Store modules in a leveldb store
-- `0.0.10` Store assets separate for performance
-- `0.0.9` Support ExtractText and Uglify
-- `0.0.8` relative `cacheDirectory` support
-- `0.0.7` Support Harmony modules by disabling tree shaking
-- `0.0.5` First ReadME, travis badge, cacheDirectory change
-- `0.0.4` Add source map tests, improve source map thawing
-- `0.0.3` Add tests
+# [Change Log](CHANGELOG.md)
