@@ -753,7 +753,7 @@ NormalModuleThawPlugin.prototype.apply = function(hardSource) {
   new AssetCachePlugin().apply(hardSource);
 
   hardSource.plugin('compiler', function(compiler) {
-    compiler.plugin('compilation', function(compliation, params) {
+    compiler.plugin('compilation', function(compilation, params) {
       var fileTimestamps = FileTimestampPlugin.getStamps(hardSource);
       var assetCache = AssetCachePlugin.getCache(hardSource);
       var moduleCache = ModuleCachePlugin.getCache(hardSource);
@@ -790,6 +790,7 @@ NormalModuleThawPlugin.prototype.apply = function(hardSource) {
                 compiler.contextTimestamps
               )) {
                 var module = new HardModule(cacheItem);
+                module[extractTextNS] = cacheItem.extractTextPluginMeta;
                 return cb(null, module);
               }
             }
