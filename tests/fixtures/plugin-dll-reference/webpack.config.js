@@ -1,6 +1,15 @@
 var DllReferencePlugin = require('webpack').DllReferencePlugin;
 var HardSourceWebpackPlugin = require('../../..');
 
+var wpVersion = Number(require('webpack/package.json').version[0]);
+var dllManifest;
+if (wpVersion > 1) {
+  dllManifest = require('./dll-webpack-2-manifest.json');
+}
+else {
+  dllManifest = require('./dll-webpack-1-manifest.json');
+}
+
 module.exports = {
   context: __dirname,
   entry: './index.js',
@@ -18,7 +27,7 @@ module.exports = {
       },
     }),
     new DllReferencePlugin({
-      manifest: require('./dll-manifest.json'),
+      manifest: dllManifest,
       context: __dirname,
     }),
   ],
