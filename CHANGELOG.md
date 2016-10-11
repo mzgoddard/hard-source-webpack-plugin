@@ -11,6 +11,10 @@ HardSource grew through its `0.0.X` versions up to this point. It currently supp
 - Multiple caches through the configHash option
 - Full cache invalidation through dependency hash comparison
 
+## Patches
+
+- `0.1.1` Ignore ExtractText root modules so child compilers run and output assets
+
 # 0.0.X
 
 - `0.0.44` Prefix module cache identifier by child compiler subcache name
