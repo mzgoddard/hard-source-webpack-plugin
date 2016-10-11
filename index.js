@@ -592,14 +592,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     params.normalModuleFactory.plugin('resolver', function(fn) {
       return function(request, cb) {
         fn.call(null, request, function(err, result) {
+          if (err) {return cb(err);}
+
           var identifierPrefix = cachePrefix(compilation);
           if (identifierPrefix === null) {
             return cb(err, result);
           }
           var identifier = identifierPrefix + result.request;
 
-          if (err) {return cb(err);}
-          else if (moduleCache[identifier]) {
+          if (moduleCache[identifier]) {
             var cacheItem = moduleCache[identifier];
             if (typeof cacheItem === 'string') {
               cacheItem = JSON.parse(cacheItem);
