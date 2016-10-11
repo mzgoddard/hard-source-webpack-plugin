@@ -13,6 +13,7 @@ HardSource grew through its `0.0.X` versions up to this point. It currently supp
 
 ## 0.1.X Patches
 
+- `0.1.3` Fix normal module resolver plugin that didn't pass on resolve errors
 - `0.1.2` Ignore ExtractText root modules so that child compilers always run and output assets
 
 # 0.0.X
