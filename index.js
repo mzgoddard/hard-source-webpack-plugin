@@ -622,12 +622,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             )) {
               var module = new HardModule(cacheItem);
 
-              // Custom plugin handling for common plugins.
-              // This will be moved in a pluginified HardSourcePlugin.
-              if (cacheItem.extractTextPluginMeta) {
-                module[extractTextNS] = cacheItem.extractTextPluginMeta;
-              }
-
               return cb(null, module);
             }
           }
@@ -772,8 +766,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         // Custom plugin handling for common plugins.
         // This will be moved in a pluginified HardSourcePlugin.
-        moduleCache[identifier].extractTextPluginMeta =
-          module[extractTextNS];
+        //
+        // Ignore the modules that kick off child compilers in extract text.
+        // These modules must always be built so the child compilers run so
+        // that assets get built.
+        if (module[extractTextNS] || module.meta[extractTextNS]) {
+          moduleCache[identifier] = null;
+          return;
+        }
 
         moduleOps.push({
           key: identifier,
