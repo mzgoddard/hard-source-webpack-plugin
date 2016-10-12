@@ -19,6 +19,7 @@ catch (_) {
   };
 }
 
+var AMDDefineDependency = require('webpack/lib/dependencies/AMDDefineDependency');
 var AsyncDependenciesBlock = require('webpack/lib/AsyncDependenciesBlock');
 var ConstDependency = require('webpack/lib/dependencies/ConstDependency');
 var ContextDependency = require('webpack/lib/dependencies/ContextDependency');
@@ -181,7 +182,10 @@ function serializeDependencies(deps) {
     return {
       contextDependency: dep instanceof ContextDependency,
       contextCritical: dep.critical,
-      constDependency: dep instanceof ConstDependency,
+      constDependency: (
+        dep instanceof ConstDependency ||
+        dep instanceof AMDDefineDependency
+      ),
       request: dep.request,
       recursive: dep.recursive,
       regExp: dep.regExp ? dep.regExp.source : null,
