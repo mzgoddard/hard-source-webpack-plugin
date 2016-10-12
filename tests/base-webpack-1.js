@@ -18,6 +18,9 @@ describe('basic webpack use - compiles identically', function() {
   itCompilesTwice('base-devtool-cheap-source-map');
   itCompilesTwice('base-target-node-1dep');
   itCompilesTwice('base-error-resolve');
+  itCompilesTwice('base-amd-1dep');
+  itCompilesTwice('base-amd-context');
+  itCompilesTwice('base-amd-code-split');
 
 });
 
