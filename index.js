@@ -832,7 +832,7 @@ ExtractTextHardSourcePlugin.prototype.apply = function(hardSource) {
       // Ignore the modules that kick off child compilers in extract text.
       // These modules must always be built so the child compilers run so
       // that assets get built.
-      if (module[extractTextNS] || module.meta[extractTextNS]) {
+      if (module[extractTextNS] || module.meta && module.meta[extractTextNS]) {
         delete moduleOut[identifier];
         return;
       }
@@ -1347,21 +1347,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   _this.applyPlugins('create-cache');
 
-  // var moduleCache = this.moduleCache = {};
-  var assetCache = this.assetCache = {};
-  // var dataCache = this.dataCache = {};
   var currentStamp = '';
 
   var fileTimestamps = {};
-
-  _this.applyPlugins('create-cache-serializer');
-
-  // var assetCacheSerializer = this.assetCacheSerializer =
-  //   new FileSerializer({cacheDirPath: path.join(cacheDirPath, 'assets')});
-  // var moduleCacheSerializer = this.moduleCacheSerializer =
-  //   new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'modules')});
-  // var dataCacheSerializer = this.dataCacheSerializer =
-  //   new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'data')});
 
   _this.applyPlugins('compiler', compiler);
 
@@ -1415,27 +1403,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         // Reset the cache, we can't use it do to an environment change.
         _this.applyPlugins('reset');
-        // moduleCache = _this.moduleCache = {};
-        // assetCache = _this.assetCache = {};
-        // dataCache = _this.dataCache = {};
         return;
       }
-
-      // if (Object.keys(moduleCache).length) {return Promise.resolve();}
 
       return _this.applyPluginsParallelPromise('read-cache')
       .then(function() {
         return _this.applyPlugins('thaw-cache');
       })
-      // .then(function() {
-      //   return Promise.all([
-      //     assetCacheSerializer.read()
-      //     .then(function(_assetCache) {assetCache = _this.assetCache = _assetCache;})
-      //     .then(function() {
-      //       _this.applyPlugins('thaw-asset-data', assetCache);
-      //     }),
-      //   ]);
-      // })
       .then(function() {
         // console.log('cache in', Date.now() - start);
       });
@@ -1462,31 +1436,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     compilation.__hardSource = _this;
 
     fileTimestamps = FileTimestampPlugin.getStamps(_this);
-
-    // var needAdditionalPass;
-    //
-    // compilation.plugin('after-seal', function(cb) {
-    //   needAdditionalPass = compilation.modules.reduce(function(carry, module) {
-    //     var cacheItem = moduleCache[module.identifier()];
-    //     if (cacheItem && (
-    //       !lodash.isEqual(cacheItem.used, module.used) ||
-    //       !lodash.isEqual(cacheItem.usedExports, module.usedExports)
-    //     )) {
-    //       cacheItem.invalid = true;
-    //       moduleCache[module.request] = null;
-    //       return true;
-    //     }
-    //     return carry;
-    //   }, false);
-    //   cb();
-    // });
-    //
-    // compilation.plugin('need-additional-pass', function() {
-    //   if (needAdditionalPass) {
-    //     needAdditionalPass = false;
-    //     return true;
-    //   }
-    // });
   });
 
   compiler.plugin('after-compile', function(compilation, cb) {
@@ -1494,20 +1443,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     var startCacheTime = Date.now();
 
-    var devtoolOptions = _this.devtoolOptions = makeDevtoolOptions(compiler.options);
-
-    var moduleOps = [];
-    var dataOps = [];
-    var assetOps = [];
+    _this.devtoolOptions = makeDevtoolOptions(compiler.options);
 
     _this.applyPlugins('freeze-cache', compilation);
 
     return Promise.all([
       fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
       _this.applyPluginsParallelPromise('write-cache', compilation),
-      // assetCacheSerializer.write(assetOps),
-      // moduleCacheSerializer.write(moduleOps),
-      // dataCacheSerializer.write(dataOps),
     ])
     .then(function() {
       // console.log('cache out', Date.now() - startCacheTime);
