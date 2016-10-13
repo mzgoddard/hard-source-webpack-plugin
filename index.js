@@ -525,6 +525,25 @@ ModuleCachePlugin.getCache = function(hardSource) {
   return hardSource[ModuleCachePluginNamespace].cache;
 };
 
+ModuleCachePlugin.invalidateModule = function(hardSource, identifier) {
+  var cacheItem = ModuleCachePlugin.getCache(hardSource)[identifier];
+  if (cacheItem) {
+    cacheItem.invalid = true;
+    ModuleCachePlugin.getCache(hardSource)[identifier] = null;
+  }
+};
+
+ModuleCachePlugin.identifier = function(compilation, module) {
+  var identifierPrefix = cachePrefix(compilation);
+  if (identifierPrefix === null) {
+    return;
+  }
+  var identifier = identifierPrefix + (
+    typeof module === 'string' ? module : module.identifier()
+  );
+  return identifier;
+};
+
 ModuleCachePlugin.prototype.apply = function(hardSource) {
   if (hardSource[ModuleCachePluginNamespace]) {return;}
 
@@ -634,11 +653,10 @@ NormalModuleFreezePlugin.prototype.apply = function(hardSource) {
     compilation.modules.forEach(function(module) {
       var devtoolOptions = hardSource.getDevtoolOptions();
 
-      var identifierPrefix = cachePrefix(compilation);
-      if (identifierPrefix === null) {
+      var identifier = ModuleCachePlugin.identifier(compilation, module);
+      if (!identifier) {
         return;
       }
-      var identifier = identifierPrefix + module.identifier();
 
       var existingCacheItem = ModuleCachePlugin.getCache(hardSource)[identifier];
 
@@ -695,28 +713,16 @@ NormalModuleFreezePlugin.prototype.apply = function(hardSource) {
           errors: module.errors.map(serializeError),
           warnings: module.warnings.map(serializeError),
         };
-
-        // Custom plugin handling for common plugins.
-        // This will be moved in a pluginified HardSourcePlugin.
-        //
-        // Ignore the modules that kick off child compilers in extract text.
-        // These modules must always be built so the child compilers run so
-        // that assets get built.
-        if (module[extractTextNS] || module.meta[extractTextNS]) {
-          delete moduleOut[identifier];
-          return;
-        }
       }
     });
   });
 
   hardSource.plugin('freeze-asset-data', function(assetOut, compilation) {
-    compilation.modules.forEach(function(module, cb) {
-      var identifierPrefix = cachePrefix(compilation);
-      if (identifierPrefix === null) {
+    compilation.modules.forEach(function(module) {
+      var identifier = ModuleCachePlugin.identifier(compilation, module);
+      if (!identifier) {
         return;
       }
-      var identifier = identifierPrefix + module.identifier();
 
       var existingCacheItem = ModuleCachePlugin.getCache(hardSource)[identifier];
 
@@ -763,11 +769,10 @@ NormalModuleThawPlugin.prototype.apply = function(hardSource) {
           fn.call(null, request, function(err, result) {
             if (err) {return cb(err);}
 
-            var identifierPrefix = cachePrefix(compilation);
-            if (identifierPrefix === null) {
+            var identifier = ModuleCachePlugin.identifier(compilation, result.request);
+            if (!identifier) {
               return cb(err, result);
             }
-            var identifier = identifierPrefix + result.request;
 
             if (moduleCache[identifier]) {
               var cacheItem = moduleCache[identifier];
@@ -799,6 +804,38 @@ NormalModuleThawPlugin.prototype.apply = function(hardSource) {
           });
         };
       });
+    });
+  });
+};
+
+function ExtractTextHardSourcePlugin() {}
+
+var ExtractTextHardSourcePluginNamespace = '__extractTextHardSourcePlugin_' + Date.now();
+
+ExtractTextHardSourcePlugin.prototype.apply = function(hardSource) {
+  if (hardSource[ExtractTextHardSourcePluginNamespace]) {return;}
+
+  hardSource[ExtractTextHardSourcePluginNamespace] = true;
+
+  new ModuleCachePlugin().apply(hardSource);
+
+  hardSource.plugin('freeze-module-data', function(moduleOut, compilation) {
+    compilation.modules.forEach(function(module) {
+      var identifier = ModuleCachePlugin.identifier(compilation, module);
+      if (!identifier) {
+        return;
+      }
+
+      // Custom plugin handling for common plugins.
+      // This will be moved in a pluginified HardSourcePlugin.
+      //
+      // Ignore the modules that kick off child compilers in extract text.
+      // These modules must always be built so the child compilers run so
+      // that assets get built.
+      if (module[extractTextNS] || module.meta[extractTextNS]) {
+        delete moduleOut[identifier];
+        return;
+      }
     });
   });
 };
@@ -1054,8 +1091,7 @@ BustModuleByDependencyPlugin.prototype.apply = function(hardSource) {
         hardSource.applyPluginsBailResult('check-dependency', cacheDependency, cacheItem) !== false;
       });
       if (!validDepends) {
-        cacheItem.invalid = true;
-        moduleCache[key] = null;
+        ModuleCachePlugin.invalidateModule(hardSource, key);
       }
     });
   });
@@ -1117,8 +1153,7 @@ BustModulePlugin.prototype.apply = function(hardSource) {
       var cacheItem = moduleCache[key];
       if (cacheItem) {
         if (hardSource.applyPluginsBailResult1('check-module', cacheItem) === false) {
-          cacheItem.invalid = true;
-          moduleCache[key] = null;
+          ModuleCachePlugin.invalidateModule(hardSource, key);
         }
       }
     });
@@ -1174,11 +1209,10 @@ CheckModuleUsedFlagPlugin.prototype.apply = function(hardSource) {
         var moduleCache = ModuleCachePlugin.getCache(hardSource);
         needAdditionalPass = compilation.modules.reduce(function(carry, module) {
 
-          var identifierPrefix = cachePrefix(compilation);
-          if (identifierPrefix === null) {
+          var identifier = ModuleCachePlugin.identifier(compilation, module);
+          if (!identifier) {
             return;
           }
-          var identifier = identifierPrefix + module.request;
 
           var cacheItem = moduleCache[identifier];
           // var module = modules()[cacheItem.identifier];
@@ -1186,9 +1220,7 @@ CheckModuleUsedFlagPlugin.prototype.apply = function(hardSource) {
             !lodash.isEqual(cacheItem.used, module.used) ||
             !lodash.isEqual(cacheItem.usedExports, module.usedExports)
           )) {
-            cacheItem.invalid = true;
-
-            moduleCache[identifier] = null;
+            ModuleCachePlugin.invalidateModule(hardSource, identifier);
             return true;
           }
           return carry;
@@ -1223,6 +1255,8 @@ function HardSourceWebpackPlugin(options) {
   new NormalModuleFreezePlugin().apply(this);
   new NormalModuleThawPlugin().apply(this);
 
+  new ExtractTextHardSourcePlugin().apply(this);
+
   this.apply = this.apply.bind(this);
 }
 
@@ -1255,18 +1289,6 @@ HardSourceWebpackPlugin.prototype.applyPluginsPromise = function(name, args) {
 
 HardSourceWebpackPlugin.prototype.applyPluginsParallelPromise = function(name, args) {
   return Promise.promisify(this.applyPluginsParallel).apply(this, arguments);
-};
-
-HardSourceWebpackPlugin.prototype.getModuleCache = function() {
-  return this.moduleCache;
-};
-
-HardSourceWebpackPlugin.prototype.getAssetCache = function() {
-  return this.assetCache;
-};
-
-HardSourceWebpackPlugin.prototype.getDataCache = function() {
-  return this.dataCache;
 };
 
 HardSourceWebpackPlugin.prototype.getDevtoolOptions = function() {
