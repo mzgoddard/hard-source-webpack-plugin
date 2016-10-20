@@ -4,6 +4,8 @@ var vm = require('vm');
 
 var expect = require('chai').expect;
 var MemoryFS = require('memory-fs');
+
+var LevelDbSerializer = require('../../lib/cache-serializers').LevelDbSerializer;
 var mkdirp = require('mkdirp');
 var Promise = require('bluebird');
 var rimraf = require('rimraf');
@@ -203,6 +205,45 @@ exports.itCompiles = function(name, fixturePath, fnA, fnB, expectHandle) {
     });
   });
 };
+
+exports.itCompilesWithCache = function(name, fixturePath, fnA, fnB, expectHandle) {
+  before(function() {
+    return exports.clean(fixturePath);
+  });
+
+  it(name, function() {
+    var cache1, cache2;
+
+    return Promise.resolve()
+    .then(function() {
+      return fnA();
+    })
+    .then(function() {
+      return compile(fixturePath);
+    })
+    .then(function() {
+      var serializer = new LevelDbSerializer({
+        cacheDirPath: path.join(__dirname, 'fixtures', fixturePath, 'tmp/cache/modules')
+      });
+      return serializer.read().then(function(_cache) { cache1 = _cache; });
+    })
+    .then(function() {
+      return fnB();
+    })
+    .then(function() {
+      return compile(fixturePath);
+    })
+    .then(function() {
+      var serializer = new LevelDbSerializer({
+        cacheDirPath: path.join(__dirname, 'fixtures', fixturePath, 'tmp/cache/modules')
+      });
+      return serializer.read().then(function(_cache) { cache2 = _cache; });
+    })
+    .then(function() {
+      return expectHandle(cache1, cache2);
+    });
+  });
+}
 
 exports.itCompilesChange = function(fixturePath, filesA, filesB, expectHandle) {
   exports.itCompiles('builds changes in ' + fixturePath + ' fixture', fixturePath, function() {
