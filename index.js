@@ -56,6 +56,17 @@ function requestHash(request) {
   return crypto.createHash('sha1').update(request).digest().hexSlice();
 }
 
+function md5(file, inputFileSystem) {
+  return Promise.resolve({
+    then: function(resolve, reject) {
+      inputFileSystem.readFile(file, function(err, contents) {
+        if (err) { return reject(err); }
+        return resolve(crypto.createHash('md5').update(contents, 'utf8').digest('hex'));
+      });
+    }
+  });
+}
+
 var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
 var fsStat = Promise.promisify(fs.stat, {context: fs});
 var fsWriteFile = Promise.promisify(fs.writeFile, {context: fs});
@@ -319,8 +330,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var moduleCache = {};
   var assetCache = {};
   var dataCache = {};
+  var md5Cache = {};
   var currentStamp = '';
 
+  var fileMd5s = {};
   var fileTimestamps = {};
 
   var assetCacheSerializer = this.assetCacheSerializer =
@@ -329,7 +342,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'modules')});
   var dataCacheSerializer = this.dataCacheSerializer =
     new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'data')});
-
+  var md5CacheSerializer = this.md5CacheSerializer =
+    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'md5')});
   var _this = this;
 
   compiler.plugin('after-plugins', function() {
@@ -385,6 +399,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         moduleCache = {};
         assetCache = {};
         dataCache = {};
+        md5Cache = {};
         fileTimestamps = {};
         return;
       }
@@ -411,6 +426,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             }
           });
         }),
+
+        md5CacheSerializer.read()
+        .then(function(_md5Cache) {md5Cache = _md5Cache;})
       ])
       .then(function() {
         // console.log('cache in', Date.now() - start);
@@ -426,17 +444,32 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     // var fs = compiler.inputFileSystem;
     var fileTs = compiler.fileTimestamps = fileTimestamps = {};
 
-    return Promise.all(dataCache.fileDependencies.map(function(file) {
-      return fsStat(file)
-      .then(function(stat) {
-        fileTs[file] = stat.mtime || Infinity;
-      }, function(err) {
-        fileTs[file] = 0;
+    var promises = []
+    dataCache.fileDependencies.forEach(function(file) {
+      promises.push(
+        fsStat(file)
+        .then(function(stat) {
+          fileTs[file] = stat.mtime || Infinity;
+        }, function(err) {
+          fileTs[file] = 0;
 
-        if (err.code === "ENOENT") {return;}
-        throw err;
-      });
-    }))
+          if (err.code === "ENOENT") {return;}
+          throw err;
+        })
+      );
+
+      promises.push(
+        md5(file, compiler.inputFileSystem)
+        .then(function(content) {
+          fileMd5s[file] = content;
+        }, function(err) {
+          fileMd5s[file] = null;
+          if (err.code === "ENOENT") {return;}
+          throw err;
+        })
+      );
+    });
+    return Promise.all(promises)
     .then(function() {
       // Invalidate modules that depend on a userRequest that is no longer
       // valid.
@@ -606,6 +639,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
           if (moduleCache[identifier]) {
             var cacheItem = moduleCache[identifier];
+
             if (typeof cacheItem === 'string') {
               cacheItem = JSON.parse(cacheItem);
               moduleCache[identifier] = cacheItem;
@@ -617,13 +651,16 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                 return carry;
               }, {});
             }
+
             if (!HardModule.needRebuild(
               cacheItem.buildTimestamp,
               cacheItem.fileDependencies,
               cacheItem.contextDependencies,
               // [],
               fileTimestamps,
-              compiler.contextTimestamps
+              compiler.contextTimestamps,
+              fileMd5s,
+              md5Cache
             )) {
               var module = new HardModule(cacheItem);
 
@@ -658,6 +695,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     var moduleOps = [];
     var dataOps = [];
+    var md5Ops = [];
     var assetOps = [];
 
     var fileDependenciesDiff = lodash.difference(compilation.fileDependencies, dataCache.fileDependencies || []);
@@ -700,108 +738,133 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
       return serialized;
     }
-
-    compilation.modules.forEach(function(module) {
-      var identifierPrefix = cachePrefix(compilation);
-      if (identifierPrefix === null) {
-        return;
-      }
-      var identifier = identifierPrefix + module.identifier();
-      var existingCacheItem = moduleCache[identifier];
-
-      if (
-        module.request &&
-        module.cacheable &&
-        !(module instanceof HardModule) &&
-        (module instanceof NormalModule) &&
-        (
-          existingCacheItem &&
-          module.buildTimestamp > existingCacheItem.buildTimestamp ||
-          !existingCacheItem
-        )
-      ) {
-        var source = module.source(
-          compilation.dependencyTemplates,
-          compilation.moduleTemplate.outputOptions,
-          compilation.moduleTemplate.requestShortener
-        );
-        var assets = Object.keys(module.assets || {}).map(function(key) {
-          return {
-            key: requestHash(key),
-            value: module.assets[key].source(),
-          };
+    var promises = dataCache.fileDependencies.map(function(file) {
+      if (fileMd5s[file]) {
+        return Promise.resolve();
+      } else {
+        return md5(file, compiler.inputFileSystem)
+        .then(function(content) {
+          fileMd5s[file] = content;
+        }, function(err) {
+          fileMd5s[file] = null;
+          if (err.code === "ENOENT") {return;}
+          throw err;
         });
-        moduleCache[identifier] = {
-          moduleId: module.id,
-          context: module.context,
-          request: module.request,
-          userRequest: module.userRequest,
-          rawRequest: module.rawRequest,
-          resource: module.resource,
-          loaders: module.loaders,
-          identifier: module.identifier(),
-          // libIdent: module.libIdent &&
-          // module.libIdent({context: compiler.options.context}),
-          assets: Object.keys(module.assets || {}),
-          buildTimestamp: module.buildTimestamp,
-          strict: module.strict,
-          meta: module.meta,
-          used: module.used,
-          usedExports: module.usedExports,
-
-          rawSource: module._source ? module._source.source() : null,
-          source: source.source(),
-          map: devtoolOptions && source.map(devtoolOptions),
-          // Some plugins (e.g. UglifyJs) set useSourceMap on a module. If that
-          // option is set we should always store some source map info and
-          // separating it from the normal devtool options may be necessary.
-          baseMap: module.useSourceMap && source.map(),
-          hashContent: serializeHashContent(module),
-
-          dependencies: serializeDependencies(module.dependencies),
-          variables: serializeVariables(module.variables),
-          blocks: serializeBlocks(module.blocks),
-
-          fileDependencies: module.fileDependencies,
-          contextDependencies: module.contextDependencies,
-
-          errors: module.errors.map(serializeError),
-          warnings: module.warnings.map(serializeError),
-        };
-
-        // Custom plugin handling for common plugins.
-        // This will be moved in a pluginified HardSourcePlugin.
-        //
-        // Ignore the modules that kick off child compilers in extract text.
-        // These modules must always be built so the child compilers run so
-        // that assets get built.
-        if (module[extractTextNS] || module.meta[extractTextNS]) {
-          moduleCache[identifier] = null;
-          return;
-        }
-
-        moduleOps.push({
-          key: identifier,
-          value: JSON.stringify(moduleCache[identifier]),
-        });
-
-        if (assets.length) {
-          assetOps = assetOps.concat(assets);
-        }
       }
     });
 
-    Promise.all([
-      fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
-      fsWriteFile(resolveCachePath, JSON.stringify(resolveCache), 'utf8'),
-      assetCacheSerializer.write(assetOps),
-      moduleCacheSerializer.write(moduleOps),
-      dataCacheSerializer.write(dataOps),
-    ])
+    Promise.all(promises)
     .then(function() {
-      // console.log('cache out', Date.now() - startCacheTime);
-      cb();
-    }, cb);
+      compilation.modules.forEach(function(module) {
+        var identifierPrefix = cachePrefix(compilation);
+        if (identifierPrefix === null) {
+          return;
+        }
+        var identifier = identifierPrefix + module.identifier();
+        var existingCacheItem = moduleCache[identifier];
+
+        if (
+          module.request &&
+          module.cacheable &&
+          !(module instanceof HardModule) &&
+          (module instanceof NormalModule) &&
+          (
+            existingCacheItem &&
+            module.buildTimestamp > existingCacheItem.buildTimestamp ||
+            !existingCacheItem
+          )
+        ) {
+          var source = module.source(
+            compilation.dependencyTemplates,
+            compilation.moduleTemplate.outputOptions,
+            compilation.moduleTemplate.requestShortener
+          );
+          var assets = Object.keys(module.assets || {}).map(function(key) {
+            return {
+              key: requestHash(key),
+              value: module.assets[key].source(),
+            };
+          });
+          moduleCache[identifier] = {
+            moduleId: module.id,
+            context: module.context,
+            request: module.request,
+            userRequest: module.userRequest,
+            rawRequest: module.rawRequest,
+            resource: module.resource,
+            loaders: module.loaders,
+            identifier: module.identifier(),
+            // libIdent: module.libIdent &&
+            // module.libIdent({context: compiler.options.context}),
+            assets: Object.keys(module.assets || {}),
+            buildTimestamp: module.buildTimestamp,
+            strict: module.strict,
+            meta: module.meta,
+            used: module.used,
+            usedExports: module.usedExports,
+
+            rawSource: module._source ? module._source.source() : null,
+            source: source.source(),
+            map: devtoolOptions && source.map(devtoolOptions),
+            // Some plugins (e.g. UglifyJs) set useSourceMap on a module. If that
+            // option is set we should always store some source map info and
+            // separating it from the normal devtool options may be necessary.
+            baseMap: module.useSourceMap && source.map(),
+            hashContent: serializeHashContent(module),
+
+            dependencies: serializeDependencies(module.dependencies),
+            variables: serializeVariables(module.variables),
+            blocks: serializeBlocks(module.blocks),
+
+            fileDependencies: module.fileDependencies,
+            contextDependencies: module.contextDependencies,
+
+            errors: module.errors.map(serializeError),
+            warnings: module.warnings.map(serializeError),
+          };
+
+          // Custom plugin handling for common plugins.
+          // This will be moved in a pluginified HardSourcePlugin.
+          //
+          // Ignore the modules that kick off child compilers in extract text.
+          // These modules must always be built so the child compilers run so
+          // that assets get built.
+          if (module[extractTextNS] || module.meta[extractTextNS]) {
+            moduleCache[identifier] = null;
+            return;
+          }
+
+          moduleOps.push({
+            key: identifier,
+            value: JSON.stringify(moduleCache[identifier]),
+          });
+
+          if (fileMd5s[module.resource]) {
+            md5Ops.push({
+              key: module.resource,
+              value: fileMd5s[module.resource]
+            });
+          }
+
+          if (assets.length) {
+            assetOps = assetOps.concat(assets);
+          }
+        }
+      });
+
+      Promise.all([
+        fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
+        fsWriteFile(resolveCachePath, JSON.stringify(resolveCache), 'utf8'),
+        assetCacheSerializer.write(assetOps),
+        moduleCacheSerializer.write(moduleOps),
+        dataCacheSerializer.write(dataOps),
+        md5CacheSerializer.write(md5Ops),
+      ])
+      .then(function() {
+        // console.log('cache out', Date.now() - startCacheTime);
+        cb();
+      }, cb);
+    });
   });
 
   // Ensure records are stored inbetween runs of memory-fs using

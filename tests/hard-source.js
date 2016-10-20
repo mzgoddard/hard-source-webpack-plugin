@@ -4,7 +4,7 @@ var expect = require('chai').expect;
 
 var itCompilesChange = require('./util').itCompilesChange;
 var itCompiles = require('./util').itCompiles;
-var itCompilesWithCache = require('./util').itCompiles;
+var itCompilesWithCache = require('./util').itCompilesWithCache;
 var writeFiles = require('./util').writeFiles;
 
 describe('hard-source features', function() {
@@ -49,7 +49,7 @@ describe('hard-source features', function() {
               '  return n + (n > 0 ? n - 1 : 0);',
               '};',
             ].join('\n')
-          })
+          });
         },
         function() {
           return writeFiles('hard-source-md5', {
@@ -58,7 +58,7 @@ describe('hard-source features', function() {
               '  return 1;',
               '};',
             ].join('\n')
-          })
+          });
         },
         function(cache1, cache2) {
           expect(cache1).to.not.eql(cache2);

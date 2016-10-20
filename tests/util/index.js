@@ -212,18 +212,22 @@ exports.itCompilesWithCache = function(name, fixturePath, fnA, fnB, expectHandle
   });
 
   it(name, function() {
+    this.timeout(20000);
+    this.slow(4000);
     var cache1, cache2;
-
     return Promise.resolve()
     .then(function() {
       return fnA();
     })
     .then(function() {
-      return compile(fixturePath);
+      return exports.compile(fixturePath);
+    })
+    .then(function() {
+      return new Promise(function(resolve) {setTimeout(resolve, 1000);});
     })
     .then(function() {
       var serializer = new LevelDbSerializer({
-        cacheDirPath: path.join(__dirname, 'fixtures', fixturePath, 'tmp/cache/modules')
+        cacheDirPath: path.join(__dirname, '../', 'fixtures', fixturePath, 'tmp/cache/md5')
       });
       return serializer.read().then(function(_cache) { cache1 = _cache; });
     })
@@ -231,11 +235,14 @@ exports.itCompilesWithCache = function(name, fixturePath, fnA, fnB, expectHandle
       return fnB();
     })
     .then(function() {
-      return compile(fixturePath);
+      return exports.compile(fixturePath);
+    })
+    .then(function() {
+      return new Promise(function(resolve) {setTimeout(resolve, 1000);});
     })
     .then(function() {
       var serializer = new LevelDbSerializer({
-        cacheDirPath: path.join(__dirname, 'fixtures', fixturePath, 'tmp/cache/modules')
+        cacheDirPath: path.join(__dirname, '../', 'fixtures', fixturePath, 'tmp/cache/md5')
       });
       return serializer.read().then(function(_cache) { cache2 = _cache; });
     })
