@@ -1,0 +1,1 @@
+helper(require('./image.png'));

@@ -2,6 +2,7 @@ var expect = require('chai').expect;
 
 var util = require('./util');
 var itCompilesTwice = util.itCompilesTwice;
+var itCompilesChange = util.itCompilesChange;
 var clean = util.clean;
 var compile = util.compile;
 
@@ -32,6 +33,27 @@ describe('loader webpack warnings & errors', function() {
         expect(runs[1].warnings).to.eql(runs[0].warnings);
         expect(runs[1].errors).to.eql(runs[0].errors);
       });
+  });
+
+});
+
+describe('loader webpack use - builds changes', function() {
+
+  itCompilesChange('loader-custom-prepend-helper', {
+    'loader-helper.js': [
+      'function helper(a) {',
+      '  console.log(a);',
+      '}',
+    ].join('\n'),
+  }, {
+    'loader-helper.js': [
+      'function helper(b) {',
+      '  console.log(b);',
+      '}',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/console\.log\(a\)/);
+    expect(output.run2['main.js'].toString()).to.match(/console\.log\(b\)/);
   });
 
 });
