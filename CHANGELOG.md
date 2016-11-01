@@ -1,3 +1,11 @@
+# 0.2.0
+
+Builds and stores checksums of files built by webpack to better determine when to rebuild modules. This helps HardSource rebuild less in CI environments.
+
+Code contributed by:
+
+- @nikhilmat
+
 # 0.1.0
 
 HardSource grew through its `0.0.X` versions up to this point. It currently supports:
@@ -22,7 +30,7 @@ HardSource grew through its `0.0.X` versions up to this point. It currently supp
 - `0.0.44` Prefix module cache identifier by child compiler subcache name
 - `0.0.43` Flatten dependency `loc` field (HMR fix for 0.0.41)
 - `0.0.42` Support out of order harmony module export specifier dependencies
-- `0.0.41` Freeze and thaw module warnings and errors
+- `0.0.41` Freeze and thaw module warnings and errors (by @Strate)
 - `0.0.40` Support latest webpack 2 beta (2.1.0-beta.25)
 - `0.0.38` Add `configHash` option
 - `0.0.37` Add a little logic to avoid re-serializing already serialized modules
