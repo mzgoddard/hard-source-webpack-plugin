@@ -104,4 +104,158 @@ describe('hard-source features', function() {
     .to.have.length(2);
   });
 
+  function itCompilesEnvironmentHashDisabled(key, config, config2) {
+    itCompiles('compiles hard-source-environmenthash-' + key + ' with out of date vendor when environment paths disabled', 'hard-source-environmenthash', function() {
+      return writeFiles('hard-source-environmenthash', {
+        'hard-source-config.js': config.join('\n'),
+        'vendor/lib1.js': 'console.log("a");\n',
+      });
+    }, function() {
+      return writeFiles('hard-source-environmenthash', {
+        'hard-source-config.js': (config2 || config).join('\n'),
+        'vendor/lib1.js': 'console.log("b");\n',
+      });
+    }, function(output) {
+      expect(output.run1).to.eql(output.run2);
+      expect(output.run2['main.js']).to.not.match(/"b"/);
+    });
+  }
+
+  function itCompilesEnvironmentHash(key, config, config2) {
+    itCompiles('compiles hard-source-environmenthash-' + key + ' with fresh cache', 'hard-source-environmenthash', function() {
+      return writeFiles('hard-source-environmenthash', {
+        'hard-source-config.js': config.join('\n'),
+        'vendor/lib1.js': 'console.log("a");\n',
+        'env-hash': 'a',
+      });
+    }, function() {
+      return writeFiles('hard-source-environmenthash', {
+        'hard-source-config.js': (config2 || config).join('\n'),
+        'vendor/lib1.js': 'console.log("b");\n',
+        'env-hash': 'b',
+      })
+      .then(function() {
+        return fs.readFileSync(__dirname + '/fixtures/hard-source-environmenthash/tmp/cache/stamp', 'utf8');
+      });
+    }, function(output) {
+      var stamp = fs.readFileSync(__dirname + '/fixtures/hard-source-environmenthash/tmp/cache/stamp', 'utf8');
+      expect(stamp).to.not.equal(output.setup2);
+    });
+  }
+
+  itCompilesEnvironmentHashDisabled('paths-false', [
+    '{',
+    '  cacheDirectory: "cache",',
+    '  recordsPath: "cache/records.json",',
+    '  environmentPaths: false,',
+    '}',
+  ], [
+    '{',
+    '  cacheDirectory: "cache",',
+    '  recordsPath: "cache/records.json",',
+    '  environmentPaths: false,',
+    '}',
+  ]);
+
+  itCompilesEnvironmentHashDisabled('false', [
+    '{',
+    '  cacheDirectory: "cache",',
+    '  recordsPath: "cache/records.json",',
+    '  environmentHash: false,',
+    '}',
+  ], [
+    '{',
+    '  cacheDirectory: "cache",',
+    '  recordsPath: "cache/records.json",',
+    '  environmentHash: false,',
+    '}',
+  ]);
+
+  itCompilesEnvironmentHash('paths-envhash', [
+    '{',
+    '  cacheDirectory: "cache",',
+    '  recordsPath: "cache/records.json",',
+    '  environmentPaths: {',
+    '    root: __dirname,',
+    '    directories: ["vendor"],',
+    '    files: [],',
+    '  },',
+    '}',
+  ]);
+
+  itCompilesEnvironmentHash('paths-envhash-files', [
+    '{',
+    '  cacheDirectory: "cache",',
+    '  recordsPath: "cache/records.json",',
+    '  environmentPaths: {',
+    '    root: __dirname,',
+    '    directories: ["vendor"],',
+    '    files: ["env-hash"],',
+    '  },',
+    '}',
+  ]);
+
+  itCompilesEnvironmentHash('string', [
+    '{',
+    '  cacheDirectory: "cache",',
+    '  recordsPath: "cache/records.json",',
+    '  environmentHash: "a",',
+    '}',
+  ], [
+    '{',
+    '  cacheDirectory: "cache",',
+    '  recordsPath: "cache/records.json",',
+    '  environmentHash: "b",',
+    '}',
+  ]);
+
+  itCompilesEnvironmentHash('envhash', [
+    '{',
+    '  cacheDirectory: "cache",',
+    '  recordsPath: "cache/records.json",',
+    '  environmentHash: {',
+    '    root: __dirname,',
+    '    directories: ["vendor"],',
+    '    files: [],',
+    '  },',
+    '}',
+  ]);
+
+  itCompilesEnvironmentHash('envhash-files', [
+    '{',
+    '  cacheDirectory: "cache",',
+    '  recordsPath: "cache/records.json",',
+    '  environmentHash: {',
+    '    root: __dirname,',
+    '    directories: ["vendor"],',
+    '    files: ["env-hash"],',
+    '  },',
+    '}',
+  ]);
+
+  itCompilesEnvironmentHash('function', [
+    '{',
+    '  cacheDirectory: "cache",',
+    '  recordsPath: "cache/records.json",',
+    '  environmentHash: function(config) {',
+    '    return fs.readFileSync(__dirname + "/env-hash", "utf8");',
+    '  },',
+    '}',
+  ]);
+
+  itCompilesEnvironmentHash('function-promise', [
+    '{',
+    '  cacheDirectory: "cache",',
+    '  recordsPath: "cache/records.json",',
+    '  environmentHash: function(config) {',
+    '    return new Promise(function(resolve, reject) {',
+    '      fs.readFile(__dirname + "/env-hash", "utf8", function(err, src) {',
+    '        if (err) {return reject(err);}',
+    '        resolve(src);',
+    '      });',
+    '    });',
+    '  },',
+    '}',
+  ]);
+
 });
