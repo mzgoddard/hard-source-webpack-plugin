@@ -6,6 +6,10 @@ Code contributed by:
 
 - @nikhilmat
 
+## 0.2.X Patches
+
+- `0.2.1` Support functions as option to environmentHash
+
 # 0.1.0
 
 HardSource grew through its `0.0.X` versions up to this point. It currently supports:
