@@ -28,16 +28,29 @@ module.exports = {
         // Build a string value used by HardSource to determine which cache to
         // use if [confighash] is in cacheDirectory or if the cache should be
         // replaced if [confighash] does not appear in cacheDirectory.
-        return process.env.NODE_ENV;
+        //
+        // node-object-hash on npm can be used to build this.
+        return require('node-object-hash')().hash(webpackConfig);
       },
       // Optional field. This field determines when to throw away the whole
       // cache if for example npm modules were updated.
-      environmentPaths: {
+      environmentHash: {
         root: process.cwd(),
         directories: ['node_modules'],
-        // Add your webpack configuration paths here so changes to loader
-        // configuration and other details will cause a fresh build to occur.
-        files: ['package.json', 'webpack.config.js'],
+        files: ['package.json'],
+      },
+      // `environmentHash` can also be a function. that can return a function
+      // resolving to a hashed value of the dependency environment.
+      environmentHash: function() {
+        // Return a string or a promise resolving to a string of a hash of the 
+        return new Promise(function(resolve, reject) {
+          require('fs').readFile(__dirname + '/yarn.lock', function(err, src) {
+            if (err) {return reject(err);}
+            resolve(
+              require('crypto').createHash('md5').update(src).digest('hex')
+            );
+          });
+        });
       },
     }),
   ],
@@ -80,9 +93,40 @@ Differences reflected through this could be changes to a configuration like:
 
 There isn't a way for HardSource to produce this value so its up to users to make it best reflect any webpack config that your specific project reasonably may have. Many project may use a library like `node-object-hash` to do this. Two reasons HardSource doesn't just do that is because of recursive configs or configs with non-deterministic values. If neither of those issues are part of your config `node-object-hash` will work here. In cases where you have recursive objects or non-deterministic values in your config, you will need to construct this value on your own or by creating a clone of your config that removes those issues first.
 
-### `environmentPaths`
+### `environmentHash`
 
-The options to `environmentPaths` are passed to [`env-hash`](https://www.npmjs.com/package/env-hash). Using `env-hash`, HardSourceWebpackPlugin tries to detect when changes in the configuration environment have changed such that it should ignore any cache. You can disable this check, though its best not to, by setting `environmentPaths` to `false`.
+This option builds a hash of the system environment as it effects built bundles. This concerns any dependencies installed through npm, bower, git submodules, or anything downloaded manually and stored in a vendor. Any build-time dependencies like loaders, plugins, and libraries for either that are updated inbetween builds are very difficult to track. At this time the best mechanism to ensure a build reflects the installed dependencies is to throw away a previous cache when the built environment hash changes.
+
+#### `environmentHash` as a function
+
+The most versatile value you can pass to environmentHash is a function.
+
+This is a great way to define specifically how you want the hash to be built, say if you just wanted to checksum a yarn lock file or an npm shrinkwrap.
+
+```js
+environmentHash: function() {
+  return require('crypto').createHash('md5')
+  .update(require('fs').readFileSync(__dirname + '/yarn.lock'))
+  .digest('hex');
+},
+```
+
+A promise may also be returned for building this asynchrounously.
+
+```js
+environmentHash: function() {
+  return new Promise(function(resolve, reject) {
+    require('fs').readFile(__dirname + '/npm-shrinkwrap.json', function(err, src) {
+      if (err) {return reject(err);}
+      resolve(require('crypto').createHash('md5').update(src).digest('hex'));
+    });
+  });
+},
+```
+
+#### `environmentHash` as an object
+
+The object options to `environmentHash` are passed to [`env-hash`](https://www.npmjs.com/package/env-hash). Using `env-hash`, HardSourceWebpackPlugin tries to detect when changes in the configuration environment have changed such that it should ignore any cache.
 
 Here are the options as documented in `env-hash`.
 
@@ -92,7 +136,9 @@ Here are the options as documented in `env-hash`.
 > - `files` is an array of relative or absolute file paths. Defaults to `['package.json']`
 > - `directories` is an array of relative or absolute directory paths. Defaults to `['node_modules']`
 
-If you have many config files, placing them in a directory and include it as one of the paths to the `directories` option. Or you can use a package like `glob` as part of the array to the `files` option.
+#### `environmentHash` disabled with false
+
+You can disable the environment hash check by setting `environmentHash: false`. Take care with using this value as you'll need to provide a work around to dump the cache in cases like updating loaders or libraries loaders use.
 
 ## Please contribute!
 

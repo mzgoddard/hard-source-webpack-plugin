@@ -291,6 +291,54 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     return;
   }
 
+  var environmentHasher = null;
+  if (typeof options.environmentPaths !== 'undefined') {
+    // TODO 0.3.0 Add deprecation message.
+    if (options.environmentPaths === false) {
+      environmentHasher = function() {
+        return Promise.resolve('');
+      };
+    }
+    else if (typeof options.environmentPaths === 'string') {
+      environmentHasher = function() {
+        return Promise.resolve(options.environmentPaths);
+      };
+    }
+    else {
+      environmentHasher = function() {
+        return envHash(options.environmentPaths);
+      };
+    }
+  }
+  if (typeof options.environmentHash !== 'undefined') {
+    if (environmentHasher) {
+      console.error('HardSourceWebpackPlugin: environmentHash is a new option replacing environmentPaths. Please use only environmentHash.');
+    }
+    if (options.environmentHash === false) {
+      environmentHasher = function() {
+        return Promise.resolve('');
+      };
+    }
+    else if (typeof options.environmentHash === 'string') {
+      environmentHasher = function() {
+        return Promise.resolve(options.environmentHash);
+      };
+    }
+    else if (typeof options.environmentHash === 'object') {
+      environmentHasher = function() {
+        return envHash(options.environmentHash);
+      };
+    }
+    else if (typeof options.environmentHash === 'function') {
+      environmentHasher = function() {
+        return Promise.resolve(options.environmentHash());
+      };
+    }
+  }
+  if (!environmentHasher) {
+    environmentHasher = envHash;
+  }
+
   if (options.recordsInputPath || options.recordsPath) {
     if (compiler.options.recordsInputPath || compiler.options.recordsPath) {
       console.error('HardSourceWebpackPlugin will not set recordsInputPath when it is already set. Using current value:', compiler.options.recordsInputPath || compiler.options.recordsPath);
@@ -387,12 +435,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       fsReadFile(path.join(cacheDirPath, 'stamp'), 'utf8')
       .catch(function() {return '';}),
 
-      (function() {
-        if (options.environmentPaths === false) {
-          return Promise.resolve('');
-        }
-        return envHash(options.environmentPaths);
-      })(),
+      environmentHasher(),
     ])
     .then(function(stamps) {
       var stamp = stamps[0];
@@ -846,7 +889,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         // Ignore the modules that kick off child compilers in extract text.
         // These modules must always be built so the child compilers run so
         // that assets get built.
-        if (module[extractTextNS] || module.meta[extractTextNS]) {
+        if (
+          module[extractTextNS] ||
+          module.meta && module.meta[extractTextNS]
+        ) {
           moduleCache[identifier] = null;
           return;
         }
