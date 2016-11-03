@@ -889,7 +889,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         // Ignore the modules that kick off child compilers in extract text.
         // These modules must always be built so the child compilers run so
         // that assets get built.
-        if (module[extractTextNS] || module.meta[extractTextNS]) {
+        if (
+          module[extractTextNS] ||
+          module.meta && module.meta[extractTextNS]
+        ) {
           moduleCache[identifier] = null;
           return;
         }
