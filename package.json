@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "bluebird": "^3.0.0",
-    "env-hash": "^1.0.1",
+    "env-hash": "^1.1.0",
     "level": "^1.4.0",
     "lodash": "^4.15.0",
     "mkdirp": "^0.5.1",
