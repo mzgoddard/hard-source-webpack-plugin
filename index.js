@@ -166,7 +166,7 @@ function serializeDependencies(deps) {
           harmonyImportSpecifier: true,
           harmonyId: dep.id,
           harmonyName: dep.name,
-          loc: dep.loc,
+          loc: flattenPrototype(dep.loc),
         };
       }
     }
