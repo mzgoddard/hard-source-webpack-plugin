@@ -39,6 +39,19 @@ describe('loader webpack warnings & errors', function() {
 
 describe('loader webpack use - builds changes', function() {
 
+  itCompilesChange('loader-custom-context-dep', {
+    'dir/file': [
+      '// dir/file/a',
+    ].join('\n'),
+  }, {
+    'dir/file': [
+      '// dir/file/b',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/dir\/file\/a/);
+    expect(output.run2['main.js'].toString()).to.match(/dir\/file\/b/);
+  });
+
   itCompilesChange('loader-custom-prepend-helper', {
     'loader-helper.js': [
       'function helper(a) {',
