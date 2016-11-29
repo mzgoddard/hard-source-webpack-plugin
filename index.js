@@ -377,6 +377,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     new FileSerializer({cacheDirPath: path.join(cacheDirPath, 'assets')});
   var moduleCacheSerializer = this.moduleCacheSerializer =
     new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'modules')});
+  var sourceCacheSerializer = this.sourceCacheSerializer =
+    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'sources')});
   var dataCacheSerializer = this.dataCacheSerializer =
     new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'data')});
   var md5CacheSerializer = this.md5CacheSerializer =
@@ -474,6 +476,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         moduleCacheSerializer.read()
         .then(function(_moduleCache) {moduleCache = _moduleCache;}),
 
+        sourceCacheSerializer.read(),
+
         dataCacheSerializer.read()
         .then(function(_dataCache) {dataCache = _dataCache;})
         .then(function() {
@@ -497,7 +501,18 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           });
         }),
       ])
-      .then(function() {
+      .then(function(values) {
+        var sourceCache = values[3];
+        Object.keys(moduleCache).forEach(function(key) {
+          var cacheItem = moduleCache[key];
+          if (typeof cacheItem === 'string') {
+            moduleCache[key] = cacheItem = JSON.parse(cacheItem);
+            var rawKey = 'raw:' + key;
+            moduleCache[key].rawSource = sourceCache[rawKey];
+            var sourceKey = 'source:' + key;
+            moduleCache[key].source = sourceCache[sourceKey];
+          }
+        });
         // console.log('cache in', Date.now() - start);
       });
     })
@@ -768,6 +783,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     // );
 
     var moduleOps = [];
+    var sourceOps = [];
     var dataOps = [];
     var md5Ops = [];
     var assetOps = [];
@@ -863,8 +879,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           used: module.used,
           usedExports: module.usedExports,
 
-          rawSource: module._source ? module._source.source() : null,
-          source: source.source(),
+          // rawSource: module._source ? module._source.source() : null,
+          // source: source.source(),
           map: devtoolOptions && source.map(devtoolOptions),
           // Some plugins (e.g. UglifyJs) set useSourceMap on a module. If that
           // option is set we should always store some source map info and
@@ -900,6 +916,16 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         moduleOps.push({
           key: identifier,
           value: JSON.stringify(moduleCache[identifier]),
+        });
+
+        sourceOps.push({
+          key: 'raw:' + identifier,
+          value: module._source ? module._source.source() : null,
+        });
+
+        sourceOps.push({
+          key: 'source:' + identifier,
+          value: source.source(),
         });
 
         module.fileDependencies.forEach(function(file) {
@@ -952,6 +978,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       fsWriteFile(resolveCachePath, JSON.stringify(resolveCache), 'utf8'),
       assetCacheSerializer.write(assetOps),
       moduleCacheSerializer.write(moduleOps),
+      sourceCacheSerializer.write(sourceOps),
       dataCacheSerializer.write(dataOps),
       writeMd5Ops,
     ])
