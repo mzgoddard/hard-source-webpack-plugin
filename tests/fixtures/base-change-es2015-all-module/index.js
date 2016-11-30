@@ -1,2 +1,2 @@
-import {key} from './obj';
-console.log(key);
+import * as obj from './obj';
+console.log(obj.fib(3));
