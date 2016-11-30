@@ -8,6 +8,7 @@ Code contributed by:
 
 ## 0.2.X Patches
 
+- `0.2.4` Fix out of date harmony module tree shaking keys
 - `0.2.3` Fix context depending modules rebuild check
 - `0.2.2` Flatten dependency loc data for HarmonyImportSpecifier
 - `0.2.1` Support functions as option to environmentHash
