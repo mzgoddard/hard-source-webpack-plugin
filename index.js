@@ -346,6 +346,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var assetCacheSerializer = this.assetCacheSerializer =
     new FileSerializer({cacheDirPath: path.join(cacheDirPath, 'assets')});
+  var resolveCacheSerializer = this.resolveCacheSerializer =
+    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'resolve')});
   var moduleCacheSerializer = this.moduleCacheSerializer =
     new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'modules')});
   var dataCacheSerializer = this.dataCacheSerializer =
@@ -521,9 +523,16 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       if (Object.keys(moduleCache).length) {return Promise.resolve();}
 
       return Promise.all([
-        fsReadFile(resolveCachePath, 'utf8')
-        .then(JSON.parse)
-        .then(function(_resolveCache) {resolveCache = _resolveCache}),
+        // fsReadFile(resolveCachePath, 'utf8')
+        // .then(JSON.parse)
+        // .then(function(_resolveCache) {resolveCache = _resolveCache}),
+        resolveCacheSerializer.read()
+        .then(function(_resolveCache) {
+          resolveCache = _resolveCache;
+          Object.keys(_resolveCache).forEach(function(key) {
+            _resolveCache[key] = JSON.parse(_resolveCache[key]);
+          });
+        }),
 
         assetCacheSerializer.read()
         .then(function(_assetCache) {assetCache = _assetCache;}),
@@ -943,6 +952,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               return cb(err);
             }
             if (!request.source) {
+              compilation.__hardSource_newResolveIds = compilation.__hardSource_newResolveIds || [];
+              compilation.__hardSource_newResolveIds.push(cacheId);
               resolveCache[cacheId] = Object.assign({}, request, {
                 parser: null,
                 parserOptions: request.parser[NS + '/parser-options'],
@@ -1128,6 +1139,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     //   'utf8'
     // );
 
+    var resolveOps = [];
     var moduleOps = [];
     var dataOps = [];
     var md5Ops = [];
@@ -1137,6 +1149,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     if (compiler.__hardSource_topCompilation === compilation) {
       // var fileDependenciesDiff = lodash.difference(compilation.fileDependencies, dataCache.fileDependencies || []);
+
+      (compilation.__hardSource_newResolveIds || []).forEach(function(key) {
+        resolveOps.push({
+          key: key,
+          value: JSON.stringify(resolveCache[key]),
+        });
+      });
 
       function buildMd5Ops(dependencies) {
         dependencies.forEach(function(file) {
@@ -1431,7 +1450,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     Promise.all([
       fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
       fsWriteFile(path.join(cacheDirPath, 'version'), hardSourceVersion, 'utf8'),
-      fsWriteFile(resolveCachePath, JSON.stringify(resolveCache), 'utf8'),
+      // fsWriteFile(resolveCachePath, JSON.stringify(resolveCache), 'utf8'),
+      resolveCacheSerializer.write(resolveOps),
       assetCacheSerializer.write(assetOps),
       moduleCacheSerializer.write(moduleOps),
       dataCacheSerializer.write(dataOps),
