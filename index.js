@@ -61,6 +61,7 @@ var HardContextModule = require('./lib/hard-context-module');
 var HardContextModuleFactory = require('./lib/hard-context-module-factory');
 var HardModule = require('./lib/hard-module');
 
+var LevelDbSliceSerializer = require('./lib/cache-serializers').LevelDbSliceSerializer;
 var makeDevtoolOptions = require('./lib/devtool-options');
 var cachePrefix = require('./lib/util').cachePrefix;
 var deserializeDependencies = require('./lib/deserialize-dependencies');
@@ -347,13 +348,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var assetCacheSerializer = this.assetCacheSerializer =
     new FileSerializer({cacheDirPath: path.join(cacheDirPath, 'assets')});
   var resolveCacheSerializer = this.resolveCacheSerializer =
-    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'resolve')});
+    new LevelDbSliceSerializer({rootPath: path.join(cacheDirPath, 'db'), slice: 'resolve'});
   var moduleCacheSerializer = this.moduleCacheSerializer =
-    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'modules')});
+    new LevelDbSliceSerializer({rootPath: path.join(cacheDirPath, 'db'), slice: 'modules'});
   var dataCacheSerializer = this.dataCacheSerializer =
-    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'data')});
+    new LevelDbSliceSerializer({rootPath: path.join(cacheDirPath, 'db'), slice: 'data'});
   var md5CacheSerializer = this.md5CacheSerializer =
-    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'md5')});
+    new LevelDbSliceSerializer({rootPath: path.join(cacheDirPath, 'db'), slice: 'md5'});
   var _this = this;
 
   var stat, readdir, mtime, md5, contextStamps;
