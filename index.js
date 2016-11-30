@@ -52,6 +52,8 @@ var HardModule = require('./lib/hard-module');
 var LevelDbSerializer = require('./lib/cache-serializers').LevelDbSerializer;
 var makeDevtoolOptions = require('./lib/devtool-options');
 
+var hardSourceVersion = require('./package.json').version;
+
 function requestHash(request) {
   return crypto.createHash('sha1').update(request).digest().hexSlice();
 }
@@ -436,19 +438,26 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       .catch(function() {return '';}),
 
       environmentHasher(),
+
+      fsReadFile(path.join(cacheDirPath, 'version'), 'utf8')
+      .catch(function() {return '';}),
     ])
     .then(function(stamps) {
       var stamp = stamps[0];
       var hash = stamps[1];
+      var versionStamp = stamps[2];
 
       if (!configHashInDirectory && options.configHash) {
         hash += '_' + _this.configHash;
       }
 
       currentStamp = hash;
-      if (!hash || hash !== stamp) {
+      if (!hash || hash !== stamp || hardSourceVersion !== versionStamp) {
         if (hash && stamp) {
           console.error('Environment has changed (node_modules or configuration was updated).\nHardSourceWebpackPlugin will reset the cache and store a fresh one.');
+        }
+        else if (hardSourceVersion !== versionStamp) {
+          console.error('Installed HardSource version does not match the saved cache.\nHardSourceWebpackPlugin will reset the cache and store a fresh one.');
         }
 
         // Reset the cache, we can't use it do to an environment change.
@@ -967,6 +976,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     Promise.all([
       fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
+      fsWriteFile(path.join(cacheDirPath, 'version'), hardSourceVersion, 'utf8'),
       fsWriteFile(resolveCachePath, JSON.stringify(resolveCache), 'utf8'),
       assetCacheSerializer.write(assetOps),
       moduleCacheSerializer.write(moduleOps),
