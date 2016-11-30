@@ -622,13 +622,31 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     compilation.plugin('after-seal', function(cb) {
       needAdditionalPass = compilation.modules.reduce(function(carry, module) {
-        var cacheItem = moduleCache[module.identifier()];
+        var identifierPrefix = cachePrefix(compilation);
+        if (identifierPrefix === null) {
+          return carry;
+        }
+        var identifier = identifierPrefix + module.identifier();
+
+        var cacheItem = moduleCache[identifier];
         if (cacheItem && (
           !lodash.isEqual(cacheItem.used, module.used) ||
           !lodash.isEqual(cacheItem.usedExports, module.usedExports)
         )) {
+          // Bust this module, the keys exported or their order has changed.
           cacheItem.invalid = true;
-          moduleCache[module.request] = null;
+          moduleCache[identifier] = null;
+
+          // Bust all dependents, they likely need to use new keys for this
+          // module.
+          module.reasons.forEach(function(reason) {
+            var identifier = identifierPrefix + reason.module.identifier();
+            var reasonItem = moduleCache[identifier];
+            if (reasonItem) {
+              reasonItem.invalid = true;
+              moduleCache[identifier] = null;
+            }
+          });
           return true;
         }
         return carry;
