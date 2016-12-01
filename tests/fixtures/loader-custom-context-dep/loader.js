@@ -4,8 +4,10 @@ var path = require('path');
 module.exports = function(source) {
   this.cacheable && this.cacheable();
   this.addContextDependency(path.join(__dirname, 'dir'));
+  var items = fs.readdirSync(path.join(__dirname, 'dir'));
+  items.sort();
   return [
-    fs.readFileSync(path.join(__dirname, 'dir', 'file'), 'utf8'),
+    '// ' + items[1],
     source
   ].join('\n');
 };

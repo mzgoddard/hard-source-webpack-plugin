@@ -377,6 +377,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var fileMd5s = {};
   var cachedMd5s = {};
   var fileTimestamps = {};
+  var contextMd5s = {};
+  var contextTimestamps = {};
 
   var assetCacheSerializer = this.assetCacheSerializer =
     new FileSerializer({cacheDirPath: path.join(cacheDirPath, 'assets')});
@@ -388,7 +390,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'md5')});
   var _this = this;
 
-  var stat, mtime, md5;
+  var stat, readdir, mtime, md5, contextStamps;
 
   compiler.plugin('after-plugins', function() {
     if (
@@ -402,6 +404,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   compiler.plugin('after-environment', function() {
     stat = Promise.promisify(
       compiler.inputFileSystem.stat,
+      {context: compiler.inputFileSystem}
+    );
+
+    readdir = Promise.promisify(
+      compiler.inputFileSystem.readdir,
       {context: compiler.inputFileSystem}
     );
 
@@ -421,6 +428,69 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }
       })
       .catch(function() {return '';});
+    };
+
+    contextStamps = function(contextDependencies, fileDependencies) {
+      var contexts = {};
+      contextDependencies.forEach(function(context) {
+        contexts[context] = {files: [], mtime: 0, hash: ''};
+      });
+
+      fileDependencies.forEach(function(file) {
+        contextDependencies.forEach(function(context) {
+          if (file.substring(0, context.length + 1) === context + path.sep) {
+            contexts[context].files.push(file.substring(context.length + 1));
+          }
+        });
+      });
+
+      return Promise.all(contextDependencies.map(function(contextPath) {
+        var context = contexts[contextPath];
+        var selfTime = 0;
+        var selfHash = crypto.createHash('md5');
+        function walk(dir) {
+          return readdir(dir)
+          .then(function(items) {
+            return Promise.all(items.map(function(item) {
+              return stat(path.join(dir, item))
+              .then(function(stat) {
+                if (stat.isDirectory()) {
+                  return walk(path.join(dir, item))
+                  .then(function(items2) {
+                    return items2.map(function(item2) {
+                      return path.join(item, item2);
+                    });
+                  });
+                }
+                if (+stat.mtime > selfTime) {
+                  selfTime = +stat.mtime;
+                }
+                return item;
+              }, function() {
+                return;
+              });
+            }));
+          })
+          .then(function(items) {
+            return items.reduce(function(carry, item) {
+              return carry.concat(item);
+            }, [])
+            .filter(Boolean);
+          });
+        }
+        return walk(contextPath)
+        .then(function(items) {
+          items.sort();
+          items.forEach(function(item) {
+            selfHash.update(item);
+          });
+          context.mtime = selfTime;
+          context.hash = selfHash.digest('hex');
+        });
+      }))
+      .then(function() {
+        return contexts;
+      });
     };
   });
 
@@ -472,6 +542,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         dataCache = {};
         md5Cache = {};
         fileTimestamps = {};
+        contextTimestamps = {};
         return;
       }
 
@@ -560,6 +631,19 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       });
     }))
     .then(function() {
+      var contextTs = compiler.contextTimestamps = contextTimestamps = {};
+      return contextStamps(dataCache.contextDependencies, dataCache.fileDependencies)
+      .then(function(contexts) {
+        for (var contextPath in contexts) {
+          var context = contexts[contextPath];
+
+          fileTimestamps[contextPath] = context.mtime;
+          contextTimestamps[contextPath] = context.mtime;
+          fileMd5s[contextPath] = context.hash;
+        }
+      });
+    })
+    .then(function() {
       // Invalidate modules that depend on a userRequest that is no longer
       // valid.
       var walkDependencyBlock = function(block, callback) {
@@ -612,6 +696,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     if (!active) {return;}
 
     compilation.fileTimestamps = fileTimestamps;
+    compilation.contextTimestamps = contextTimestamps;
 
     compilation.dependencyFactories.set(HardModuleDependency, params.normalModuleFactory);
     compilation.dependencyTemplates.set(HardModuleDependency, new NullDependencyTemplate);
@@ -761,7 +846,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               cacheItem.contextDependencies,
               // [],
               fileTimestamps,
-              compiler.contextTimestamps,
+              contextTimestamps,
               fileMd5s,
               cachedMd5s
             )) {
@@ -783,6 +868,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     });
   });
 
+  compiler.plugin('this-compilation', function(compilation) {
+    compiler.__hardSource_topCompilation = compilation;
+  });
+
   compiler.plugin('after-compile', function(compilation, cb) {
     if (!active) {return cb();}
 
@@ -801,15 +890,105 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     var md5Ops = [];
     var assetOps = [];
 
-    var fileDependenciesDiff = lodash.difference(compilation.fileDependencies, dataCache.fileDependencies || []);
-    if (fileDependenciesDiff.length) {
-      dataCache.fileDependencies = (dataCache.fileDependencies || [])
-      .concat(fileDependenciesDiff);
+    var buildingMd5s = {};
 
-      dataOps.push({
-        key: 'fileDependencies',
-        value: JSON.stringify(dataCache.fileDependencies),
+    if (compiler.__hardSource_topCompilation === compilation) {
+      // var fileDependenciesDiff = lodash.difference(compilation.fileDependencies, dataCache.fileDependencies || []);
+
+      function buildMd5Ops(dependencies) {
+        dependencies.forEach(function(file) {
+          buildingMd5s[file] = buildingMd5s[file]
+          .then(function(value) {
+            if (
+              !md5Cache[file] ||
+              (!value.mtime && md5Cache[file] && md5Cache[file].mtime !== value.mtime) ||
+              (md5Cache[file] && md5Cache[file].hash !== value.hash)
+            ) {
+              md5Cache[file] = value;
+              cachedMd5s[file] = value.hash;
+
+              md5Ops.push({
+                key: file,
+                value: JSON.stringify(value),
+              });
+            }
+          });
+        });
+      }
+
+      if (!lodash.isEqual(compilation.fileDependencies, dataCache.fileDependencies)) {
+        // dataCache.fileDependencies = (dataCache.fileDependencies || [])
+        // .concat(fileDependenciesDiff);
+        lodash.difference(dataCache.fileDependencies, compilation.fileDependencies).forEach(function(file) {
+          buildingMd5s[file] = Promise.resolve({
+            mtime: 0,
+            hash: '',
+          });
+        });
+
+        dataCache.fileDependencies = compilation.fileDependencies;
+
+        dataOps.push({
+          key: 'fileDependencies',
+          value: JSON.stringify(dataCache.fileDependencies),
+        });
+      }
+
+      dataCache.fileDependencies.forEach(function(file) {
+        if (buildingMd5s[file]) {return;}
+
+        function getValue(store, key, fn) {
+          if (store[key]) {
+            return store[key];
+          }
+          else {
+            return fn(key);
+          }
+        }
+
+        buildingMd5s[file] = Promise.props({
+          mtime: getValue(fileTimestamps, file, mtime),
+          hash: getValue(fileMd5s, file, md5),
+        });
       });
+
+      buildMd5Ops(dataCache.fileDependencies);
+
+      if (!lodash.isEqual(compilation.contextDependencies, dataCache.contextDependencies)) {
+        lodash.difference(dataCache.contextDependencies, compilation.contextDependencies).forEach(function(file) {
+          buildingMd5s[file] = Promise.resolve({
+            mtime: 0,
+            hash: '',
+          });
+        });
+
+        dataCache.contextDependencies = compilation.contextDependencies;
+
+        dataOps.push({
+          key: 'contextDependencies',
+          value: JSON.stringify(dataCache.contextDependencies),
+        });
+      }
+
+      var contexts = Promise.all(
+        Object.keys(buildingMd5s).map(function(key) {return buildingMd5s[key];})
+      )
+      .then(function() {
+        return contextStamps(dataCache.contextDependencies, dataCache.fileDependencies);
+      });
+      dataCache.contextDependencies.forEach(function(file) {
+        if (buildingMd5s[file]) {return;}
+
+        buildingMd5s[file] = contexts
+        .then(function(contexts) {
+          return Promise.props({
+            mtime: contexts[file].mtime,
+            hash: contexts[file].hash,
+          });
+        });
+      });
+
+      buildMd5Ops(dataCache.contextDependencies);
     }
 
     // moduleCache.fileDependencies = compilation.fileDependencies;
@@ -841,8 +1020,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
       return serialized;
     }
-
-    var buildMd5s = [];
 
     compilation.modules.forEach(function(module) {
       var identifierPrefix = cachePrefix(compilation);
@@ -931,42 +1108,18 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           value: JSON.stringify(moduleCache[identifier]),
         });
 
-        module.fileDependencies.forEach(function(file) {
-          buildMd5s.push(file);
-        });
+        // module.fileDependencies.forEach(function(file) {
+        //   buildMd5s.push(file);
+        // });
+        //
+        // module.contextDependencies.forEach(function(context) {
+        //   buildContextMd5s.push(file);
+        // });
 
         if (assets.length) {
           assetOps = assetOps.concat(assets);
         }
       }
-    });
-
-    var buildingMd5s = {};
-    buildMd5s.forEach(function(file) {
-      if (buildingMd5s[file]) {return;}
-
-      function getValue(store, key, fn) {
-        if (store[key]) {
-          return store[key];
-        }
-        else {
-          return fn(key);
-        }
-      }
-
-      buildingMd5s[file] = Promise.props({
-        mtime: getValue(fileTimestamps, file, mtime),
-        hash: getValue(fileMd5s, file, md5),
-      })
-      .then(function(value) {
-        md5Cache[file] = value;
-        cachedMd5s[file] = value.hash;
-
-        md5Ops.push({
-          key: file,
-          value: JSON.stringify(value),
-        });
-      });
     });
 
     var writeMd5Ops = Promise.all(Object.keys(buildingMd5s).map(function(key) {
