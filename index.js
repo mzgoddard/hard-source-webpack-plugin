@@ -459,7 +459,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         if (hash && stamp) {
           console.error('Environment has changed (node_modules or configuration was updated).\nHardSourceWebpackPlugin will reset the cache and store a fresh one.');
         }
-        else if (hardSourceVersion !== versionStamp) {
+        else if (versionStamp && hardSourceVersion !== versionStamp) {
           console.error('Installed HardSource version does not match the saved cache.\nHardSourceWebpackPlugin will reset the cache and store a fresh one.');
         }
 
