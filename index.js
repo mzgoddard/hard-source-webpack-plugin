@@ -20,20 +20,27 @@ var envHash = require('./lib/env-hash');
 // }
 
 var AMDDefineDependency = require('webpack/lib/dependencies/AMDDefineDependency');
+var AMDRequireContextDependency = require('webpack/lib/dependencies/AMDRequireContextDependency');
 var AsyncDependenciesBlock = require('webpack/lib/AsyncDependenciesBlock');
+var CommonJsRequireContextDependency = require('webpack/lib/dependencies/CommonJsRequireContextDependency');
 var ConstDependency = require('webpack/lib/dependencies/ConstDependency');
 var ContextDependency = require('webpack/lib/dependencies/ContextDependency');
+var RequireContextDependency = require('webpack/lib/dependencies/RequireContextDependency');
+var RequireResolveContextDependency = require('webpack/lib/dependencies/RequireResolveContextDependency');
+var SingleEntryDependency = require('webpack/lib/dependencies/SingleEntryDependency');
+
+var ContextModule = require('webpack/lib/ContextModule');
 var NormalModule = require('webpack/lib/NormalModule');
 var NullDependencyTemplate = require('webpack/lib/dependencies/NullDependencyTemplate');
 var NullFactory = require('webpack/lib/NullFactory');
-var SingleEntryDependency = require('webpack/lib/dependencies/SingleEntryDependency');
 
-var HarmonyImportDependency, HarmonyImportSpecifierDependency, HarmonyExportImportedSpecifierDependency;
+var HarmonyImportDependency, HarmonyImportSpecifierDependency, HarmonyExportImportedSpecifierDependency, SystemImportContextDependency;
 
 try {
   HarmonyImportDependency = require('webpack/lib/dependencies/HarmonyImportDependency');
   HarmonyImportSpecifierDependency = require('webpack/lib/dependencies/HarmonyImportSpecifierDependency');
   HarmonyExportImportedSpecifierDependency = require('webpack/lib/dependencies/HarmonyExportImportedSpecifierDependency');
+  SystemImportContextDependency = require('webpack/lib/dependencies/SystemImportContextDependency');
 }
 catch (_) {}
 
@@ -48,9 +55,14 @@ require('./lib/dependencies').HardHarmonyImportSpecifierDependency;
 var HardHarmonyExportImportedSpecifierDependency = require('./lib/dependencies').HardHarmonyExportImportedSpecifierDependency;
 
 var FileSerializer = require('./lib/cache-serializers').FileSerializer;
-var HardModule = require('./lib/hard-module');
 var LevelDbSerializer = require('./lib/cache-serializers').LevelDbSerializer;
+
+var HardContextModule = require('./lib/hard-context-module');
+var HardContextModuleFactory = require('./lib/hard-context-module-factory');
+var HardModule = require('./lib/hard-module');
+
 var makeDevtoolOptions = require('./lib/devtool-options');
+var cachePrefix = require('./lib/util').cachePrefix;
 
 var hardSourceVersion = require('./package.json').version;
 
@@ -69,72 +81,6 @@ try {
   extractTextNS = path.dirname(require.resolve('extract-text-webpack-plugin'));
 }
 catch (_) {}
-
-var cachePrefixNS = NS + '/cachePrefix';
-var cachePrefixErrorOnce = true;
-
-function cachePrefix(compilation) {
-  if (typeof compilation[cachePrefixNS] === 'undefined') {
-    var prefix = '';
-    var nextCompilation = compilation;
-
-    while (nextCompilation.compiler.parentCompilation) {
-      var parentCompilation = nextCompilation.compiler.parentCompilation;
-      if (!nextCompilation.cache) {
-        if (cachePrefixErrorOnce) {
-          cachePrefixErrorOnce = false;
-          console.error([
-            'A child compiler (' + compilation.compiler.name + ') does not',
-            'have a memory cache. Enable a memory cache with webpack\'s',
-            '`cache` configuration option. HardSourceWebpackPlugin will be',
-            'disabled for this child compiler until then.',
-          ].join('\n'));
-        }
-        prefix = null;
-        break;
-      }
-
-      var cache = nextCompilation.cache;
-      var parentCache = parentCompilation.cache;
-
-      if (cache === parentCache) {
-        nextCompilation = parentCompilation;
-        continue;
-      }
-
-      var cacheKey;
-      for (var key in parentCache) {
-        if (key && parentCache[key] === cache) {
-          cacheKey = key;
-          break;
-        }
-      }
-
-      if (!cacheKey) {
-        if (cachePrefixErrorOnce) {
-          cachePrefixErrorOnce = false;
-          console.error([
-            'A child compiler (' + compilation.compiler.name + ') has a',
-            'memory cache but its cache name is unknown.',
-            'HardSourceWebpackPlugin will be disabled for this child',
-            'compiler.',
-          ].join('\n'));
-        }
-        prefix = null;
-        break;
-      }
-      else {
-        prefix = cacheKey + prefix;
-      }
-
-      nextCompilation = parentCompilation;
-    }
-
-    compilation[cachePrefixNS] = prefix;
-  }
-
-  return compilation[cachePrefixNS];
-}
 
 function flattenPrototype(obj) {
   if (typeof obj === 'string') {
@@ -193,6 +139,7 @@ function serializeDependencies(deps) {
       request: dep.request,
       recursive: dep.recursive,
       regExp: dep.regExp ? dep.regExp.source : null,
+      async: dep.async,
       loc: flattenPrototype(dep.loc),
     };
   })
@@ -692,6 +639,34 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     .then(function() {cb();}, cb);
   });
 
+  compiler.plugin('after-plugins', function() {
+    compiler.plugin('compilation', function(compilation) {
+      var factories = compilation.dependencyFactories;
+      var contextFactory = factories.get(RequireContextDependency);
+
+      var hardContextFactory = new HardContextModuleFactory({
+        compilation: compilation,
+        factory: contextFactory,
+        resolveCache: resolveCache,
+        moduleCache: moduleCache,
+        fileTimestamps: fileTimestamps,
+        fileMd5s: fileMd5s,
+        cachedMd5s: cachedMd5s,
+      });
+
+      factories.set(AMDRequireContextDependency, hardContextFactory);
+      factories.set(CommonJsRequireContextDependency, hardContextFactory);
+      factories.set(RequireContextDependency, hardContextFactory);
+      factories.set(RequireResolveContextDependency, hardContextFactory);
+
+      if (SystemImportContextDependency) {
+        factories.set(SystemImportContextDependency, hardContextFactory);
+      }
+
+      factories.set(HardContextDependency, hardContextFactory);
+    });
+  });
+
   compiler.plugin('compilation', function(compilation, params) {
     if (!active) {return;}
 
@@ -1119,6 +1094,60 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         if (assets.length) {
           assetOps = assetOps.concat(assets);
         }
+      }
+
+      if (
+        module.context &&
+        module.cacheable &&
+        !(module instanceof HardContextModule) &&
+        (module instanceof ContextModule) &&
+        (
+          existingCacheItem &&
+          module.builtTime >= existingCacheItem.builtTime ||
+          !existingCacheItem
+        )
+      ) {
+        var source = module.source(
+          compilation.dependencyTemplates,
+          compilation.moduleTemplate.outputOptions,
+          compilation.moduleTemplate.requestShortener
+        );
+        var assets = Object.keys(module.assets || {}).map(function(key) {
+          return {
+            key: requestHash(key),
+            value: module.assets[key].source(),
+          };
+        });
+        moduleCache[identifier] = {
+          moduleId: module.id,
+          context: module.context,
+          recursive: module.recursive,
+          regExp: module.regExp ? module.regExp.source : null,
+          async: module.async,
+          addons: module.addons,
+          identifier: module.identifier(),
+          builtTime: module.builtTime,
+
+          used: module.used,
+          usedExports: module.usedExports,
+
+          source: source.source(),
+          map: devtoolOptions && source.map(devtoolOptions),
+          // Some plugins (e.g. UglifyJs) set useSourceMap on a module. If that
+          // option is set we should always store some source map info and
+          // separating it from the normal devtool options may be necessary.
+          baseMap: module.useSourceMap && source.map(),
+          hashContent: serializeHashContent(module),
+
+          dependencies: serializeDependencies(module.dependencies),
+          variables: serializeVariables(module.variables),
+          blocks: serializeBlocks(module.blocks),
+        };
+
+        moduleOps.push({
+          key: identifier,
+          value: JSON.stringify(moduleCache[identifier]),
+        });
       }
     });
 
