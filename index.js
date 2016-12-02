@@ -756,7 +756,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             }
 
             if (!HardModule.needRebuild(
-              cacheItem.buildTimestamp,
+              cacheItem,
               cacheItem.fileDependencies,
               cacheItem.contextDependencies,
               // [],
