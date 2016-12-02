@@ -137,6 +137,9 @@ function cachePrefix(compilation) {
 }
 
 function flattenPrototype(obj) {
+  if (typeof obj === 'string') {
+    return obj;
+  }
   var copy = {};
   for (var key in obj) {
     copy[key] = obj[key];
