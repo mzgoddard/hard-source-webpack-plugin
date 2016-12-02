@@ -139,7 +139,7 @@ exports.writeFiles = function(fixturePath, files) {
   fsRimraf = Promise.promisify(rimraf);
 
   return Promise.all(Object.keys(files).map(function(key) {
-    if (!files[key]) {
+    if (files[key] === null) {
       return fsRimraf(path.join(configPath, key)).catch(function() {});
     }
     return fsWriteFile(path.join(configPath, key), files[key]);

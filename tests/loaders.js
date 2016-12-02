@@ -59,6 +59,19 @@ describe('loader webpack use - builds changes', function() {
     expect(output.run2['main.js'].toString()).to.match(/\/\/ b/);
   });
 
+  itCompilesChange('loader-custom-deep-context-dep', {
+    'dir/dirdir': null,
+    'dir/subdir/a': '// a',
+    'dir/subdir/b': null,
+  }, {
+    'dir/dirdir/a': null,
+    'dir/dirdir/b': '// b',
+    'dir/subdir': null,
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/\/\/ subdir\/a/);
+    expect(output.run2['main.js'].toString()).to.match(/\/\/ dirdir\/b/);
+  });
+
   itCompilesChange('loader-custom-prepend-helper', {
     'loader-helper.js': [
       'function helper(a) {',
