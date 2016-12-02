@@ -11,6 +11,7 @@ describe('loader webpack use', function() {
 
   itCompilesTwice('loader-css');
   itCompilesTwice('loader-file');
+  itCompilesTwice('loader-custom-missing-dep');
 
   itCompilesHardModules('loader-css', ['./index.css']);
   itCompilesHardModules('loader-file', ['./image.png']);
@@ -87,6 +88,32 @@ describe('loader webpack use - builds changes', function() {
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.match(/console\.log\(a\)/);
     expect(output.run2['main.js'].toString()).to.match(/console\.log\(b\)/);
+  });
+
+  itCompilesChange('loader-custom-missing-dep-added', {
+    'fib.js': null,
+  }, {
+    'fib.js': [
+      'module.exports = function(n) {',
+      '  return n + (n > 0 ? n - 1 : 0);',
+      '};',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.not.match(/n - 1/);
+    expect(output.run2['main.js'].toString()).to.match(/n - 1/);
+  });
+
+  itCompilesChange('loader-custom-missing-dep-added', {
+    'fib.js': [
+      'module.exports = function(n) {',
+      '  return n + (n > 0 ? n - 1 : 0);',
+      '};',
+    ].join('\n'),
+  }, {
+    'fib.js': null,
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/n - 1/);
+    expect(output.run2['main.js'].toString()).to.not.match(/n - 1/);
   });
 
 });
