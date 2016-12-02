@@ -8,6 +8,7 @@ Code contributed by:
 
 ## 0.2.X Patches
 
+- `0.2.6` Don't log version mismatch message on first build without a cache
 - `0.2.5` Stamp cache with library version and fix serializing `loc` strings
 - `0.2.4` Fix out of date harmony module tree shaking keys
 - `0.2.3` Fix context depending modules rebuild check
