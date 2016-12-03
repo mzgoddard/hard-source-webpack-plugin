@@ -192,7 +192,7 @@ exports.itCompiles = function(name, fixturePath, fnA, fnB, expectHandle) {
     })
     // Delay enough time so that file timestamps are different.
     .then(function() {
-      return new Promise(function(resolve) {setTimeout(resolve, 1000);});
+      // return new Promise(function(resolve) {setTimeout(resolve, 1000);});
     })
     .then(function() {
       return fnB();
@@ -230,7 +230,7 @@ exports.itCompilesWithCache = function(name, fixturePath, fnA, fnB, expectHandle
       return exports.compile(fixturePath);
     })
     .then(function() {
-      return new Promise(function(resolve) {setTimeout(resolve, 1000);});
+      // return new Promise(function(resolve) {setTimeout(resolve, 1000);});
     })
     .then(function() {
       var serializer = new LevelDbSerializer({
@@ -245,7 +245,7 @@ exports.itCompilesWithCache = function(name, fixturePath, fnA, fnB, expectHandle
       return exports.compile(fixturePath);
     })
     .then(function() {
-      return new Promise(function(resolve) {setTimeout(resolve, 1000);});
+      // return new Promise(function(resolve) {setTimeout(resolve, 1000);});
     })
     .then(function() {
       var serializer = new LevelDbSerializer({
