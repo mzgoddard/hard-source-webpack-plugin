@@ -547,7 +547,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       .then(function() {
         var setter = setKey(fileMd5s, file, '');
         if (
-          md5Cache[file] && fileTs[file] > md5Cache[file].mtime ||
+          md5Cache[file] && fileTs[file] >= md5Cache[file].mtime ||
           !md5Cache[file] ||
           !fileTs[file]
         ) {
