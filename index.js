@@ -8,16 +8,16 @@ var mkdirp = require('mkdirp');
 
 var Promise = require('bluebird');
 
-var envHash;
-try {
-  envHash = require('env-hash');
-  envHash = envHash.default || envHash;
-}
-catch (_) {
-  envHash = function() {
-    return Promise.resolve('');
-  };
-}
+var envHash = require('./lib/env-hash');
+// try {
+//   envHash = require('env-hash');
+//   envHash = envHash.default || envHash;
+// }
+// catch (_) {
+//   envHash = function() {
+//     return Promise.resolve('');
+//   };
+// }
 
 var AMDDefineDependency = require('webpack/lib/dependencies/AMDDefineDependency');
 var AsyncDependenciesBlock = require('webpack/lib/AsyncDependenciesBlock');
