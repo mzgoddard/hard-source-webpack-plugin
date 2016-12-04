@@ -8,6 +8,8 @@ describeWP2('basic webpack 2 use - compiles identically', function() {
 
   itCompilesTwice('base-es2015-module');
   itCompilesTwice('base-es2015-rename-module');
+  itCompilesTwice('base-es2015-system-context');
+  itCompilesTwice('base-es2015-system-module');
   itCompilesTwice('base-warning-context');
   itCompilesTwice('base-warning-es2015');
 

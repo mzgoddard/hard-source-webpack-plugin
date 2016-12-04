@@ -20,20 +20,27 @@ var envHash = require('./lib/env-hash');
 // }
 
 var AMDDefineDependency = require('webpack/lib/dependencies/AMDDefineDependency');
+var AMDRequireContextDependency = require('webpack/lib/dependencies/AMDRequireContextDependency');
 var AsyncDependenciesBlock = require('webpack/lib/AsyncDependenciesBlock');
+var CommonJsRequireContextDependency = require('webpack/lib/dependencies/CommonJsRequireContextDependency');
 var ConstDependency = require('webpack/lib/dependencies/ConstDependency');
 var ContextDependency = require('webpack/lib/dependencies/ContextDependency');
+var RequireContextDependency = require('webpack/lib/dependencies/RequireContextDependency');
+var RequireResolveContextDependency = require('webpack/lib/dependencies/RequireResolveContextDependency');
+var SingleEntryDependency = require('webpack/lib/dependencies/SingleEntryDependency');
+
+var ContextModule = require('webpack/lib/ContextModule');
 var NormalModule = require('webpack/lib/NormalModule');
 var NullDependencyTemplate = require('webpack/lib/dependencies/NullDependencyTemplate');
 var NullFactory = require('webpack/lib/NullFactory');
-var SingleEntryDependency = require('webpack/lib/dependencies/SingleEntryDependency');
 
-var HarmonyImportDependency, HarmonyImportSpecifierDependency, HarmonyExportImportedSpecifierDependency;
+var HarmonyImportDependency, HarmonyImportSpecifierDependency, HarmonyExportImportedSpecifierDependency, SystemImportContextDependency;
 
 try {
   HarmonyImportDependency = require('webpack/lib/dependencies/HarmonyImportDependency');
   HarmonyImportSpecifierDependency = require('webpack/lib/dependencies/HarmonyImportSpecifierDependency');
   HarmonyExportImportedSpecifierDependency = require('webpack/lib/dependencies/HarmonyExportImportedSpecifierDependency');
+  SystemImportContextDependency = require('webpack/lib/dependencies/SystemImportContextDependency');
 }
 catch (_) {}
 
@@ -48,9 +55,14 @@ require('./lib/dependencies').HardHarmonyImportSpecifierDependency;
 var HardHarmonyExportImportedSpecifierDependency = require('./lib/dependencies').HardHarmonyExportImportedSpecifierDependency;
 
 var FileSerializer = require('./lib/cache-serializers').FileSerializer;
-var HardModule = require('./lib/hard-module');
 var LevelDbSerializer = require('./lib/cache-serializers').LevelDbSerializer;
+
+var HardContextModule = require('./lib/hard-context-module');
+var HardContextModuleFactory = require('./lib/hard-context-module-factory');
+var HardModule = require('./lib/hard-module');
+
 var makeDevtoolOptions = require('./lib/devtool-options');
+var cachePrefix = require('./lib/util').cachePrefix;
 
 var hardSourceVersion = require('./package.json').version;
 
@@ -69,72 +81,6 @@ try {
   extractTextNS = path.dirname(require.resolve('extract-text-webpack-plugin'));
 }
 catch (_) {}
-
-var cachePrefixNS = NS + '/cachePrefix';
-var cachePrefixErrorOnce = true;
-
-function cachePrefix(compilation) {
-  if (typeof compilation[cachePrefixNS] === 'undefined') {
-    var prefix = '';
-    var nextCompilation = compilation;
-
-    while (nextCompilation.compiler.parentCompilation) {
-      var parentCompilation = nextCompilation.compiler.parentCompilation;
-      if (!nextCompilation.cache) {
-        if (cachePrefixErrorOnce) {
-          cachePrefixErrorOnce = false;
-          console.error([
-            'A child compiler (' + compilation.compiler.name + ') does not',
-            'have a memory cache. Enable a memory cache with webpack\'s',
-            '`cache` configuration option. HardSourceWebpackPlugin will be',
-            'disabled for this child compiler until then.',
-          ].join('\n'));
-        }
-        prefix = null;
-        break;
-      }
-
-      var cache = nextCompilation.cache;
-      var parentCache = parentCompilation.cache;
-
-      if (cache === parentCache) {
-        nextCompilation = parentCompilation;
-        continue;
-      }
-
-      var cacheKey;
-      for (var key in parentCache) {
-        if (key && parentCache[key] === cache) {
-          cacheKey = key;
-          break;
-        }
-      }
-
-      if (!cacheKey) {
-        if (cachePrefixErrorOnce) {
-          cachePrefixErrorOnce = false;
-          console.error([
-            'A child compiler (' + compilation.compiler.name + ') has a',
-            'memory cache but its cache name is unknown.',
-            'HardSourceWebpackPlugin will be disabled for this child',
-            'compiler.',
-          ].join('\n'));
-        }
-        prefix = null;
-        break;
-      }
-      else {
-        prefix = cacheKey + prefix;
-      }
-
-      nextCompilation = parentCompilation;
-    }
-
-    compilation[cachePrefixNS] = prefix;
-  }
-
-  return compilation[cachePrefixNS];
-}
 
 function flattenPrototype(obj) {
   if (typeof obj === 'string') {
@@ -193,6 +139,7 @@ function serializeDependencies(deps) {
       request: dep.request,
       recursive: dep.recursive,
       regExp: dep.regExp ? dep.regExp.source : null,
+      async: dep.async,
       loc: flattenPrototype(dep.loc),
     };
   })
@@ -377,6 +324,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var fileMd5s = {};
   var cachedMd5s = {};
   var fileTimestamps = {};
+  var contextMd5s = {};
+  var contextTimestamps = {};
 
   var assetCacheSerializer = this.assetCacheSerializer =
     new FileSerializer({cacheDirPath: path.join(cacheDirPath, 'assets')});
@@ -388,7 +337,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'md5')});
   var _this = this;
 
-  var stat, mtime, md5;
+  var stat, readdir, mtime, md5, contextStamps;
 
   compiler.plugin('after-plugins', function() {
     if (
@@ -402,6 +351,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   compiler.plugin('after-environment', function() {
     stat = Promise.promisify(
       compiler.inputFileSystem.stat,
+      {context: compiler.inputFileSystem}
+    );
+
+    readdir = Promise.promisify(
+      compiler.inputFileSystem.readdir,
       {context: compiler.inputFileSystem}
     );
 
@@ -421,6 +375,69 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }
       })
       .catch(function() {return '';});
+    };
+
+    contextStamps = function(contextDependencies, fileDependencies) {
+      var contexts = {};
+      contextDependencies.forEach(function(context) {
+        contexts[context] = {files: [], mtime: 0, hash: ''};
+      });
+
+      fileDependencies.forEach(function(file) {
+        contextDependencies.forEach(function(context) {
+          if (file.substring(0, context.length + 1) === context + path.sep) {
+            contexts[context].files.push(file.substring(context.length + 1));
+          }
+        });
+      });
+
+      return Promise.all(contextDependencies.map(function(contextPath) {
+        var context = contexts[contextPath];
+        var selfTime = 0;
+        var selfHash = crypto.createHash('md5');
+        function walk(dir) {
+          return readdir(dir)
+          .then(function(items) {
+            return Promise.all(items.map(function(item) {
+              return stat(path.join(dir, item))
+              .then(function(stat) {
+                if (stat.isDirectory()) {
+                  return walk(path.join(dir, item))
+                  .then(function(items2) {
+                    return items2.map(function(item2) {
+                      return path.join(item, item2);
+                    });
+                  });
+                }
+                if (+stat.mtime > selfTime) {
+                  selfTime = +stat.mtime;
+                }
+                return item;
+              }, function() {
+                return;
+              });
+            }));
+          })
+          .then(function(items) {
+            return items.reduce(function(carry, item) {
+              return carry.concat(item);
+            }, [])
+            .filter(Boolean);
+          });
+        }
+        return walk(contextPath)
+        .then(function(items) {
+          items.sort();
+          items.forEach(function(item) {
+            selfHash.update(item);
+          });
+          context.mtime = selfTime;
+          context.hash = selfHash.digest('hex');
+        });
+      }))
+      .then(function() {
+        return contexts;
+      });
     };
   });
 
@@ -472,6 +489,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         dataCache = {};
         md5Cache = {};
         fileTimestamps = {};
+        contextTimestamps = {};
         return;
       }
 
@@ -560,6 +578,19 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       });
     }))
     .then(function() {
+      var contextTs = compiler.contextTimestamps = contextTimestamps = {};
+      return contextStamps(dataCache.contextDependencies, dataCache.fileDependencies)
+      .then(function(contexts) {
+        for (var contextPath in contexts) {
+          var context = contexts[contextPath];
+
+          fileTimestamps[contextPath] = context.mtime;
+          contextTimestamps[contextPath] = context.mtime;
+          fileMd5s[contextPath] = context.hash;
+        }
+      });
+    })
+    .then(function() {
       // Invalidate modules that depend on a userRequest that is no longer
       // valid.
       var walkDependencyBlock = function(block, callback) {
@@ -608,10 +639,39 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     .then(function() {cb();}, cb);
   });
 
+  compiler.plugin('after-plugins', function() {
+    compiler.plugin('compilation', function(compilation) {
+      var factories = compilation.dependencyFactories;
+      var contextFactory = factories.get(RequireContextDependency);
+
+      var hardContextFactory = new HardContextModuleFactory({
+        compilation: compilation,
+        factory: contextFactory,
+        resolveCache: resolveCache,
+        moduleCache: moduleCache,
+        fileTimestamps: fileTimestamps,
+        fileMd5s: fileMd5s,
+        cachedMd5s: cachedMd5s,
+      });
+
+      factories.set(AMDRequireContextDependency, hardContextFactory);
+      factories.set(CommonJsRequireContextDependency, hardContextFactory);
+      factories.set(RequireContextDependency, hardContextFactory);
+      factories.set(RequireResolveContextDependency, hardContextFactory);
+
+      if (SystemImportContextDependency) {
+        factories.set(SystemImportContextDependency, hardContextFactory);
+      }
+
+      factories.set(HardContextDependency, hardContextFactory);
+    });
+  });
+
   compiler.plugin('compilation', function(compilation, params) {
     if (!active) {return;}
 
     compilation.fileTimestamps = fileTimestamps;
+    compilation.contextTimestamps = contextTimestamps;
 
     compilation.dependencyFactories.set(HardModuleDependency, params.normalModuleFactory);
     compilation.dependencyTemplates.set(HardModuleDependency, new NullDependencyTemplate);
@@ -761,7 +821,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               cacheItem.contextDependencies,
               // [],
               fileTimestamps,
-              compiler.contextTimestamps,
+              contextTimestamps,
               fileMd5s,
               cachedMd5s
             )) {
@@ -783,6 +843,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     });
   });
 
+  compiler.plugin('this-compilation', function(compilation) {
+    compiler.__hardSource_topCompilation = compilation;
+  });
+
   compiler.plugin('after-compile', function(compilation, cb) {
     if (!active) {return cb();}
 
@@ -801,15 +865,105 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     var md5Ops = [];
     var assetOps = [];
 
-    var fileDependenciesDiff = lodash.difference(compilation.fileDependencies, dataCache.fileDependencies || []);
-    if (fileDependenciesDiff.length) {
-      dataCache.fileDependencies = (dataCache.fileDependencies || [])
-      .concat(fileDependenciesDiff);
+    var buildingMd5s = {};
 
-      dataOps.push({
-        key: 'fileDependencies',
-        value: JSON.stringify(dataCache.fileDependencies),
+    if (compiler.__hardSource_topCompilation === compilation) {
+      // var fileDependenciesDiff = lodash.difference(compilation.fileDependencies, dataCache.fileDependencies || []);
+
+      function buildMd5Ops(dependencies) {
+        dependencies.forEach(function(file) {
+          buildingMd5s[file] = buildingMd5s[file]
+          .then(function(value) {
+            if (
+              !md5Cache[file] ||
+              (!value.mtime && md5Cache[file] && md5Cache[file].mtime !== value.mtime) ||
+              (md5Cache[file] && md5Cache[file].hash !== value.hash)
+            ) {
+              md5Cache[file] = value;
+              cachedMd5s[file] = value.hash;
+
+              md5Ops.push({
+                key: file,
+                value: JSON.stringify(value),
+              });
+            }
+          });
+        });
+      }
+
+      if (!lodash.isEqual(compilation.fileDependencies, dataCache.fileDependencies)) {
+        // dataCache.fileDependencies = (dataCache.fileDependencies || [])
+        // .concat(fileDependenciesDiff);
+        lodash.difference(dataCache.fileDependencies, compilation.fileDependencies).forEach(function(file) {
+          buildingMd5s[file] = Promise.resolve({
+            mtime: 0,
+            hash: '',
+          });
+        });
+
+        dataCache.fileDependencies = compilation.fileDependencies;
+
+        dataOps.push({
+          key: 'fileDependencies',
+          value: JSON.stringify(dataCache.fileDependencies),
+        });
+      }
+
+      dataCache.fileDependencies.forEach(function(file) {
+        if (buildingMd5s[file]) {return;}
+
+        function getValue(store, key, fn) {
+          if (store[key]) {
+            return store[key];
+          }
+          else {
+            return fn(key);
+          }
+        }
+
+        buildingMd5s[file] = Promise.props({
+          mtime: getValue(fileTimestamps, file, mtime),
+          hash: getValue(fileMd5s, file, md5),
+        });
       });
+
+      buildMd5Ops(dataCache.fileDependencies);
+
+      if (!lodash.isEqual(compilation.contextDependencies, dataCache.contextDependencies)) {
+        lodash.difference(dataCache.contextDependencies, compilation.contextDependencies).forEach(function(file) {
+          buildingMd5s[file] = Promise.resolve({
+            mtime: 0,
+            hash: '',
+          });
+        });
+
+        dataCache.contextDependencies = compilation.contextDependencies;
+
+        dataOps.push({
+          key: 'contextDependencies',
+          value: JSON.stringify(dataCache.contextDependencies),
+        });
+      }
+
+      var contexts = Promise.all(
+        Object.keys(buildingMd5s).map(function(key) {return buildingMd5s[key];})
+      )
+      .then(function() {
+        return contextStamps(dataCache.contextDependencies, dataCache.fileDependencies);
+      });
+      dataCache.contextDependencies.forEach(function(file) {
+        if (buildingMd5s[file]) {return;}
+
+        buildingMd5s[file] = contexts
+        .then(function(contexts) {
+          return Promise.props({
+            mtime: contexts[file].mtime,
+            hash: contexts[file].hash,
+          });
+        });
+      });
+
+      buildMd5Ops(dataCache.contextDependencies);
     }
 
     // moduleCache.fileDependencies = compilation.fileDependencies;
@@ -841,8 +995,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
       return serialized;
     }
-
-    var buildMd5s = [];
 
     compilation.modules.forEach(function(module) {
       var identifierPrefix = cachePrefix(compilation);
@@ -931,42 +1083,72 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           value: JSON.stringify(moduleCache[identifier]),
         });
 
-        module.fileDependencies.forEach(function(file) {
-          buildMd5s.push(file);
-        });
+        // module.fileDependencies.forEach(function(file) {
+        //   buildMd5s.push(file);
+        // });
+        //
+        // module.contextDependencies.forEach(function(context) {
+        //   buildContextMd5s.push(file);
+        // });
 
         if (assets.length) {
           assetOps = assetOps.concat(assets);
         }
       }
-    });
 
-    var buildingMd5s = {};
-    buildMd5s.forEach(function(file) {
-      if (buildingMd5s[file]) {return;}
-
-      function getValue(store, key, fn) {
-        if (store[key]) {
-          return store[key];
-        }
-        else {
-          return fn(key);
-        }
-      }
-
-      buildingMd5s[file] = Promise.props({
-        mtime: getValue(fileTimestamps, file, mtime),
-        hash: getValue(fileMd5s, file, md5),
-      })
-      .then(function(value) {
-        md5Cache[file] = value;
-        cachedMd5s[file] = value.hash;
-
-        md5Ops.push({
-          key: file,
-          value: JSON.stringify(value),
+      if (
+        module.context &&
+        module.cacheable &&
+        !(module instanceof HardContextModule) &&
+        (module instanceof ContextModule) &&
+        (
+          existingCacheItem &&
+          module.builtTime >= existingCacheItem.builtTime ||
+          !existingCacheItem
+        )
+      ) {
+        var source = module.source(
+          compilation.dependencyTemplates,
+          compilation.moduleTemplate.outputOptions,
+          compilation.moduleTemplate.requestShortener
+        );
+        var assets = Object.keys(module.assets || {}).map(function(key) {
+          return {
+            key: requestHash(key),
+            value: module.assets[key].source(),
+          };
         });
-      });
+        moduleCache[identifier] = {
+          moduleId: module.id,
+          context: module.context,
+          recursive: module.recursive,
+          regExp: module.regExp ? module.regExp.source : null,
+          async: module.async,
+          addons: module.addons,
+          identifier: module.identifier(),
+          builtTime: module.builtTime,
+
+          used: module.used,
+          usedExports: module.usedExports,
+
+          source: source.source(),
+          map: devtoolOptions && source.map(devtoolOptions),
+          // Some plugins (e.g. UglifyJs) set useSourceMap on a module. If that
+          // option is set we should always store some source map info and
+          // separating it from the normal devtool options may be necessary.
+          baseMap: module.useSourceMap && source.map(),
+          hashContent: serializeHashContent(module),
+
+          dependencies: serializeDependencies(module.dependencies),
+          variables: serializeVariables(module.variables),
+          blocks: serializeBlocks(module.blocks),
+        };
+
+        moduleOps.push({
+          key: identifier,
+          value: JSON.stringify(moduleCache[identifier]),
+        });
+      }
     });
 
     var writeMd5Ops = Promise.all(Object.keys(buildingMd5s).map(function(key) {

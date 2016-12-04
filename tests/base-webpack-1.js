@@ -9,6 +9,7 @@ describe('basic webpack use - compiles identically', function() {
   itCompilesTwice('base-1dep');
   itCompilesTwice('base-10deps-1nest');
   itCompilesTwice('base-context');
+  itCompilesTwice('base-deep-context');
   itCompilesTwice('base-process-env');
   itCompilesTwice('base-code-split');
   itCompilesTwice('base-code-split-process');
@@ -28,6 +29,8 @@ describe('basic webpack use - compiles identically', function() {
 describe('basic webpack use - compiles hard modules', function() {
 
   itCompilesHardModules('base-1dep', ['./fib.js', './index.js']);
+  itCompilesHardModules('base-context', ['./a nonrecursive \\d']);
+  itCompilesHardModules('base-deep-context', ['./a \\d']);
   itCompilesHardModules('base-code-split', ['./fib.js', './index.js']);
   itCompilesHardModules('base-query-request', ['./fib.js?argument']);
 
@@ -100,6 +103,67 @@ describe('basic webpack use - builds changes', function() {
     .exec(output.run1['main.js'].toString())[1];
     expect(output.run2['main.js'].toString())
     .to.not.contain('__webpack_require__(' + oldId + ')');
+  });
+
+  itCompilesChange('base-deep-context', {
+    'a/b/11.js': null,
+    'a/b/11-2.js': null,
+  }, {
+    'a/b/11.js': 'module.exports = 11;',
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.not.match(/11\.js/);
+    expect(output.run1['main.js'].toString()).to.not.match(/exports = 11/);
+    expect(output.run2['main.js'].toString()).to.match(/11\.js/);
+    expect(output.run2['main.js'].toString()).to.match(/exports = 11/);
+  });
+
+  itCompilesChange('base-deep-context', {
+    'a/b/11.js': 'module.exports = 11;',
+    'a/b/11-2.js': null,
+  }, {
+    'a/b/11.js': null,
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/11\.js/);
+    expect(output.run1['main.js'].toString()).to.match(/exports = 11/);
+    expect(output.run2['main.js'].toString()).to.not.match(/11\.js/);
+    expect(output.run2['main.js'].toString()).to.not.match(/exports = 11/);
+  });
+
+  itCompilesChange('base-deep-context', {
+    'a/b/11.js': 'module.exports = 11;',
+    'a/b/11-2.js': null,
+  }, {
+    'a/b/11.js': null,
+    'a/b/11-2.js': 'module.exports = 11;',
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/11\.js/);
+    expect(output.run1['main.js'].toString()).to.not.match(/11-2\.js/);
+    expect(output.run1['main.js'].toString()).to.match(/exports = 11/);
+    expect(output.run2['main.js'].toString()).to.not.match(/11\.js/);
+    expect(output.run2['main.js'].toString()).to.match(/11-2\.js/);
+    expect(output.run2['main.js'].toString()).to.match(/exports = 11/);
+  });
+
+  itCompilesChange('base-deep-context', {
+    'a/b/c/12.js': null,
+  }, {
+    'a/b/c/12.js': 'module.exports = 12;',
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.not.match(/c\/12\.js/);
+    expect(output.run1['main.js'].toString()).to.not.match(/exports = 12/);
+    expect(output.run2['main.js'].toString()).to.match(/c\/12\.js/);
+    expect(output.run2['main.js'].toString()).to.match(/exports = 12/);
+  });
+
+  itCompilesChange('base-deep-context', {
+    'a/b/c/12.js': 'module.exports = 12;',
+  }, {
+    'a/b/c': null,
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/c\/12\.js/);
+    expect(output.run1['main.js'].toString()).to.match(/exports = 12/);
+    expect(output.run2['main.js'].toString()).to.not.match(/c\/12\.js/);
+    expect(output.run2['main.js'].toString()).to.not.match(/exports = 12/);
   });
 
 });

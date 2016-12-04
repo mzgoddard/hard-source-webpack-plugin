@@ -45,16 +45,31 @@ describe('loader webpack warnings & errors', function() {
 describe('loader webpack use - builds changes', function() {
 
   itCompilesChange('loader-custom-context-dep', {
-    'dir/file': [
-      '// dir/file/a',
+    'dir/a': [
+      '// a',
     ].join('\n'),
+    'dir/b': null,
   }, {
-    'dir/file': [
-      '// dir/file/b',
+    'dir/a': null,
+    'dir/b': [
+      '// b',
     ].join('\n'),
   }, function(output) {
-    expect(output.run1['main.js'].toString()).to.match(/dir\/file\/a/);
-    expect(output.run2['main.js'].toString()).to.match(/dir\/file\/b/);
+    expect(output.run1['main.js'].toString()).to.match(/\/\/ a/);
+    expect(output.run2['main.js'].toString()).to.match(/\/\/ b/);
+  });
+
+  itCompilesChange('loader-custom-deep-context-dep', {
+    'dir/dirdir': null,
+    'dir/subdir/a': '// a',
+    'dir/subdir/b': null,
+  }, {
+    'dir/dirdir/a': null,
+    'dir/dirdir/b': '// b',
+    'dir/subdir': null,
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/\/\/ subdir\/a/);
+    expect(output.run2['main.js'].toString()).to.match(/\/\/ dirdir\/b/);
   });
 
   itCompilesChange('loader-custom-prepend-helper', {

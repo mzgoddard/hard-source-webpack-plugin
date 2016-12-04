@@ -6,8 +6,12 @@ module.exports = function(source) {
   this.addContextDependency(path.join(__dirname, 'dir'));
   var items = fs.readdirSync(path.join(__dirname, 'dir'));
   items.sort();
+  var subdir = items[items.length - 1];
+  var subitems = fs.readdirSync(path.join(__dirname, 'dir', subdir));
+  subitems.sort();
+  var name = subitems[subitems.length - 1];
   return [
-    '// ' + items[1],
+    '// ' + subdir + '/' + name,
     source
   ].join('\n');
 };
