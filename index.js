@@ -592,8 +592,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           var resolveItem = resolveCache[resolveId];
           validDepends = validDepends &&
             resolveItem &&
-            resolveItem.userRequest &&
-            fileTs[resolveItem.userRequest] !== 0;
+            resolveItem.resource &&
+            Boolean(fileTs[resolveItem.resource.split('?')[0]]);
         });
         if (!validDepends) {
           cacheItem.invalid = true;
@@ -713,17 +713,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         };
 
         if (resolveCache[cacheId]) {
-          var userRequest = resolveCache[cacheId].userRequest;
-          if (fileTimestamps[userRequest]) {
+          var resource = resolveCache[cacheId].resource.split('?')[0];
+          if (fileTimestamps[resource]) {
             return fromCache();
           }
-          return fs.stat(userRequest, function(err) {
-            if (!err) {
-              return fromCache();
-            }
-
-            next();
-          });
+          return stat(resource)
+          .then(fromCache, next);
         }
 
         next();
