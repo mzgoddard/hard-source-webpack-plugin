@@ -3,6 +3,7 @@ var expect = require('chai').expect;
 var util = require('./util');
 var itCompilesTwice = util.itCompilesTwice;
 var itCompilesChange = util.itCompilesChange;
+var itCompilesHardModules = util.itCompilesHardModules;
 var clean = util.clean;
 var compile = util.compile;
 
@@ -10,6 +11,10 @@ describe('loader webpack use', function() {
 
   itCompilesTwice('loader-css');
   itCompilesTwice('loader-file');
+
+  itCompilesHardModules('loader-css', ['./index.css']);
+  itCompilesHardModules('loader-file', ['./image.png']);
+  itCompilesHardModules('loader-custom-user-loader', ['./loader.js!./index.js']);
 
 });
 

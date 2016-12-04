@@ -4,6 +4,7 @@ var clean = require('./util').clean;
 var compile = require('./util').compile;
 var itCompilesTwice = require('./util').itCompilesTwice;
 var itCompilesChange = require('./util').itCompilesChange;
+var itCompilesHardModules = require('./util').itCompilesHardModules;
 
 describe('plugin webpack use', function() {
 
@@ -22,6 +23,8 @@ describe('plugin webpack use', function() {
   itCompilesTwice('plugin-hmr-accept', {exportStats: true});
   itCompilesTwice('plugin-hmr-accept-dep', {exportStats: true});
   itCompilesTwice('plugin-hmr-process-env', {exportStats: true});
+
+  itCompilesHardModules('plugin-html-lodash', [/lodash\/lodash\.js$/, /\!\.\/index\.html$/]);
 
 });
 

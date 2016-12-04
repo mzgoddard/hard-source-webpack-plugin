@@ -2,6 +2,7 @@ var expect = require('chai').expect;
 
 var itCompilesTwice = require('./util').itCompilesTwice;
 var itCompilesChange = require('./util').itCompilesChange;
+var itCompilesHardModules = require('./util').itCompilesHardModules;
 
 describe('basic webpack use - compiles identically', function() {
 
@@ -21,6 +22,14 @@ describe('basic webpack use - compiles identically', function() {
   itCompilesTwice('base-amd-1dep');
   itCompilesTwice('base-amd-context');
   itCompilesTwice('base-amd-code-split');
+
+});
+
+describe('basic webpack use - compiles hard modules', function() {
+
+  itCompilesHardModules('base-1dep', ['./fib.js', './index.js']);
+  itCompilesHardModules('base-code-split', ['./fib.js', './index.js']);
+  itCompilesHardModules('base-query-request', ['./fib.js?argument']);
 
 });
 

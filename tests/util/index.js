@@ -86,7 +86,14 @@ exports.compile = function(fixturePath, options) {
           warnings: statsJson.warnings,
           errors: statsJson.errors,
         };
-      } else {
+      }
+      if (options && options.exportCompilation) {
+        return {
+          out: carry,
+          compilation: stats.compilation,
+        };
+      }
+      else {
         return carry;
       }
     });
@@ -180,7 +187,7 @@ exports.itCompiles = function(name, fixturePath, fnA, fnB, expectHandle) {
     })
     .then(function(_setup1) {
       setup1 = _setup1;
-      run1 = exports.compile(fixturePath);
+      run1 = exports.compile(fixturePath, setup1);
       return run1;
     })
     // Delay enough time so that file timestamps are different.
@@ -192,7 +199,7 @@ exports.itCompiles = function(name, fixturePath, fnA, fnB, expectHandle) {
     })
     .then(function(_setup2) {
       setup2 = _setup2;
-      var run2 = exports.compile(fixturePath);
+      var run2 = exports.compile(fixturePath, setup2);
       return Promise.all([run1, run2]);
     })
     .then(function(runs) {
@@ -258,6 +265,57 @@ exports.itCompilesChange = function(fixturePath, filesA, filesB, expectHandle) {
   }, function() {
     return exports.writeFiles(fixturePath, filesB);
   }, expectHandle);
+  before(function() {
+    return exports.clean(fixturePath);
+  });
+};
+
+exports.itCompilesHardModules = function(fixturePath, filesA, filesB, expectHandle) {
+  if (typeof filesA === 'function' || Array.isArray(filesA)) {
+    filesB = filesA;
+    filesA = {};
+  }
+  if (typeof filesB === 'function' || Array.isArray(filesB)) {
+    expectHandle = filesB;
+    filesB = filesA;
+  }
+  exports.itCompiles('builds hard modules in ' + fixturePath + ' fixture', fixturePath, function() {
+    return exports.writeFiles(fixturePath, filesA)
+    .then(function() {return {exportCompilation: true};});
+  }, function() {
+    return exports.writeFiles(fixturePath, filesB)
+    .then(function() {return {exportCompilation: true};});
+  }, function(out) {
+    var hardModules = [];
+    var shortener = new (require('webpack/lib/RequestShortener'))(path.resolve(__dirname, '../fixtures', fixturePath));
+    function walk(compilation) {
+      compilation.modules.forEach(function(module) {
+        if (module.isHard && module.isHard()) {
+          hardModules.push(module.readableIdentifier(shortener));
+        }
+      });
+      compilation.children.forEach(walk);
+    }
+    walk(out.run2.compilation);
+    if (typeof expectHandle === 'function') {
+      return expectHandle(out, hardModules);
+    }
+    else {
+      // console.log(hardModules);
+      expectHandle.forEach(function(handle) {
+        if (handle instanceof RegExp) {
+          expect(hardModules).to.satisfy(function(modules) {
+            return modules.reduce(function(carry, module) {
+              return carry || handle.test(module);
+            }, false);
+          });
+        }
+        else {
+          expect(hardModules).to.include(handle);
+        }
+      });
+    }
+  });
   before(function() {
     return exports.clean(fixturePath);
   });
