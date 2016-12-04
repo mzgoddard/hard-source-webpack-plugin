@@ -8,16 +8,16 @@ var mkdirp = require('mkdirp');
 
 var Promise = require('bluebird');
 
-var envHash;
-try {
-  envHash = require('env-hash');
-  envHash = envHash.default || envHash;
-}
-catch (_) {
-  envHash = function() {
-    return Promise.resolve('');
-  };
-}
+var envHash = require('./lib/env-hash');
+// try {
+//   envHash = require('env-hash');
+//   envHash = envHash.default || envHash;
+// }
+// catch (_) {
+//   envHash = function() {
+//     return Promise.resolve('');
+//   };
+// }
 
 var AMDDefineDependency = require('webpack/lib/dependencies/AMDDefineDependency');
 var AsyncDependenciesBlock = require('webpack/lib/AsyncDependenciesBlock');
@@ -407,7 +407,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     mtime = function(file) {
       return stat(file)
-      .then(function(stat) {return stat.mtime;});
+      .then(function(stat) {return +stat.mtime;})
+      .catch(function() {return 0;});
     };
 
     md5 = function(file) {
@@ -418,7 +419,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             return resolve(crypto.createHash('md5').update(contents, 'utf8').digest('hex'));
           });
         }
-      });
+      })
+      .catch(function() {return '';});
     };
   });
 
@@ -502,7 +504,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           Object.keys(md5Cache).forEach(function(key) {
             if (typeof md5Cache[key] === 'string') {
               md5Cache[key] = JSON.parse(md5Cache[key]);
-              md5Cache[key].mtime = new Date(md5Cache[key].mtime);
+              // md5Cache[key].mtime = md5Cache[key].mtime;
             }
 
             cachedMd5s[key] = md5Cache[key].hash;
@@ -540,16 +542,17 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     return Promise.all(dataCache.fileDependencies.map(function(file) {
       return stat(file)
-      .then(function(stat) {return stat.mtime;})
+      .then(function(stat) {return +stat.mtime;})
       .then(setKey(fileTs, file, 0), setKeyError(fileTs, file, 0))
       .then(function() {
-        var setter = setKey(fileMd5s, file, null);
+        var setter = setKey(fileMd5s, file, '');
         if (
-          md5Cache[file] && fileTs[file] > md5Cache[file].mtime ||
-          !md5Cache[file]
+          md5Cache[file] && fileTs[file] >= md5Cache[file].mtime ||
+          !md5Cache[file] ||
+          !fileTs[file]
         ) {
           return md5(file)
-          .then(setter, setKeyError(fileMd5s, file, null));
+          .then(setter, setKeyError(fileMd5s, file, ''));
         }
         else {
           setter(md5Cache[file].hash);
@@ -596,6 +599,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             Boolean(fileTs[resolveItem.resource.split('?')[0]]);
         });
         if (!validDepends) {
+          // console.log('invalid', key);
           cacheItem.invalid = true;
           moduleCache[key] = null;
         }
@@ -752,7 +756,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             }
 
             if (!HardModule.needRebuild(
-              cacheItem.buildTimestamp,
+              cacheItem,
               cacheItem.fileDependencies,
               cacheItem.contextDependencies,
               // [],
