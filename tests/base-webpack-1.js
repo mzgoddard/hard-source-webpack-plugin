@@ -2,6 +2,7 @@ var expect = require('chai').expect;
 
 var itCompilesTwice = require('./util').itCompilesTwice;
 var itCompilesChange = require('./util').itCompilesChange;
+var itCompilesHardModules = require('./util').itCompilesHardModules;
 
 describe('basic webpack use - compiles identically', function() {
 
