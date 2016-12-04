@@ -8,6 +8,7 @@ Code contributed by:
 
 ## 0.2.X Patches
 
+- `0.2.7` Fix resolve cache invalidation, use resource instead of userRequest
 - `0.2.6` Don't log version mismatch message on first build without a cache
 - `0.2.5` Stamp cache with library version and fix serializing `loc` strings
 - `0.2.4` Fix out of date harmony module tree shaking keys
