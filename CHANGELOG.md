@@ -1,3 +1,15 @@
+# 0.3.0
+
+- Internal env-hash implementation relying on file hashes
+- Support context dependencies and ContextModule
+- Preload the memory cache for faster builds
+
+The `env-hash` implementation is more generalized than the npm env-hash implementation that was previously used. That one focused on hashing modified time values of folders and files to be as fast as possible. This new one is a little slower hashing files and files of folders but supports use cases like reusing a cache from a prior build on a CI environment. While the CI environment would have all new modified times, if the files' content didn't change the hash of those files will be the same letting the old cache be used.
+
+Context dependencies and ContextModules are now supported. This information is stored in the cache and deserialized like file dependencies and NormalModules. This will allow projects with ContextModules and NormalModules with context dependencies to gain the caching benefit they were previously missing.
+
+Webpack's memory cache allows webpack to make assumptions about previously built modules and skip build steps it would otherwise perform on those modules. That cache is now filled with up to date modules from the HardSource cache letting builds with webpack or the first build with a webpack server to gain the performance those assumptions support.
+
 # 0.2.0
 
 Builds and stores checksums of files built by webpack to better determine when to rebuild modules. This helps HardSource rebuild less in CI environments.
