@@ -583,38 +583,41 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       };
     }
 
-    return Promise.all(dataCache.fileDependencies.map(function(file) {
-      return stat(file)
-      .then(function(stat) {return +stat.mtime;})
-      .then(setKey(fileTs, file, 0), setKeyError(fileTs, file, 0))
-      .then(function() {
-        var setter = setKey(fileMd5s, file, '');
-        if (
-          md5Cache[file] && fileTs[file] >= md5Cache[file].mtime ||
-          !md5Cache[file] ||
-          !fileTs[file]
-        ) {
-          return md5(file)
-          .then(setter, setKeyError(fileMd5s, file, ''));
-        }
-        else {
-          setter(md5Cache[file].hash);
-        }
-      });
-    }))
-    .then(function() {
-      var contextTs = compiler.contextTimestamps = contextTimestamps = {};
-      return contextStamps(dataCache.contextDependencies, dataCache.fileDependencies)
-      .then(function(contexts) {
-        for (var contextPath in contexts) {
-          var context = contexts[contextPath];
+    return Promise.all([
+      Promise.all(dataCache.fileDependencies.map(function(file) {
+        return stat(file)
+        .then(function(stat) {return +stat.mtime;})
+        .then(setKey(fileTs, file, 0), setKeyError(fileTs, file, 0))
+        .then(function() {
+          var setter = setKey(fileMd5s, file, '');
+          if (
+            md5Cache[file] && fileTs[file] >= md5Cache[file].mtime ||
+            !md5Cache[file] ||
+            !fileTs[file]
+          ) {
+            return md5(file)
+            .then(setter, setKeyError(fileMd5s, file, ''));
+          }
+          else {
+            setter(md5Cache[file].hash);
+          }
+        });
+      })),
+      new Promise(function(resolve, reject) {
+        compiler.contextTimestamps = contextTimestamps = {};
+        return contextStamps(dataCache.contextDependencies, dataCache.fileDependencies)
+        .then(function(contexts) {
+          for (var contextPath in contexts) {
+            var context = contexts[contextPath];
 
-          fileTimestamps[contextPath] = context.mtime;
-          contextTimestamps[contextPath] = context.mtime;
-          fileMd5s[contextPath] = context.hash;
-        }
-      });
-    })
+            // fileTimestamps[contextPath] = context.mtime;
+            contextTimestamps[contextPath] = context.mtime;
+            fileMd5s[contextPath] = context.hash;
+          }
+        })
+        .then(resolve, reject);
+      }),
+    ])
     .then(function() {cb();}, cb);
   });
 
