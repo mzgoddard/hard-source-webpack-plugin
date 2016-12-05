@@ -843,6 +843,93 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     });
   });
 
+  function preload(prefix, memoryCache) {
+    Object.keys(moduleCache)
+    .map(function(key) {
+      if (key.indexOf(prefix) !== 0) {return;}
+      var cacheItem = moduleCache[key];
+      if (!cacheItem) {return;}
+      if (typeof cacheItem === 'string') {
+        cacheItem = JSON.parse(cacheItem);
+        moduleCache[key] = cacheItem;
+      }
+      if (
+        cacheItem &&
+        cacheItem.fileDependencies &&
+        !HardModule.needRebuild(cacheItem, cacheItem.fileDependencies, cacheItem.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)
+      ) {
+        var memCacheId = 'm' + cacheItem.identifier;
+        if (!memoryCache[memCacheId]) {
+          if (Array.isArray(cacheItem.assets)) {
+            cacheItem.assets = (cacheItem.assets || [])
+            .reduce(function(carry, key) {
+              carry[key] = assetCache[requestHash(key)];
+              return carry;
+            }, {});
+          }
+          var module = memoryCache[memCacheId] = new HardModule(cacheItem);
+          module.build(null, null, null, null, function() {});
+          return module;
+        }
+      }
+      else if (
+        cacheItem &&
+        !cacheItem.fileDependencies &&
+        !HardContextModule.needRebuild(cacheItem, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)
+      ) {
+        var memCacheId = 'm' + cacheItem.identifier;
+        if (!memoryCache[memCacheId]) {
+          var module = memoryCache[memCacheId] = new HardContextModule(cacheItem);
+          module.build(null, null, null, null, function() {});
+          return module;
+        }
+      }
+    })
+    .filter(Boolean)
+    .forEach(function(module) {
+      var origin = memoryCache['m' + module.cacheItem.issuer];
+      module.issuer = origin;
+
+      module.errors.forEach(function(err) {
+        err.origin = origin;
+      }, this);
+      module.warnings.forEach(function(err) {
+        err.origin = origin;
+      }, this);
+    });
+  }
+
+  var preloadCacheByPrefix = {};
+
+  compiler.plugin('compilation', function(compilation, params) {
+    var preloadMemoryCache = false;
+    params.normalModuleFactory.plugin('before-resolve', function(data, cb) {
+      if (preloadMemoryCache) {return cb(null, data);}
+      preloadMemoryCache = true;
+      if (compilation.cache) {
+        var prefix = cachePrefix(compilation);
+        if (prefix === null) {return cb(null, data);}
+        if (preloadCacheByPrefix[prefix]) {return cb(null, data);}
+        preloadCacheByPrefix[prefix] = true;
+
+        preload(prefix, compilation.cache);
+      }
+      return cb(null, data);
+    });
+  });
+
+  compiler.plugin('make', function(compilation, cb) {
+    if (compilation.cache) {
+      var prefix = cachePrefix(compilation);
+      if (prefix === null) {return cb();}
+      if (preloadCacheByPrefix[prefix]) {return cb();}
+      preloadCacheByPrefix[prefix] = true;
+
+      preload(prefix, compilation.cache);
+    }
+    return cb();
+  });
+
   compiler.plugin('this-compilation', function(compilation) {
     compiler.__hardSource_topCompilation = compilation;
   });
@@ -1043,6 +1130,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           meta: module.meta,
           used: module.used,
           usedExports: module.usedExports,
+          issuer:
+            typeof module.issuer === 'string' ? module.issuer :
+            module.issuer && typeof module.issuer === 'object' ? module.issuer.identifier() :
+            null,
 
           rawSource: module._source ? module._source.source() : null,
           source: source.source(),
