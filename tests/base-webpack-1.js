@@ -192,4 +192,17 @@ describe('basic webpack use - builds changes', function() {
     expect(output.run2['main.js'].toString()).to.not.match(/exports = 1;/);
   });
 
+  itCompilesChange('base-resolve-missing', {
+    'fib.js': null,
+  }, {
+    'fib.js': [
+      'module.exports = function(n) {',
+      '  return n + (n > 0 ? n - 2 : 0);',
+      '};',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/n - 1/);
+    expect(output.run2['main.js'].toString()).to.match(/n - 2/);
+  });
+
 });
