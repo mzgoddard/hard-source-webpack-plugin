@@ -899,6 +899,179 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     });
   }
 
+  function prefetch(prefix, compilation) {
+    var memoryCache = compilation.cache;
+    var addModuleDependencies = Promise.promisify(compilation.addModuleDependencies, {context: compilation});
+    var queue = [];
+    var errorAndCallback = function errorAndCallback(err) {
+      err.dependencies = dependencies;
+      err.origin = module;
+      module.dependenciesErrors.push(err);
+      compilation.errors.push(err);
+      if(compilation.bail) {
+        queue.stop = err;
+        // callback(err);
+      } else {
+        // callback();
+      }
+    };
+    var warningAndCallback = function warningAndCallback(err) {
+      err.dependencies = dependencies;
+      err.origin = module;
+      module.dependenciesWarnings.push(err);
+      compilation.warnings.push(err);
+      // callback();
+    };
+
+    function add(module, dependencies, parent) {
+      function isOptional() {
+        // return Boolean(d.optional);
+        return dependencies.filter(function(d) {
+          return !d.optional;
+        }).length === 0;
+      }
+
+      function errorOrWarningAndCallback(err) {
+        if(isOptional()) {
+          return warningAndCallback(err);
+        } else {
+          return errorAndCallback(err);
+        }
+      }
+      module.profile = {};
+      var newModule = compilation.addModule(module);
+      if (!newModule) {
+        if (dependencies) {
+        var dependantModule = compilation.getModule(module);
+
+        if(dependantModule.optional) {
+          dependantModule.optional = isOptional();
+        }
+
+        if(dependantModule.id === 0) {
+          return errorOrWarningAndCallback(
+            new ModuleNotFoundError(module, new Error("a dependency to an entry point is not allowed"))
+          );
+        }
+
+        dependencies.forEach(function(dep) {
+          dep.module = dependantModule;
+          dependantModule.addReason(parent, dep);
+        });
+        }
+
+        return;
+      }
+
+      if (newModule.addReason) {
+      if (dependencies) {
+      // if(_this.profile) {
+      //   newModule.profile = dependantModule.profile;
+      // }
+
+      var dependantModule = module;
+      newModule.optional = isOptional();
+      newModule.issuer = dependantModule.issuer;
+      dependantModule = newModule;
+
+      dependencies.forEach(function(dep) {
+        dep.module = dependantModule;
+        dependantModule.addReason(parent, dep);
+      });
+
+      // if(_this.profile) {
+      //   var afterBuilding = +new Date();
+      //   module.profile.building = afterBuilding - afterFactory;
+      // }
+
+      // if(recursive) {
+      //   return process.nextTick(_this.processModuleDependencies.bind(_this, dependantModule, callback));
+      // } else {
+      //   return process.nextTick(callback);
+      // }
+      }
+      }
+
+      function processDeps(module) {
+        var dependencies = [];
+        var hardDependencies = [];
+
+        function addDependency(dep) {
+          var resolveId = JSON.stringify([module.context, dep.request]);
+          if (dep instanceof HardContextDependency) {
+            resolveId = JSON.stringify({
+              context: module.context,
+              request: dep.request,
+              recursive: dep.recursive,
+              regExp: dep.regExp ? dep.regExp.source : null,
+              async: dep.async,
+            });
+          }
+          var resolveItem = resolveCache[resolveId];
+          var depModule;
+          if (resolveItem && resolveItem.request) {
+            var mid = 'm' + resolveItem.request;
+            depModule = memoryCache[mid];
+            if (depModule && depModule.isHard && depModule.isHard() && !HardModule.needRebuild(depModule.cacheItem, depModule.fileDependencies || [], depModule.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)) {
+              // return queue.push([depModule, dep, module]);
+            }
+            else {
+              depModule = null;
+            }
+          }
+          for(var i = 0; i < dependencies.length; i++) {
+            if(dep.isEqualResource(dependencies[i][0])) {
+              if (depModule)
+                return hardDependencies[i].push(dep);
+              return dependencies[i].push(dep);
+            }
+          }
+          if (depModule)
+            return hardDependencies.push([depModule, dep]);
+          dependencies.push([dep]);
+        }
+
+        function addDependenciesBlock(block) {
+          if(block.dependencies) {
+            block.dependencies.forEach(addDependency);
+          }
+          if(block.blocks) {
+            block.blocks.forEach(addDependenciesBlock);
+          }
+          if(block.variables) {
+            block.variables.forEach(function(v) {
+              v.dependencies.forEach(addDependency);
+            });
+          }
+        }
+        addDependenciesBlock(module);
+        hardDependencies.forEach(function(dependencies) {
+          var depModule = dependencies.shift();
+          queue.push([depModule, dependencies, module]);
+        });
+        if (dependencies.length) {
+          return addModuleDependencies(module, dependencies, compilation.bail, null, true);
+        }
+      }
+      return processDeps(module);
+      // return processModuleDependencies(module);
+    }
+    return Promise.all(Object.keys(memoryCache)
+    .map(function(key) {
+      var module = memoryCache[key];
+      if (module.isHard && module.isHard() && !HardModule.needRebuild(module.cacheItem, module.fileDependencies || [], module.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)) {
+        var promise = add(module);
+        while (queue.length) {
+          if (queue.stop) {
+            throw queue.stop;
+          }
+          promise = Promise.all([promise, add.apply(null, queue.pop())]);
+        }
+        return promise;
+      }
+    }));
+  }
+
   var preloadCacheByPrefix = {};
 
   compiler.plugin('compilation', function(compilation, params) {
@@ -922,10 +1095,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     if (compilation.cache) {
       var prefix = cachePrefix(compilation);
       if (prefix === null) {return cb();}
-      if (preloadCacheByPrefix[prefix]) {return cb();}
-      preloadCacheByPrefix[prefix] = true;
+      if (!preloadCacheByPrefix[prefix]) {
+        preloadCacheByPrefix[prefix] = true;
 
-      preload(prefix, compilation.cache);
+        preload(prefix, compilation.cache);
+      }
+      return prefetch(prefix, compilation).then(function() {cb();}, cb);
     }
     return cb();
   });
