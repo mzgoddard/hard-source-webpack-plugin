@@ -434,6 +434,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var dataCache = {};
   var moduleResolveCache = {};
   var md5Cache = {};
+  var missingCache = {normal: {},loader: {},context: {}};
   var currentStamp = '';
 
   var moduleResolveCacheChange = [];
@@ -451,6 +452,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var dataCacheSerializer;
   var md5CacheSerializer;
   var moduleResolveCacheSerializer;
+  var missingCacheSerializer;
 
   var _this = this;
 
@@ -497,7 +499,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       .catch(function() {return '';});
     };
 
-    contextStamps = function(contextDependencies, fileDependencies) {
+    contextStamps = function(contextDependencies, fileDependencies, stats) {
+      stats = stats || {};
       var contexts = {};
       contextDependencies.forEach(function(context) {
         contexts[context] = {files: [], mtime: 0, hash: ''};
@@ -519,7 +522,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           return readdir(dir)
           .then(function(items) {
             return Promise.all(items.map(function(item) {
-              return stat(path.join(dir, item))
+              var file = path.join(dir, item);
+              if (!stats[file]) {stats[file] = stat(file);}
+              return stats[file]
               .then(function(stat) {
                 if (stat.isDirectory()) {
                   return walk(path.join(dir, item))
@@ -619,6 +624,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           type: 'data',
           cacheDirPath: cacheDirPath,
         });
+        missingCacheSerializer = cacheSerializerFactory.create({
+          name: 'missing-resolve',
+          type: 'data',
+          cacheDirPath: cacheDirPath,
+        });
       }
       catch (err) {
         return cb(err);
@@ -672,6 +682,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         dataCache = {};
         moduleResolveCache = {};
         md5Cache = {};
+        missingCache = {normal: {},loader: {},context: {}};
         fileTimestamps = {};
         contextTimestamps = {};
         return;
@@ -720,6 +731,21 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             }
           });
         }),
+
+        missingCacheSerializer.read()
+        .then(function(_missingCache) {
+          missingCache = {normal: {},loader: {},context: {}};
+          Object.keys(_missingCache).forEach(function(key) {
+            var item = _missingCache[key];
+            if (typeof item === 'string') {
+              item = JSON.parse(item);
+            }
+            var splitIndex = key.indexOf('/');
+            var group = key.substring(0, splitIndex);
+            var keyName = key.substring(splitIndex + 1);
+            missingCache[group][keyName] = item;
+          });
+        }),
       ])
       .then(function() {
         // console.log('cache in', Date.now() - start);
@@ -750,9 +776,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       };
     }
 
+    var stats = {};
     return Promise.all([
       Promise.all(dataCache.fileDependencies.map(function(file) {
-        return stat(file)
+        if (!stats[file]) {stats[file] = stat(file);}
+        return stats[file]
         .then(function(stat) {return +stat.mtime;})
         .then(setKey(fileTs, file, 0), setKeyError(fileTs, file, 0))
         .then(function() {
@@ -772,7 +800,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       })),
       new Promise(function(resolve, reject) {
         var contextTs = compiler.contextTimestamps = contextTimestamps = {};
-        return contextStamps(dataCache.contextDependencies, dataCache.fileDependencies)
+        return contextStamps(dataCache.contextDependencies, dataCache.fileDependencies, stats)
         .then(function(contexts) {
           for (var contextPath in contexts) {
             var context = contexts[contextPath];
@@ -784,6 +812,35 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         })
         .then(resolve, reject);
       }),
+      (function() {
+        var handles = [];
+        Object.keys(missingCache).map(function(group) {
+          Object.keys(missingCache[group]).map(function(key) {
+            var missingItem = missingCache[group][key];
+            if (!missingItem) {return;}
+            missingItem.map(function(missed, index) {
+              var missedPath = missed.split('?')[0];
+              if (index === missingItem.length - 1) {
+                if (!stats[missed]) {stats[missed] = stat(missed);}
+                return handles.push(stats[missed]
+                .catch(function() {missingItem.invalid = true;}));
+              }
+              if (!stats[missed]) {stats[missed] = stat(missed);}
+              return handles.push(stats[missed]
+              .then(function(stat) {
+                if (stat.isDirectory()) {
+                  if (group === 'context') {missingItem.invalid = true;}
+                }
+                if (stat.isFile()) {
+                  if (group === 'loader' || group === 'normal') {missingItem.invalid = true;}
+                }
+              })
+              .catch(function() {}));
+            });
+          });
+        });
+        return handles;
+      })(),
     ])
     .then(function() {cb();}, cb);
   });
@@ -1003,6 +1060,78 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     }
   }
 
+  compiler.plugin('after-plugins', function() {
+    function configureMissing(key, resolver) {
+      missingCache[key] = {};
+
+      var _resolve = resolver.resolve;
+      resolver.resolve = function(info, context, request, cb) {
+        var numArgs = 4;
+        if (!cb) {
+          numArgs = 3;
+          cb = request;
+          request = context;
+          context = info;
+        }
+        var localMissing = [];
+        var callback = function(err, result) {
+          if (result) {
+            var inverseId = JSON.stringify([context, result.split('?')[0]]);
+            var resolveId = JSON.stringify([context, request]);
+
+            // Skip recording missing for any dependency in node_modules.
+            // Changes to them will be handled by the environment hash. If we
+            // tracked the stuff in node_modules too, we'd be adding a whole
+            // bunch of reduntant work.
+            if (result.indexOf('node_modules') !== -1) {
+              localMissing = [];
+            }
+
+            // In case of other cache layers, if we already have missing
+            // recorded and we get a new empty array of missing, keep the old
+            // value.
+            if (localMissing.length === 0 && missingCache[key][inverseId]) {
+              return cb(err, result);
+            }
+
+            missingCache[key][inverseId] = localMissing.filter(function(missed, missedIndex) {
+              var index = localMissing.indexOf(missed);
+              if (index === -1 || index < missedIndex) {
+                return false;
+              }
+              if (missed === result) {
+                return false;
+              }
+              return true;
+            }).concat(result.split('?')[0]);
+            missingCache[key][resolveId].new = true;
+          }
+          cb(err, result);
+        };
+        if (callback.missing) {
+          var _missing = callback.missing;
+          callback.missing = {push: function(path) {
+            localMissing.push(path);
+            _missing.push(path);
+          }};
+        }
+        else {
+          callback.missing = localMissing;
+        }
+        if (numArgs === 3) {
+          _resolve.call(this, context, request, callback);
+        }
+        else {
+          _resolve.call(this, info, context, request, callback);
+        }
+      };
+    }
+
+    configureMissing('normal', compiler.resolvers.normal);
+    configureMissing('loader', compiler.resolvers.loader);
+    configureMissing('context', compiler.resolvers.context);
+  });
+
   compiler.plugin('compilation', function(compilation, params) {
     if (!active) {return;}
 
@@ -1050,7 +1179,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         )) {
           // Bust this module, the keys exported or their order has changed.
           cacheItem.invalid = true;
-          moduleCache[identifier] = null;
+          // moduleCache[identifier] = null;
 
           // Bust all dependents, they likely need to use new keys for this
           // module.
@@ -1059,7 +1188,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             var reasonItem = moduleCache[identifier];
             if (reasonItem) {
               reasonItem.invalid = true;
-              moduleCache[identifier] = null;
+              // moduleCache[identifier] = null;
             }
             if (reason.dependency.__NormalModuleFactoryCache) {
               reason.dependency.__NormalModuleFactoryCache = null;
@@ -1144,13 +1273,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           return cb(null, result);
         };
 
-        if (moduleResolveCache[cacheId]) {
-          var resource = moduleResolveCache[cacheId].resource.split('?')[0];
-          if (fileTimestamps[resource]) {
-            return fromCache();
-          }
-          return stat(resource)
-          .then(fromCache, next);
+        if (
+          moduleResolveCache[cacheId] &&
+          !moduleResolveCache[cacheId].invalid
+        ) {
+          return fromCache();
         }
 
         next();
@@ -1317,6 +1444,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     var md5Ops = [];
     var assetOps = [];
     var moduleResolveOps = [];
+    var missingOps = [];
 
     var buildingMd5s = {};
 
@@ -1433,6 +1561,37 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       });
 
       moduleResolveCacheChange = [];
+
+      Object.keys(missingCache).forEach(function(group) {
+        Object.keys(missingCache[group]).forEach(function(key) {
+          if (!missingCache[group][key]) {return;}
+          if (missingCache[group][key].new) {
+            missingCache[group][key].new = false;
+            missingOps.push({
+              key: group + '/' + key,
+              value: JSON.stringify(missingCache[group][key]),
+            });
+          }
+          else if (missingCache[group][key].invalid) {
+            missingCache[group][key] = null;
+            missingOps.push({
+              key: group + '/' + key,
+              value: null,
+            });
+          }
+        });
+      });
+
+      Object.keys(moduleCache).forEach(function(key) {
+        var cacheItem = moduleCache[key];
+        if (cacheItem && cacheItem.invalid) {
+          moduleCache[key] = null;
+          moduleOps.push({
+            key: key,
+            value: null,
+          });
+        }
+      });
     }
 
     // moduleCache.fileDependencies = compilation.fileDependencies;
@@ -1642,6 +1801,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       moduleCacheSerializer.write(moduleOps),
       dataCacheSerializer.write(dataOps),
       writeMd5Ops,
+      missingCacheSerializer.write(missingOps),
     ])
     .then(function() {
       // console.log('cache out', Date.now() - startCacheTime);
