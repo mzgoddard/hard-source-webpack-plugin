@@ -24,6 +24,7 @@ describe('plugin webpack use', function() {
   itCompilesTwice('plugin-hmr-accept-dep', {exportStats: true});
   itCompilesTwice('plugin-hmr-process-env', {exportStats: true});
 
+  itCompilesHardModules('plugin-dll-reference', ['./index.js']);
   itCompilesHardModules('plugin-html-lodash', [/lodash\/lodash\.js$/, /\!\.\/index\.html$/]);
 
 });
