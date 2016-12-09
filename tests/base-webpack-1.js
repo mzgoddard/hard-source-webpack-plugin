@@ -23,6 +23,7 @@ describe('basic webpack use - compiles identically', function() {
   itCompilesTwice('base-amd-1dep');
   itCompilesTwice('base-amd-context');
   itCompilesTwice('base-amd-code-split');
+  itCompilesTwice('base-external');
 
 });
 
@@ -33,6 +34,7 @@ describe('basic webpack use - compiles hard modules', function() {
   itCompilesHardModules('base-deep-context', ['./a \\d']);
   itCompilesHardModules('base-code-split', ['./fib.js', './index.js']);
   itCompilesHardModules('base-query-request', ['./fib.js?argument']);
+  itCompilesHardModules('base-external', ['./index.js']);
 
 });
 
