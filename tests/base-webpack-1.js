@@ -168,4 +168,25 @@ describe('basic webpack use - builds changes', function() {
     expect(output.run2['main.js'].toString()).to.not.match(/exports = 12/);
   });
 
+  itCompilesChange('base-context-move', {
+    'vendor/a/1.js': 'module.exports = 1;',
+    'vendor/a/2.js': 'module.exports = 2;',
+    'vendor/a/3.js': 'module.exports = 3;',
+    'vendor/a/4.js': 'module.exports = 4;',
+    'vendor/a/5.js': 'module.exports = 5;',
+    'web_modules/a': null,
+  }, {
+    'web_modules/a/1.js': 'module.exports = 11;',
+    'web_modules/a/2.js': 'module.exports = 12;',
+    'web_modules/a/3.js': 'module.exports = 13;',
+    'web_modules/a/4.js': 'module.exports = 14;',
+    'web_modules/a/5.js': 'module.exports = 15;',
+    'vendor/a': null,
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/exports = 1;/);
+    expect(output.run1['main.js'].toString()).to.not.match(/exports = 11;/);
+    expect(output.run2['main.js'].toString()).to.match(/exports = 11;/);
+    expect(output.run2['main.js'].toString()).to.not.match(/exports = 1;/);
+  });
+
 });
