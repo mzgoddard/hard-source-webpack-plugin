@@ -19,6 +19,43 @@ describe('loader webpack use', function() {
   itCompilesHardModules('loader-custom-user-loader', ['./loader.js!./index.js']);
   itCompilesHardModules('loader-custom-no-dep', ['./index.js', './loader.js!./fib.js']);
 
+  itCompilesHardModules('loader-custom-resolve-missing', {
+    'loader.js': null,
+  }, ['./index.js', './loader!./fib.js']);
+  itCompilesHardModules('loader-custom-resolve-missing', {
+    'loader.js': [
+      'module.exports = function(source) {',
+      '  this.cacheable && this.cacheable();',
+      '  return [',
+      '    \'// loader.js\',',
+      '    source,',
+      '  ].join(\'\\n\');',
+      '};',
+    ].join('\n'),
+  }, ['./index.js', './loader.js!./fib.js']);
+  itCompilesHardModules('loader-custom-resolve-missing', {
+    'loader.js': null,
+  }, {
+    'loader.js': [
+      'module.exports = function(source) {',
+      '  this.cacheable && this.cacheable();',
+      '  return [',
+      '    \'// loader.js\',',
+      '    source,',
+      '  ].join(\'\\n\');',
+      '};',
+    ].join('\n'),
+  }, function(output, hardModules) {
+    // Invalidated because a missing file from the last resolution now exists.
+    expect(hardModules).to.not.include('./loader!./fib.js');
+    // Invalidated because a dependency's identifier changed.
+    expect(hardModules).to.not.include('./index.js');
+  });
+  itCompilesHardModules('loader-custom-resolve-missing-vendor', {
+    'vendor/loader': null,
+    'vendor/fib': null,
+  }, ['./index.js', './web_modules/loader!./web_modules/fib/index.js']);
+
 });
 
 describe('loader webpack warnings & errors', function() {
@@ -129,6 +166,161 @@ describe('loader webpack use - builds changes', function() {
     expect(output.run1['main.js'].toString()).to.not.match(/fib\/index\.js/);
     expect(output.run2['main.js'].toString()).to.match(/fib\/index\.js/);
     expect(output.run2['main.js'].toString()).to.not.match(/fib\.js/);
+  });
+
+  itCompilesChange('loader-custom-resolve-missing', {
+    'fib.js': null,
+    'loader.js': null,
+  }, {
+    'fib.js': [
+      'module.exports = function(n) {',
+      '  return n + (n > 0 ? n - 2 : 0);',
+      '};',
+    ].join('\n'),
+    'loader.js': null,
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/n - 1/);
+    expect(output.run2['main.js'].toString()).to.match(/n - 2/);
+  });
+
+  itCompilesChange('loader-custom-resolve-missing', {
+    'loader.js': null,
+  }, {
+    'loader.js': [
+      'module.exports = function(source) {',
+      '  this.cacheable && this.cacheable();',
+      '  return [',
+      '    \'// loader.js\',',
+      '    source,',
+      '  ].join(\'\\n\');',
+      '};',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/loader\/index\.js/);
+    expect(output.run2['main.js'].toString()).to.match(/loader\.js/);
+  });
+
+  itCompilesChange('loader-custom-resolve-missing-vendor', {
+    'vendor/fib': null,
+    'vendor/loader': null,
+  }, {
+    'vendor/fib/index.js': [
+      'module.exports = function(n) {',
+      '  return n + (n > 0 ? n - 2 : 0);',
+      '};',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/n - 1/);
+    expect(output.run2['main.js'].toString()).to.match(/n - 2/);
+  });
+
+  itCompilesChange('loader-custom-resolve-missing-vendor', {
+    'vendor/fib': null,
+    'vendor/loader': null,
+  }, {
+    'vendor/fib': [
+      'module.exports = function(n) {',
+      '  return n + (n > 0 ? n - 2 : 0);',
+      '};',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/n - 1/);
+    expect(output.run2['main.js'].toString()).to.match(/n - 2/);
+  });
+
+  itCompilesChange('loader-custom-resolve-missing-vendor', {
+    'vendor/fib': null,
+    'vendor/loader': null,
+  }, {
+    'vendor/loader/index.js': [
+      'module.exports = function(source) {',
+      '  this.cacheable && this.cacheable();',
+      '  return [',
+      '    \'// vendor/loader/index.js\',',
+      '    source,',
+      '  ].join(\'\\n\');',
+      '};',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/web_modules\/loader\/index\.js/);
+    expect(output.run2['main.js'].toString()).to.match(/vendor\/loader\/index\.js/);
+  });
+
+  itCompilesChange('loader-custom-resolve-missing-vendor', {
+    'vendor/fib': null,
+    'vendor/loader': null,
+  }, {
+    'vendor/loader/index-loader.js': [
+      'module.exports = function(source) {',
+      '  this.cacheable && this.cacheable();',
+      '  return [',
+      '    \'// vendor/loader/index-loader.js\',',
+      '    source,',
+      '  ].join(\'\\n\');',
+      '};',
+    ].join('\n'),
+    'vendor/loader/package.json': [
+      '{',
+      '  "main": "index-loader.js"',
+      '}',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/web_modules\/loader\/index\.js/);
+    expect(output.run2['main.js'].toString()).to.match(/vendor\/loader\/index-loader\.js/);
+  });
+
+  // Maybe we can turn this test on one day. Fortunately there is some
+  // redundancy with our env-hash implementation. If a library directory existed
+  // without a package.json file and then got one the env-hash with its default
+  // config would trigger a fresh build. So this test would only be an issue if
+  // the user didn't track directories with env-hash that holds libraries that
+  // would normally have a package.json file.
+  // itCompilesChange('loader-custom-resolve-missing-vendor', {
+  //   'vendor/fib': null,
+  //   // Fill an empty directory
+  //   'vendor/loader': {},
+  // }, {
+  //   // With a package and its main file
+  //   'vendor/loader/index-loader.js': [
+  //     'module.exports = function(source) {',
+  //     '  this.cacheable && this.cacheable();',
+  //     '  return [',
+  //     '    \'// vendor/loader/index-loader.js\',',
+  //     '    source,',
+  //     '  ].join(\'\\n\');',
+  //     '};',
+  //   ].join('\n'),
+  //   'vendor/loader/package.json': [
+  //     '{',
+  //     '  "main": "index-loader.js"',
+  //     '}',
+  //   ].join('\n'),
+  // }, function(output) {
+  //   expect(output.run1['main.js'].toString()).to.match(/web_modules\/loader\/index\.js/);
+  //   expect(output.run2['main.js'].toString()).to.match(/vendor\/loader\/index-loader\.js/);
+  // });
+
+  itCompilesChange('loader-custom-resolve-missing-vendor', {
+    'vendor/fib': null,
+    'vendor/loader': null,
+    'vendor/loader/package.json': [
+      '{',
+      '  "main": "index-loader.js"',
+      '}',
+    ].join('\n'),
+  }, {
+    'vendor/loader/index-loader.js': [
+      'module.exports = function(source) {',
+      '  this.cacheable && this.cacheable();',
+      '  return [',
+      '    \'// vendor/loader/index-loader.js\',',
+      '    source,',
+      '  ].join(\'\\n\');',
+      '};',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/web_modules\/loader\/index\.js/);
+    expect(output.run2['main.js'].toString()).to.match(/vendor\/loader\/index-loader\.js/);
   });
 
 });

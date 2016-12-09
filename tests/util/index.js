@@ -131,18 +131,29 @@ exports.writeFiles = function(fixturePath, files) {
   _fsWriteFile = Promise.promisify(fs.writeFile, {context: fs});
   fsMkdirp = Promise.promisify(mkdirp);
   fsWriteFile = function(file, content, encode) {
-    return fsMkdirp(path.dirname(file))
+    var dirname = path.dirname(file);
+    if (typeof content === 'object' && !Array.isArray(content)) {
+      dirname = file;
+    }
+    return fsMkdirp(dirname)
     .then(function() {
-      return _fsWriteFile(file, content, encode);
+      if (typeof content === 'string' || Array.isArray(content)) {
+        return _fsWriteFile(file, content, encode);
+      }
     });
   };
   fsRimraf = Promise.promisify(rimraf);
 
   return Promise.all(Object.keys(files).map(function(key) {
-    if (files[key] === null) {
-      return fsRimraf(path.join(configPath, key)).catch(function() {});
-    }
-    return fsWriteFile(path.join(configPath, key), files[key]);
+    // if (files[key] === null) {
+    //   return fsRimraf(path.join(configPath, key)).catch(function() {});
+    // }
+    return fsRimraf(path.join(configPath, key)).catch(function() {})
+    .then(function() {
+      if (files[key] !== null) {
+        return fsWriteFile(path.join(configPath, key), files[key]);
+      }
+    });
   }));
 };
 
