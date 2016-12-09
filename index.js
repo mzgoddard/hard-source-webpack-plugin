@@ -63,6 +63,7 @@ var HardModule = require('./lib/hard-module');
 
 var makeDevtoolOptions = require('./lib/devtool-options');
 var cachePrefix = require('./lib/util').cachePrefix;
+var deserializeDependencies = require('./lib/deserialize-dependencies');
 
 var hardSourceVersion = require('./package.json').version;
 
@@ -99,6 +100,7 @@ function serializeDependencies(deps) {
     if (typeof HarmonyImportDependency !== 'undefined') {
       if (dep instanceof HarmonyImportDependency) {
         return {
+          moduleIdentifier: dep.module && dep.module.identifier(),
           harmonyImport: true,
           request: dep.request,
         };
@@ -130,6 +132,7 @@ function serializeDependencies(deps) {
       };
     }
     return {
+      moduleIdentifier: dep.module && dep.module.identifier(),
       contextDependency: dep instanceof ContextDependency,
       contextCritical: dep.critical,
       constDependency: (
@@ -631,8 +634,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         });
         if (!validDepends) {
           // console.log('invalid', key);
-          cacheItem.invalid = true;
-          moduleCache[key] = null;
+          // cacheItem.invalid = true;
+          // moduleCache[key] = null;
         }
       });
     })
@@ -825,9 +828,102 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               fileMd5s,
               cachedMd5s
             )) {
-              var module = new HardModule(cacheItem);
+              var walkDependencyBlock = function(block, callback) {
+                return Promise.all(
+                  block.dependencies.map(callback)
+                  .concat(block.variables.map(function(variable) {
+                    return Promise.all(variable.dependencies.map(callback));
+                  }))
+                  .concat(block.blocks.map(function(block) {
+                    return walkDependencyBlock(block, callback);
+                  }))
+                );
+              };
 
-              return cb(null, module);
+              var state = {state: {imports: {}}};
+
+              return walkDependencyBlock(cacheItem, function(cacheDependency) {
+                if (
+                  cacheDependency &&
+                  !cacheDependency.contextDependency &&
+                  typeof cacheDependency.request !== 'undefined'
+                ) {
+                  var resolveId = JSON.stringify(
+                    [cacheItem.context, cacheDependency.request]
+                  );
+                  var resolveItem = resolveCache[resolveId];
+                  if (
+                    resolveItem &&
+                    resolveItem.request &&
+                    resolveItem.resource &&
+                    fileTimestamps[resolveItem.resource.split('?')[0]]
+                  ) {
+                    var depIdentifier = identifierPrefix + resolveItem.request;
+                    var depCacheItem = moduleCache[depIdentifier];
+                    if (
+                      depCacheItem &&
+                      depCacheItem.fileDependencies
+                      .reduce(function(carry, file) {
+                        return carry && fileTimestamps[file];
+                      }, true) &&
+                      depCacheItem.contextDependencies
+                      .reduce(function(carry, dir) {
+                        return carry && contextTimestamps[dir];
+                      }, true)
+                    ) {
+                      return Promise.resolve();
+                    }
+                    else if (depCacheItem) {
+                      return Promise.reject();
+                    }
+                  }
+                }
+
+                if (cacheDependency.moduleIdentifier) {
+                  var dependency = deserializeDependencies.dependencies.call(state, [cacheDependency], null)[0];
+                  var factory = compilation.dependencyFactories.get(dependency.constructor);
+                  return new Promise(function(resolve, reject) {
+                    var callFactory = function(fn) {
+                      if (factory.create.length === 2) {
+                        factory.create({
+                          contextInfo: {
+                            issuer: cacheItem.resource.split('?')[0],
+                          },
+                          context: cacheItem.context,
+                          dependencies: [dependency],
+                        }, fn);
+                      }
+                      if (factory.create.length === 3) {
+                        factory.create(cacheItem.context, dependency, fn);
+                      }
+                    };
+                    callFactory(function(err, depModule) {
+                      if (err) {
+                        return reject(err);
+                      }
+                      if (cacheDependency.moduleIdentifier === depModule.identifier()) {
+                        return resolve();
+                      }
+                      reject(new Error('dependency has a new identifier'));
+                    });
+                  });
+                }
+
+                return Promise.resolve();
+              })
+              .then(function() {
+                // console.log('valid', cacheItem.request);
+                var module = new HardModule(cacheItem);
+
+                return cb(null, module);
+              })
+              .catch(function(err) {
+                // console.log('invalid', cacheItem.request, err);
+                cacheItem.invalid = true;
+                moduleCache[identifier] = null;
+
+                return cb(null, result);
+              });
             }
           }
           return cb(null, result);
