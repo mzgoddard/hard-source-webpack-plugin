@@ -131,4 +131,51 @@ describe('loader webpack use - builds changes', function() {
     expect(output.run2['main.js'].toString()).to.not.match(/fib\.js/);
   });
 
+  itCompilesChange('loader-custom-resolve-missing', {
+    'fib.js': null,
+    'loader.js': null,
+  }, {
+    'fib.js': [
+      'module.exports = function(n) {',
+      '  return n + (n > 0 ? n - 2 : 0);',
+      '};',
+    ].join('\n'),
+    'loader.js': null,
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/n - 1/);
+    expect(output.run2['main.js'].toString()).to.match(/n - 2/);
+  });
+
+  itCompilesChange('loader-custom-resolve-missing', {
+    'loader.js': null,
+  }, {
+    'loader.js': [
+      'module.exports = function(source) {',
+      '  this.cacheable && this.cacheable();',
+      '  return [',
+      '    \'// loader.js\',',
+      '    source,',
+      '  ].join(\'\\n\');',
+      '};',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/loader\/index\.js/);
+    expect(output.run2['main.js'].toString()).to.match(/loader\.js/);
+  });
+
+  itCompilesChange('loader-custom-resolve-missing-query', {
+    'fib.js': null,
+    'loader.js': null,
+  }, {
+    'fib.js': [
+      'module.exports = function(n) {',
+      '  return n + (n > 0 ? n - 2 : 0);',
+      '};',
+    ].join('\n'),
+    'loader.js': null,
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/n - 1/);
+    expect(output.run2['main.js'].toString()).to.match(/n - 2/);
+  });
+
 });
