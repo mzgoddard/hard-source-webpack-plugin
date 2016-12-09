@@ -18,7 +18,9 @@ module.exports = {
       },
     }),
     new DllReferencePlugin({
+      context: __dirname,
       manifest: require('./dll-manifest.json'),
+      // manifest: __dirname + '/dll-manifest.json',
     }),
   ],
 };
