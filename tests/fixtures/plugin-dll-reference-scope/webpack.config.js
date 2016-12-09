@@ -20,8 +20,8 @@ module.exports = {
     new DllReferencePlugin({
       scope: '.',
       extensions: ['', '.js'],
-      // manifest: require('./dll-manifest.json'),
-      manifest: __dirname + '/dll-manifest.json',
+      manifest: require('./dll-manifest.json'),
+      // manifest: __dirname + '/dll-manifest.json',
     }),
   ],
 };
