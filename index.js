@@ -1018,6 +1018,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                   var resolveItem = resolveCache[resolveId];
                   if (
                     resolveItem &&
+                    !resolveItem.invalid &&
                     resolveItem.request &&
                     resolveItem.resource &&
                     fileTimestamps[resolveItem.resource.split('?')[0]]
