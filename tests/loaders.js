@@ -12,10 +12,12 @@ describe('loader webpack use', function() {
   itCompilesTwice('loader-css');
   itCompilesTwice('loader-file');
   itCompilesTwice('loader-custom-missing-dep');
+  itCompilesTwice('loader-custom-no-dep');
 
   itCompilesHardModules('loader-css', ['./index.css']);
   itCompilesHardModules('loader-file', ['./image.png']);
   itCompilesHardModules('loader-custom-user-loader', ['./loader.js!./index.js']);
+  itCompilesHardModules('loader-custom-no-dep', ['./index.js', './loader.js!./fib.js']);
 
 });
 
@@ -114,6 +116,19 @@ describe('loader webpack use - builds changes', function() {
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.match(/n - 1/);
     expect(output.run2['main.js'].toString()).to.not.match(/n - 1/);
+  });
+
+  itCompilesChange('loader-custom-no-dep-moved', {
+    'fib.js': '',
+    'fib/index.js': null,
+  }, {
+    'fib.js': null,
+    'fib/index.js': '',
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/fib\.js/);
+    expect(output.run1['main.js'].toString()).to.not.match(/fib\/index\.js/);
+    expect(output.run2['main.js'].toString()).to.match(/fib\/index\.js/);
+    expect(output.run2['main.js'].toString()).to.not.match(/fib\.js/);
   });
 
 });
