@@ -87,6 +87,37 @@ describeWP2('basic webpack 2 use - builds changes', function() {
     expect(output.run2['main.js'].toString()).to.contain('console.log(__WEBPACK_IMPORTED_MODULE_0__obj__["b" /* fib */], __WEBPACK_IMPORTED_MODULE_0__obj__["a" /* key */]);');
   });
 
+  itCompilesChange('base-change-es2015-export-order-module', {
+    'other.js': [
+      'import {fib, key} from \'./obj\';',
+      'console.log(fib);',
+      'console.log(key);',
+    ].join('\n'),
+    'obj.js': [
+      'import \'./other\';',
+      'export function fib(n) {',
+      '  return n + (n > 0 ? n - 1 : 0);',
+      '}',
+      'export let key = \'obj\';',
+    ].join('\n'),
+  }, {
+    'other.js': [
+      'import {fib, key} from \'./obj\';',
+      'console.log(key);',
+      'console.log(fib);',
+    ].join('\n'),
+    'obj.js': [
+      'import \'./other\';',
+      'export let key = \'obj\';',
+      'export function fib(n) {',
+      '  return n + (n > 0 ? n - 1 : 0);',
+      '}',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.contain('console.log(__WEBPACK_IMPORTED_MODULE_0__obj__["a" /* fib */], __WEBPACK_IMPORTED_MODULE_0__obj__["b" /* key */]);');
+    expect(output.run2['main.js'].toString()).to.contain('console.log(__WEBPACK_IMPORTED_MODULE_0__obj__["b" /* fib */], __WEBPACK_IMPORTED_MODULE_0__obj__["a" /* key */]);');
+  });
+
   itCompilesChange('base-change-es2015-all-module', {
     'index.js': [
       'import {key} from \'./obj\';',
