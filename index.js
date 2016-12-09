@@ -323,6 +323,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var dataCache = {};
   var md5Cache = {};
   var missingCache = {normal: {},loader: {},context: {}};
+  var resolverCache = {normal: {},loader: {},context: {}};
   var currentStamp = '';
 
   var fileMd5s = {};
@@ -341,6 +342,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'md5')});
   var missingCacheSerializer = this.missingCacheSerializer =
     new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'missing')});
+  var resolverCacheSerializer = this.missingCacheSerializer =
+    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'resolver')});
   var _this = this;
 
   var stat, readdir, mtime, md5, contextStamps;
@@ -499,6 +502,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         dataCache = {};
         md5Cache = {};
         missingCache = {normal: {},loader: {},context: {}};
+        resolverCache = {normal: {},loader: {},context: {}};
         fileTimestamps = {};
         contextTimestamps = {};
         return;
@@ -542,7 +546,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         missingCacheSerializer.read()
         .then(function(_missingCache) {
-          missingCache = {normal: {},loader: {},context: {}};
+          missingCache = {normal: {},loader: {}, context: {}};
           Object.keys(_missingCache).forEach(function(key) {
             var item = _missingCache[key];
             if (typeof item === 'string') {
@@ -552,6 +556,21 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             var group = key.substring(0, splitIndex);
             var keyName = key.substring(splitIndex + 1);
             missingCache[group][keyName] = item;
+          });
+        }),
+
+        resolverCacheSerializer.read()
+        .then(function(_resolverCache) {
+          resolverCache = {normal: {},loader: {}, context: {}};
+          Object.keys(_resolverCache).forEach(function(key) {
+            var item = _resolverCache[key];
+            if (typeof item === 'string') {
+              item = JSON.parse(item);
+            }
+            var splitIndex = key.indexOf('/');
+            var group = key.substring(0, splitIndex);
+            var keyName = key.substring(splitIndex + 1);
+            resolverCache[group][keyName] = item;
           });
         }),
       ])
@@ -748,7 +767,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   compiler.plugin('after-plugins', function() {
     function configureMissing(key, resolver) {
-      missingCache[key] = {};
+      // console.log(missingCache[key], resolverCache[key]);
+      // missingCache[key] = missingCache[key] || {};
+      // resolverCache[key] = resolverCache[key] || {};
 
       var _resolve = resolver.resolve;
       resolver.resolve = function(info, context, request, cb) {
@@ -759,11 +780,24 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           request = context;
           context = info;
         }
+        var resolveId = JSON.stringify([context, request]);
+        var resolve = resolverCache[key][resolveId];
+        // console.log(key, resolverCache[key]);
+        // console.log(resolveId, resolve);
+        if (resolve) {
+          console.log('resolve', key, resolve.result + request.split('?').slice(1).join('?'));
+          var missingId = JSON.stringify([context, resolve.result]);
+          var missing = missingCache[key][missingId];
+          if (missing && !missing.invalid) {
+            return cb(null, resolve.result + request.split('?').slice(1).join('?'));
+          }
+        }
         var localMissing = [];
         var callback = function(err, result) {
           if (result) {
-            var resolveId = JSON.stringify([context, result.split('?')[0]]);
-            missingCache[key][resolveId] = localMissing.filter(function(missed, missedIndex) {
+            var inverseId = JSON.stringify([context, result.split('?')[0]]);
+            var resolveId = JSON.stringify([context, request]);
+            missingCache[key][inverseId] = localMissing.filter(function(missed, missedIndex) {
               var index = localMissing.indexOf(missed);
               if (index === -1 || index < missedIndex) {
                 return false;
@@ -773,7 +807,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               }
               return true;
             }).concat(result.split('?')[0]);
-            missingCache[key][resolveId].new = true;
+            missingCache[key][inverseId].new = true;
+            resolverCache[key][resolveId] = {
+              result: result.split('?')[0],
+              new: true,
+            };
           }
           cb(err, result);
         };
@@ -1174,6 +1212,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     var md5Ops = [];
     var assetOps = [];
     var missingOps = [];
+    var resolverOps = [];
 
     var buildingMd5s = {};
 
@@ -1288,6 +1327,26 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           else if (missingCache[group][key].invalid) {
             missingCache[group][key] = null;
             missingOps.push({
+              key: group + '/' + key,
+              value: null,
+            });
+          }
+        });
+      });
+
+      Object.keys(resolverCache).forEach(function(group) {
+        Object.keys(resolverCache[group]).forEach(function(key) {
+          if (!resolverCache[group][key]) {return;}
+          if (resolverCache[group][key].new) {
+            resolverCache[group][key].new = false;
+            resolverOps.push({
+              key: group + '/' + key,
+              value: JSON.stringify(resolverCache[group][key]),
+            });
+          }
+          else if (resolverCache[group][key].invalid) {
+            resolverCache[group][key] = null;
+            resolverOps.push({
               key: group + '/' + key,
               value: null,
             });
@@ -1512,6 +1571,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       dataCacheSerializer.write(dataOps),
       writeMd5Ops,
       missingCacheSerializer.write(missingOps),
+      resolverCacheSerializer.write(resolverOps),
     ])
     .then(function() {
       // console.log('cache out', Date.now() - startCacheTime);
