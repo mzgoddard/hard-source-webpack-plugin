@@ -956,12 +956,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         var resolve = resolverCache[key][resolveId];
         // console.log(key, resolverCache[key]);
         // console.log(resolveId, resolve);
-        if (resolve) {
-          console.log('resolve', key, resolve.result + request.split('?').slice(1).join('?'));
+        if (resolve && !resolve.invalid) {
+          // console.log('resolve', key, resolve.result + request.split('?').slice(1).join('?'));
           var missingId = JSON.stringify([context, resolve.result]);
           var missing = missingCache[key][missingId];
           if (missing && !missing.invalid) {
             return cb(null, resolve.result + request.split('?').slice(1).join('?'));
+          }
+          else {
+            resolve.invalid = true;
           }
         }
         var localMissing = [];
