@@ -31,7 +31,7 @@ module.exports = {
   },
   recordsPath: __dirname + '/tmp/cache/records.json',
   resolve: removeEmptyValues({
-    moduleDirectories: ifWebpack1(['node_modules', 'vendor', 'web_modules']),
+    modulesDirectories: ifWebpack1(['node_modules', 'vendor', 'web_modules']),
     modules: ifWebpack2(['node_modules', 'vendor', 'web_modules']),
   }),
   plugins: [
