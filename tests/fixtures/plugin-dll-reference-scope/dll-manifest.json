@@ -1,0 +1,11 @@
+{
+  "name": "dll_c640cf83e777b7d462d5",
+  "content": {
+    "./fib.js": {
+      "id": 0,
+      "meta": {},
+      "hasStarExport": false,
+      "activeExports": []
+    }
+  }
+}

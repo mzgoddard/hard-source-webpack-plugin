@@ -1,14 +1,12 @@
-var DllPlugin = require('webpack').DllPlugin;
+var DllReferencePlugin = require('webpack').DllReferencePlugin;
 var HardSourceWebpackPlugin = require('../../..');
 
 module.exports = {
   context: __dirname,
-  entry: {
-    'dll': ['./fib.js'],
-  },
+  entry: './index.js',
   output: {
     path: __dirname + '/tmp',
-    filename: 'dll.js',
+    filename: 'main.js',
     library: '[name]_[hash]',
   },
   recordsPath: __dirname + '/tmp/cache/records.json',
@@ -19,10 +17,11 @@ module.exports = {
         root: __dirname + '/../../..',
       },
     }),
-    new DllPlugin({
-      path: __dirname + '/tmp/dll-manifest.json',
-      name: '[name]_[hash]',
-      context: __dirname,
+    new DllReferencePlugin({
+      scope: '.',
+      extensions: ['', '.js'],
+      // manifest: require('./dll-manifest.json'),
+      manifest: __dirname + '/dll-manifest.json',
     }),
   ],
 };

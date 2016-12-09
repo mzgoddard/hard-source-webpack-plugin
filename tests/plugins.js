@@ -10,6 +10,7 @@ describe('plugin webpack use', function() {
 
   itCompilesTwice('plugin-dll');
   itCompilesTwice('plugin-dll-reference');
+  itCompilesTwice('plugin-dll-reference-scope');
   itCompilesTwice('plugin-html-lodash');
   itCompilesTwice('plugin-extract-text');
   itCompilesTwice('plugin-extract-text-loader-file');
@@ -24,7 +25,9 @@ describe('plugin webpack use', function() {
   itCompilesTwice('plugin-hmr-accept-dep', {exportStats: true});
   itCompilesTwice('plugin-hmr-process-env', {exportStats: true});
 
+  itCompilesHardModules('plugin-dll', ['./fib.js']);
   itCompilesHardModules('plugin-dll-reference', ['./index.js']);
+  itCompilesHardModules('plugin-dll-reference-scope', ['./index.js']);
   itCompilesHardModules('plugin-html-lodash', [/lodash\/lodash\.js$/, /\!\.\/index\.html$/]);
 
 });
