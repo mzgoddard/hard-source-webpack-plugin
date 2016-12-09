@@ -421,6 +421,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               });
             }));
           })
+          .catch(() => [])
           .then(function(items) {
             return items.reduce(function(carry, item) {
               return carry.concat(item);
