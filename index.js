@@ -1335,7 +1335,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             hardDependencies
             .map(function(dependencies) {
               var depModule = dependencies.shift();
-              console.log('prefetch', depModule.identifier());
+              // console.log('prefetch', depModule.identifier());
               return add(depModule, dependencies, module);
               // queue.push([depModule, dependencies, module]);
             })
