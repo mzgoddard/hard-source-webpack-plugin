@@ -155,7 +155,7 @@ describe('loader webpack use - builds changes', function() {
       '  return [',
       '    \'// loader.js\',',
       '    source,',
-      '  ].join(\'\n\');',
+      '  ].join(\'\\n\');',
       '};',
     ].join('\n'),
   }, function(output) {
