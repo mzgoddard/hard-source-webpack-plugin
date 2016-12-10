@@ -959,11 +959,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           return Promise.resolve();
         })
         .then(function() {
-          console.log('valid', cacheItem.identifier);
+          // console.log('valid', cacheItem.identifier);
           return cacheItem;
         })
         .catch(function(err) {
-          console.log('invalid', cacheItem.identifier);
+          // console.log('invalid', cacheItem.identifier);
           cacheItem.invalid = true;
           moduleCache[identifier] = null;
 
