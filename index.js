@@ -842,6 +842,138 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     configureMissing('context', compiler.resolvers.context);
   });
 
+  function getModuleCacheItem(compilation, result) {
+    var identifierPrefix = cachePrefix(compilation);
+    if (identifierPrefix === null) {
+      return Promise.reject();
+    }
+    var identifier = identifierPrefix + result.request;
+
+    if (moduleCache[identifier] && !moduleCache[identifier].invalid) {
+      var cacheItem = moduleCache[identifier];
+
+      if (typeof cacheItem === 'string') {
+        cacheItem = JSON.parse(cacheItem);
+        moduleCache[identifier] = cacheItem;
+      }
+      if (Array.isArray(cacheItem.assets)) {
+        cacheItem.assets = (cacheItem.assets || [])
+        .reduce(function(carry, key) {
+          carry[key] = assetCache[requestHash(key)];
+          return carry;
+        }, {});
+      }
+
+      if (!HardModule.needRebuild(
+        cacheItem,
+        cacheItem.fileDependencies,
+        cacheItem.contextDependencies,
+        // [],
+        fileTimestamps,
+        contextTimestamps,
+        fileMd5s,
+        cachedMd5s
+      )) {
+        var walkDependencyBlock = function(block, callback) {
+          return Promise.all(
+            block.dependencies.map(callback)
+            .concat(block.variables.map(function(variable) {
+              return Promise.all(variable.dependencies.map(callback));
+            }))
+            .concat(block.blocks.map(function(block) {
+              return walkDependencyBlock(block, callback);
+            }))
+          );
+        };
+
+        var state = {state: {imports: {}}};
+
+        return walkDependencyBlock(cacheItem, function(cacheDependency) {
+          if (
+            cacheDependency &&
+            !cacheDependency.contextDependency &&
+            typeof cacheDependency.request !== 'undefined'
+          ) {
+            var resolveId = JSON.stringify(
+              [cacheItem.context, cacheDependency.request]
+            );
+            var resolveItem = resolveCache[resolveId];
+            if (
+              resolveItem &&
+              !resolveItem.invalid &&
+              resolveItem.request &&
+              resolveItem.resource &&
+              fileTimestamps[resolveItem.resource.split('?')[0]]
+            ) {
+              var depIdentifier = identifierPrefix + resolveItem.request;
+              var depCacheItem = moduleCache[depIdentifier];
+              if (
+                depCacheItem &&
+                depCacheItem.fileDependencies
+                .reduce(function(carry, file) {
+                  return carry && fileTimestamps[file];
+                }, true) &&
+                depCacheItem.contextDependencies
+                .reduce(function(carry, dir) {
+                  return carry && contextTimestamps[dir];
+                }, true)
+              ) {
+                return Promise.resolve();
+              }
+              else if (depCacheItem) {
+                return Promise.reject();
+              }
+            }
+          }
+
+          if (cacheDependency.moduleIdentifier) {
+            var dependency = deserializeDependencies.dependencies.call(state, [cacheDependency], null)[0];
+            var factory = compilation.dependencyFactories.get(dependency.constructor);
+            return new Promise(function(resolve, reject) {
+              var callFactory = function(fn) {
+                if (factory.create.length === 2) {
+                  factory.create({
+                    contextInfo: {
+                      issuer: cacheItem.resource.split('?')[0],
+                    },
+                    context: cacheItem.context,
+                    dependencies: [dependency],
+                  }, fn);
+                }
+                if (factory.create.length === 3) {
+                  factory.create(cacheItem.context, dependency, fn);
+                }
+              };
+              callFactory(function(err, depModule) {
+                if (err) {
+                  return reject(err);
+                }
+                if (cacheDependency.moduleIdentifier === depModule.identifier()) {
+                  return resolve();
+                }
+                reject(new Error('dependency has a new identifier'));
+              });
+            });
+          }
+
+          return Promise.resolve();
+        })
+        .then(function() {
+          console.log('valid', cacheItem.identifier);
+          return cacheItem;
+        })
+        .catch(function(err) {
+          console.log('invalid', cacheItem.identifier);
+          cacheItem.invalid = true;
+          moduleCache[identifier] = null;
+
+          return Promise.reject();
+        });
+      }
+    }
+    return Promise.reject();
+  }
+
   compiler.plugin('compilation', function(compilation, params) {
     if (!active) {return;}
 
@@ -964,137 +1096,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         fn.call(null, request, function(err, result) {
           if (err) {return cb(err);}
 
-          var identifierPrefix = cachePrefix(compilation);
-          if (identifierPrefix === null) {
-            return cb(err, result);
-          }
-          var identifier = identifierPrefix + result.request;
-
-          if (moduleCache[identifier] && !moduleCache[identifier].invalid) {
-            var cacheItem = moduleCache[identifier];
-
-            if (typeof cacheItem === 'string') {
-              cacheItem = JSON.parse(cacheItem);
-              moduleCache[identifier] = cacheItem;
-            }
-            if (Array.isArray(cacheItem.assets)) {
-              cacheItem.assets = (cacheItem.assets || [])
-              .reduce(function(carry, key) {
-                carry[key] = assetCache[requestHash(key)];
-                return carry;
-              }, {});
-            }
-
-            if (!HardModule.needRebuild(
-              cacheItem,
-              cacheItem.fileDependencies,
-              cacheItem.contextDependencies,
-              // [],
-              fileTimestamps,
-              contextTimestamps,
-              fileMd5s,
-              cachedMd5s
-            )) {
-              var walkDependencyBlock = function(block, callback) {
-                return Promise.all(
-                  block.dependencies.map(callback)
-                  .concat(block.variables.map(function(variable) {
-                    return Promise.all(variable.dependencies.map(callback));
-                  }))
-                  .concat(block.blocks.map(function(block) {
-                    return walkDependencyBlock(block, callback);
-                  }))
-                );
-              };
-
-              var state = {state: {imports: {}}};
-
-              return walkDependencyBlock(cacheItem, function(cacheDependency) {
-                if (
-                  cacheDependency &&
-                  !cacheDependency.contextDependency &&
-                  typeof cacheDependency.request !== 'undefined'
-                ) {
-                  var resolveId = JSON.stringify(
-                    [cacheItem.context, cacheDependency.request]
-                  );
-                  var resolveItem = resolveCache[resolveId];
-                  if (
-                    resolveItem &&
-                    !resolveItem.invalid &&
-                    resolveItem.request &&
-                    resolveItem.resource &&
-                    fileTimestamps[resolveItem.resource.split('?')[0]]
-                  ) {
-                    var depIdentifier = identifierPrefix + resolveItem.request;
-                    var depCacheItem = moduleCache[depIdentifier];
-                    if (
-                      depCacheItem &&
-                      depCacheItem.fileDependencies
-                      .reduce(function(carry, file) {
-                        return carry && fileTimestamps[file];
-                      }, true) &&
-                      depCacheItem.contextDependencies
-                      .reduce(function(carry, dir) {
-                        return carry && contextTimestamps[dir];
-                      }, true)
-                    ) {
-                      return Promise.resolve();
-                    }
-                    else if (depCacheItem) {
-                      return Promise.reject();
-                    }
-                  }
-                }
-
-                if (cacheDependency.moduleIdentifier) {
-                  var dependency = deserializeDependencies.dependencies.call(state, [cacheDependency], null)[0];
-                  var factory = compilation.dependencyFactories.get(dependency.constructor);
-                  return new Promise(function(resolve, reject) {
-                    var callFactory = function(fn) {
-                      if (factory.create.length === 2) {
-                        factory.create({
-                          contextInfo: {
-                            issuer: cacheItem.resource.split('?')[0],
-                          },
-                          context: cacheItem.context,
-                          dependencies: [dependency],
-                        }, fn);
-                      }
-                      if (factory.create.length === 3) {
-                        factory.create(cacheItem.context, dependency, fn);
-                      }
-                    };
-                    callFactory(function(err, depModule) {
-                      if (err) {
-                        return reject(err);
-                      }
-                      if (cacheDependency.moduleIdentifier === depModule.identifier()) {
-                        return resolve();
-                      }
-                      reject(new Error('dependency has a new identifier'));
-                    });
-                  });
-                }
-
-                return Promise.resolve();
-              })
-              .then(function() {
-                // console.log('valid', cacheItem.request);
-                var module = new HardModule(cacheItem);
-
-                return cb(null, module);
-              })
-              .catch(function(err) {
-                // console.log('invalid', cacheItem.request, err);
-                cacheItem.invalid = true;
-                moduleCache[identifier] = null;
-
-                return cb(null, result);
-              });
-            }
-          }
-          return cb(null, result);
+          getModuleCacheItem(compilation, result)
+          .then(function(cacheItem) {
+            var module = new HardModule(cacheItem);
+            cb(null, module);
+          })
+          .catch(function() {
+            cb(err, result);
+          });
         });
       };
     });
