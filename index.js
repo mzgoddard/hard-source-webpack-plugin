@@ -843,6 +843,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   });
 
   function getModuleCacheItem(compilation, result) {
+    var resolveModuleIdentifer =
+      compilation.__hardSource_resolveModuleIdentifer =
+      compilation.__hardSource_resolveModuleIdentifer || {};
+
     var identifierPrefix = cachePrefix(compilation);
     if (identifierPrefix === null) {
       return Promise.reject();
@@ -927,33 +931,37 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           }
 
           if (cacheDependency.moduleIdentifier) {
-            var dependency = deserializeDependencies.dependencies.call(state, [cacheDependency], null)[0];
-            var factory = compilation.dependencyFactories.get(dependency.constructor);
-            return new Promise(function(resolve, reject) {
-              var callFactory = function(fn) {
-                if (factory.create.length === 2) {
-                  factory.create({
-                    contextInfo: {
-                      issuer: cacheItem.resource.split('?')[0],
-                    },
-                    context: cacheItem.context,
-                    dependencies: [dependency],
-                  }, fn);
-                }
-                if (factory.create.length === 3) {
-                  factory.create(cacheItem.context, dependency, fn);
-                }
-              };
-              callFactory(function(err, depModule) {
-                if (err) {
-                  return reject(err);
-                }
-                if (cacheDependency.moduleIdentifier === depModule.identifier()) {
-                  return resolve();
-                }
-                reject(new Error('dependency has a new identifier'));
+            var moduleIdentifierId = JSON.stringify([cacheItem.context, cacheDependency]);
+            if (!resolveModuleIdentifer[moduleIdentifierId]) {
+              var dependency = deserializeDependencies.dependencies.call(state, [cacheDependency], null)[0];
+              var factory = compilation.dependencyFactories.get(dependency.constructor);
+              resolveModuleIdentifer[moduleIdentifierId] = new Promise(function(resolve, reject) {
+                var callFactory = function(fn) {
+                  if (factory.create.length === 2) {
+                    factory.create({
+                      contextInfo: {
+                        issuer: cacheItem.resource.split('?')[0],
+                      },
+                      context: cacheItem.context,
+                      dependencies: [dependency],
+                    }, fn);
+                  }
+                  if (factory.create.length === 3) {
+                    factory.create(cacheItem.context, dependency, fn);
+                  }
+                };
+                callFactory(function(err, depModule) {
+                  if (err) {
+                    return reject(err);
+                  }
+                  if (cacheDependency.moduleIdentifier === depModule.identifier()) {
+                    return resolve();
+                  }
+                  reject(new Error('dependency has a new identifier'));
+                });
               });
-            });
+            }
+            return resolveModuleIdentifer[moduleIdentifierId];
           }
 
           return Promise.resolve();
@@ -1098,10 +1106,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
           getModuleCacheItem(compilation, result)
           .then(function(cacheItem) {
+            // console.log('valid', cacheItem.identifier);
             var module = new HardModule(cacheItem);
             cb(null, module);
           })
           .catch(function() {
+            // console.log('invalid', result.request);
             cb(err, result);
           });
         });
