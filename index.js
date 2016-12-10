@@ -1211,7 +1211,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           return errorAndCallback(err);
         }
       }
-      module.profile = {};
+      if (compilation.profile) {
+        module.profile = {};
+      }
       var newModule = compilation.addModule(module);
       if (!newModule) {
         if (dependencies) {
@@ -1281,50 +1283,69 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             });
           }
           var resolveItem = resolveCache[resolveId];
-          var depModule;
+          var promise = Promise.resolve();
           if (resolveItem && resolveItem.request) {
             var mid = 'm' + resolveItem.request;
-            depModule = memoryCache[mid];
-            if (depModule && depModule.isHard && depModule.isHard() && !HardModule.needRebuild(depModule.cacheItem, depModule.fileDependencies || [], depModule.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)) {
-              // return queue.push([depModule, dep, module]);
-            }
-            else {
-              depModule = null;
-            }
-          }
-          for(var i = 0; i < dependencies.length; i++) {
-            if(dep.isEqualResource(dependencies[i][0])) {
-              if (depModule)
-                return hardDependencies[i].push(dep);
-              return dependencies[i].push(dep);
+            var depModule = memoryCache[mid];
+            if (
+              depModule &&
+              depModule.isHard &&
+              depModule.isHard()
+            ) {
+              promise = getModuleCacheItem(compilation, resolveItem)
+              .then(function() {return depModule;})
+              .catch(function() {});
             }
           }
-          if (depModule)
-            return hardDependencies.push([depModule, dep]);
-          dependencies.push([dep]);
+          return promise
+          .then(function(depModule) {
+            for(var i = 0; i < dependencies.length; i++) {
+              if(dep.isEqualResource(dependencies[i][0])) {
+                if (depModule)
+                  return hardDependencies[i].push(dep);
+                return dependencies[i].push(dep);
+              }
+            }
+            if (depModule)
+              return hardDependencies.push([depModule, dep]);
+            dependencies.push([dep]);
+          });
         }
 
         function addDependenciesBlock(block) {
+          var promises = [];
           if(block.dependencies) {
-            block.dependencies.forEach(addDependency);
+            promises = promises.concat(block.dependencies.map(addDependency));
           }
           if(block.blocks) {
-            block.blocks.forEach(addDependenciesBlock);
+            promises = promises.concat(block.blocks.map(addDependenciesBlock));
           }
           if(block.variables) {
-            block.variables.forEach(function(v) {
-              v.dependencies.forEach(addDependency);
-            });
+            promises = promises.concat(
+              block.variables.map(function(v) {
+                return Promise.all(v.dependencies.map(addDependency));
+              })
+            );
           }
+          return Promise.all(promises);
         }
-        addDependenciesBlock(module);
-        hardDependencies.forEach(function(dependencies) {
-          var depModule = dependencies.shift();
-          queue.push([depModule, dependencies, module]);
+        return addDependenciesBlock(module)
+        .then(function() {
+          return Promise.all(
+            hardDependencies
+            .map(function(dependencies) {
+              var depModule = dependencies.shift();
+              console.log('prefetch', depModule.identifier());
+              return add(depModule, dependencies, module);
+              // queue.push([depModule, dependencies, module]);
+            })
+            .concat((function() {
+              if (dependencies.length) {
+                return addModuleDependencies(module, dependencies, compilation.bail, null, true);
+              }
+            })())
+          );
         });
-        if (dependencies.length) {
-          return addModuleDependencies(module, dependencies, compilation.bail, null, true);
-        }
       }
       return processDeps(module);
       // return processModuleDependencies(module);
@@ -1332,17 +1353,42 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     return Promise.all(Object.keys(memoryCache)
     .map(function(key) {
       var module = memoryCache[key];
-      if (module.isHard && module.isHard() && !HardModule.needRebuild(module.cacheItem, module.fileDependencies || [], module.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)) {
-        var promise = add(module);
-        while (queue.length) {
-          if (queue.stop) {
-            throw queue.stop;
-          }
-          promise = Promise.all([promise, add.apply(null, queue.pop())]);
-        }
-        return promise;
+      if (
+        module.isHard &&
+        module.isHard() &&
+        !HardModule.needRebuild(
+          module.cacheItem,
+          module.fileDependencies || [],
+          module.contextDependencies,
+          fileTimestamps, contextTimestamps,
+          fileMd5s, cachedMd5s
+        )
+      ) {
+        return getModuleCacheItem(compilation, {request: module.request})
+        .then(function() {
+          return add(module);
+        })
+        .catch(function() {});
       }
-    }));
+    }))
+    // .then(function() {
+    //   function loop() {
+    //     var promise = Promise.resolve();
+    //     while (queue.length) {
+    //       if (queue.stop) {
+    //         throw queue.stop;
+    //       }
+    //       promise = Promise.all([promise, add.apply(null, queue.pop())]);
+    //     }
+    //     return promise
+    //     .then(function() {
+    //       if (queue.length) {
+    //         return loop();
+    //       }
+    //     });
+    //   }
+    //   return loop();
+    // });
   }
 
   var preloadCacheByPrefix = {};
