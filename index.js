@@ -594,6 +594,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     .then(cb, cb);
   });
 
+  var lastBuild = 0;
+
+  compiler.plugin('emit', function(compilation, cb) {
+    lastBuild = Date.now();
+    cb();
+  });
+
   compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
     if (!active) {return cb();}
 
@@ -622,21 +629,23 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         if (!stats[file]) {stats[file] = stat(file);}
         return stats[file]
         .then(function(stat) {return +stat.mtime;})
-        .then(setKey(fileTs, file, 0), setKeyError(fileTs, file, 0))
-        .then(function() {
+        .then(function(mtime) {
           var setter = setKey(fileMd5s, file, '');
           if (
-            md5Cache[file] && fileTs[file] >= md5Cache[file].mtime ||
+            mtime > lastBuild - 2000 ||
             !md5Cache[file] ||
-            !fileTs[file]
+            !lastBuild
           ) {
             return md5(file)
-            .then(setter, setKeyError(fileMd5s, file, ''));
+            .then(setter, setKeyError(fileMd5s, file, ''))
+            .then(function() {return mtime;});
           }
           else {
             setter(md5Cache[file].hash);
+            return mtime;
           }
-        });
+        })
+        .then(setKey(fileTs, file, 0), setKeyError(fileTs, file, 0));
       })),
       new Promise(function(resolve, reject) {
         var contextTs = compiler.contextTimestamps = contextTimestamps = {};
@@ -665,6 +674,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                 return handles.push(stats[missed]
                 .catch(function() {missingItem.invalid = true;}));
               }
+              if (lastBuild) {return;}
               if (!stats[missed]) {stats[missed] = stat(missed);}
               return handles.push(stats[missed]
               .then(function(stat) {
