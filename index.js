@@ -594,6 +594,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     .then(cb, cb);
   });
 
+  var resolverIdCache = {};
+  var resolveInverseIdCache = {};
+
   var lastBuild = 0;
 
   compiler.plugin('emit', function(compilation, cb) {
@@ -695,20 +698,53 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     .then(function() {
       // Invalidate resolve cache items.
       Object.keys(resolveCache).forEach(function(key) {
-        var resolveKey = JSON.parse(key);
+        if (!resolveInverseIdCache[key]) {
+          resolveInverseIdCache[key] = JSON.parse(key);
+        }
+        var resolveKey = resolveInverseIdCache[key];
         var resolveItem = resolveCache[key];
         if (resolveItem.type === 'context') {
-          var contextMissing = missingCache.context[JSON.stringify([resolveKey.context, resolveItem.resource.split('?')[0]])];
+          var querylessContext = resolveItem.querylessResource ? resolveItem.querylessResource : (resolveItem.querylessResource = resolveItem.resource.split('?')[0]);
+          var contextMissingId = resolverIdCache[resolveKey[0]] && resolverIdCache[resolveKey[0]][querylessContext];
+          if (!contextMissingId) {
+            if (!resolverIdCache[resolveKey[0]]) {
+              resolverIdCache[resolveKey[0]] = {};
+            }
+            contextMissingId =
+              resolverIdCache[resolveKey[0]][querylessContext] =
+              JSON.stringify([resolveKey[0], querylessContext]);
+          }
+          var contextMissing = missingCache.context[contextMissingId];
           if (!contextMissing || contextMissing.invalid) {resolveItem.invalid = true;}
         }
         else {
-          var normalMissing = missingCache.normal[JSON.stringify([resolveKey[0], resolveItem.resource.split('?')[0]])];
+          var querylessNormal = resolveItem.querylessResource ? resolveItem.querylessResource : (resolveItem.querylessResource = resolveItem.resource.split('?')[0]);
+          var normalMissingId = resolverIdCache[resolveKey[0]] && resolverIdCache[resolveKey[0]][querylessNormal];
+          if (!normalMissingId) {
+            if (!resolverIdCache[resolveKey[0]]) {
+              resolverIdCache[resolveKey[0]] = {};
+            }
+            normalMissingId =
+              resolverIdCache[resolveKey[0]][querylessNormal] =
+              JSON.stringify([resolveKey[0], querylessNormal]);
+          }
+          var normalMissing = missingCache.normal[normalMissingId];
           if (!normalMissing || normalMissing.invalid) {resolveItem.invalid = true;}
           resolveItem.loaders.forEach(function(loader) {
             if (typeof loader === 'object') {
               loader = loader.loader;
             }
-            var loaderMissing = missingCache.loader[JSON.stringify([resolveKey[0], loader.split('?')[0]])];
+            var querylessLoader = loader.split('?')[0];
+            var loaderMissingId = resolverIdCache[resolveKey[0]] && resolverIdCache[resolveKey[0]][querylessLoader];
+            if (!loaderMissingId) {
+              if (!resolverIdCache[resolveKey[0]]) {
+                resolverIdCache[resolveKey[0]] = {};
+              }
+              loaderMissingId =
+                resolverIdCache[resolveKey[0]][querylessLoader] =
+                JSON.stringify([resolveKey[0], querylessLoader]);
+            }
+            var loaderMissing = missingCache.loader[loaderMissingId];
             if (!loaderMissing || loaderMissing.invalid) {resolveItem.invalid = true;}
           });
         }
