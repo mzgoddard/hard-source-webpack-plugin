@@ -1470,17 +1470,17 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         var hardDependencies = [];
 
         function addDependency(dep) {
-          var resolveId = JSON.stringify([module.context, dep.request]);
-          if (dep instanceof HardContextDependency) {
-            resolveId = JSON.stringify({
-              context: module.context,
-              request: dep.request,
-              recursive: dep.recursive,
-              regExp: dep.regExp ? dep.regExp.source : null,
-              async: dep.async,
-            });
-          }
-          var resolveItem = resolveCache[resolveId];
+          // var resolveId = JSON.stringify([module.context, dep.request]);
+          // if (dep instanceof HardContextDependency) {
+          //   resolveId = JSON.stringify({
+          //     context: module.context,
+          //     request: dep.request,
+          //     recursive: dep.recursive,
+          //     regExp: dep.regExp ? dep.regExp.source : null,
+          //     async: dep.async,
+          //   });
+          // }
+          // var resolveItem = resolveCache[resolveId];
           var promise;
           var depModule;
           if (dep && dep.moduleIdentifier) {
