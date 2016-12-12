@@ -608,52 +608,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }
       });
     })
-    .then(function() {
-      // Invalidate modules that depend on a userRequest that is no longer
-      // valid.
-      var walkDependencyBlock = function(block, callback) {
-        block.dependencies.forEach(callback);
-        block.variables.forEach(function(variable) {
-          variable.dependencies.forEach(callback);
-        });
-        block.blocks.forEach(function(block) {
-          walkDependencyBlock(block, callback);
-        });
-      };
-      // Remove the out of date cache modules.
-      Object.keys(moduleCache).forEach(function(key) {
-        var cacheItem = moduleCache[key];
-        if (!cacheItem) {return;}
-        if (typeof cacheItem === 'string') {
-          cacheItem = JSON.parse(cacheItem);
-          moduleCache[key] = cacheItem;
-        }
-        var validDepends = true;
-        walkDependencyBlock(cacheItem, function(cacheDependency) {
-          if (
-            !cacheDependency ||
-            cacheDependency.contextDependency ||
-            typeof cacheDependency.request === 'undefined'
-          ) {
-            return;
-          }
-
-          var resolveId = JSON.stringify(
-            [cacheItem.context, cacheDependency.request]
-          );
-          var resolveItem = resolveCache[resolveId];
-          validDepends = validDepends &&
-            resolveItem &&
-            resolveItem.resource &&
-            Boolean(fileTs[resolveItem.resource.split('?')[0]]);
-        });
-        if (!validDepends) {
-          // console.log('invalid', key);
-          // cacheItem.invalid = true;
-          // moduleCache[key] = null;
-        }
-      });
-    })
     .then(function() {cb();}, cb);
   });
 
