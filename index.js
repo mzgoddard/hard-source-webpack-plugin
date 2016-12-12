@@ -456,6 +456,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     };
   });
 
+  var _environmentHash;
+
   compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
     if (!active) {return cb();}
 
@@ -470,11 +472,19 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     }
     var start = Date.now();
 
+    var envHash;
+    if (_environmentHash) {
+      envHash = _environmentHash;
+    }
+    else {
+      envHash = environmentHasher();
+    }
+
     Promise.all([
       fsReadFile(path.join(cacheDirPath, 'stamp'), 'utf8')
       .catch(function() {return '';}),
 
-      environmentHasher(),
+      envHash,
 
       fsReadFile(path.join(cacheDirPath, 'version'), 'utf8')
       .catch(function() {return '';}),
@@ -483,6 +493,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       var stamp = stamps[0];
       var hash = stamps[1];
       var versionStamp = stamps[2];
+      _environmentHash = hash;
 
       if (!configHashInDirectory && options.configHash) {
         hash += '_' + _this.configHash;
