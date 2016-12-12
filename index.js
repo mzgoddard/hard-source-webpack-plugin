@@ -1763,6 +1763,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
       buildMd5Ops(dataCache.fileDependencies);
 
+      var newContexts = [];
+
       if (!lodash.isEqual(compilation.contextDependencies, dataCache.contextDependencies)) {
         lodash.difference(dataCache.contextDependencies, compilation.contextDependencies).forEach(function(file) {
           buildingMd5s[file] = Promise.resolve({
@@ -1770,6 +1772,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             hash: '',
           });
         });
+
+        newContexts = lodash.difference(compilation.contextDependencies, dataCache.contextDependencies);
 
         dataCache.contextDependencies = compilation.contextDependencies;
 
@@ -1783,7 +1787,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         Object.keys(buildingMd5s).map(function(key) {return buildingMd5s[key];})
       )
       .then(function() {
-        return contextStamps(dataCache.contextDependencies, dataCache.fileDependencies);
+        return contextStamps(newContexts, dataCache.fileDependencies);
       });
       dataCache.contextDependencies.forEach(function(file) {
         if (buildingMd5s[file]) {return;}
@@ -1791,8 +1795,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         buildingMd5s[file] = contexts
         .then(function(contexts) {
           return Promise.props({
-            mtime: contexts[file].mtime,
-            hash: contexts[file].hash,
+            mtime: contexts[file] ? contexts[file].mtime : contextTimestamps[file],
+            hash: contexts[file] ? contexts[file].hash : fileMd5s[file],
           });
         });
       });
