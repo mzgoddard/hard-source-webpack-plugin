@@ -395,13 +395,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         contexts[context] = {files: [], mtime: 0, hash: ''};
       });
 
-      fileDependencies.forEach(function(file) {
-        contextDependencies.forEach(function(context) {
-          if (file.substring(0, context.length + 1) === context + path.sep) {
-            contexts[context].files.push(file.substring(context.length + 1));
-          }
-        });
-      });
+      // fileDependencies.forEach(function(file) {
+      //   contextDependencies.forEach(function(context) {
+      //     if (file.substring(0, context.length + 1) === context + path.sep) {
+      //       contexts[context].files.push(file.substring(context.length + 1));
+      //     }
+      //   });
+      // });
 
       return Promise.all(contextDependencies.map(function(contextPath) {
         var context = contexts[contextPath];
