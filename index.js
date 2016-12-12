@@ -846,10 +846,17 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     var resolveModuleIdentifer =
       compilation.__hardSource_resolveModuleIdentifer =
       compilation.__hardSource_resolveModuleIdentifer || {};
+    var checkedModuleCache =
+      compilation.__hardSource_checkedModuleCache =
+      compilation.__hardSource_checkedModuleCache || {};
+
+    if (checkedModuleCache[result.request]) {
+      return checkedModuleCache[result.request];
+    }
 
     var identifierPrefix = cachePrefix(compilation);
     if (identifierPrefix === null) {
-      return Promise.reject();
+      return;
     }
     var identifier = identifierPrefix + result.request;
 
@@ -878,36 +885,46 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         fileMd5s,
         cachedMd5s
       )) {
+        var promise = null;
+
         var walkDependencyBlock = function(block, callback) {
-          return Promise.all(
-            block.dependencies.map(callback)
-            .concat(block.variables.map(function(variable) {
-              return Promise.all(variable.dependencies.map(callback));
-            }))
-            .concat(block.blocks.map(function(block) {
-              return walkDependencyBlock(block, callback);
-            }))
-          );
+          var addPromise = function(item) {
+            var p = callback(item);
+            if (p && p.then) {
+              if (!promise) {promise = [];}
+              promise.push(p);
+            }
+          };
+          block.dependencies.forEach(addPromise)
+          block.variables.forEach(function(variable) {
+            variable.dependencies.forEach(addPromise);
+          })
+          block.blocks.forEach(function(block) {
+            walkDependencyBlock(block, callback);
+          })
         };
 
         var state = {state: {imports: {}}};
 
-        return walkDependencyBlock(cacheItem, function(cacheDependency) {
+        walkDependencyBlock(cacheItem, function(cacheDependency) {
           if (
             cacheDependency &&
             !cacheDependency.contextDependency &&
             typeof cacheDependency.request !== 'undefined'
           ) {
-            var resolveId = JSON.stringify(
-              [cacheItem.context, cacheDependency.request]
-            );
+            if (!cacheDependency.resolveId) {
+              cacheDependency.resolveId = JSON.stringify(
+                [cacheItem.context, cacheDependency.request]
+              );
+            }
+            var resolveId = cacheDependency.resolveId;
             var resolveItem = resolveCache[resolveId];
             if (
               resolveItem &&
-              !resolveItem.invalid &&
-              resolveItem.request &&
-              resolveItem.resource &&
-              fileTimestamps[resolveItem.resource.split('?')[0]]
+              !resolveItem.invalid
+              // resolveItem.request &&
+              // resolveItem.resource &&
+              // fileTimestamps[resolveItem.resource.split('?')[0]]
             ) {
               var depIdentifier = identifierPrefix + resolveItem.request;
               var depCacheItem = moduleCache[depIdentifier];
@@ -922,20 +939,30 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                   return carry && contextTimestamps[dir];
                 }, true)
               ) {
-                return Promise.resolve();
+                return;
               }
               else if (depCacheItem) {
-                return Promise.reject();
+                return;
               }
+            }
+            else if (resolveItem && resolveItem.invalid) {
+              cacheItem.invalid = true;
+              return;
             }
           }
 
           if (cacheDependency.moduleIdentifier) {
-            var moduleIdentifierId = JSON.stringify([cacheItem.context, cacheDependency]);
+            if (!cacheDependency.moduleIdentifierId) {
+              cacheDependency.moduleIdentifierId = JSON.stringify(
+                [cacheItem.context, cacheDependency]
+              );
+            }
+            var moduleIdentifierId = cacheDependency.moduleIdentifierId;
+            // return getFactoryChecks(compilation)[moduleIdentifierId];
             if (!resolveModuleIdentifer[moduleIdentifierId]) {
               var dependency = deserializeDependencies.dependencies.call(state, [cacheDependency], null)[0];
               var factory = compilation.dependencyFactories.get(dependency.constructor);
-              resolveModuleIdentifer[moduleIdentifierId] = new Promise(function(resolve, reject) {
+              var p = new Promise(function(resolve, reject) {
                 var callFactory = function(fn) {
                   if (factory.create.length === 2) {
                     factory.create({
@@ -952,34 +979,80 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                 };
                 callFactory(function(err, depModule) {
                   if (err) {
+                    cacheItem.invalid = true;
+                    // resolveModuleIdentifer[moduleIdentifierId] = null;
+                    if (!resolveModuleIdentifer[moduleIdentifierId] || resolveModuleIdentifer[moduleIdentifierId].then) {
+                      resolveModuleIdentifer[moduleIdentifierId] = cacheItem;
+                    }
                     return reject(err);
                   }
                   if (cacheDependency.moduleIdentifier === depModule.identifier()) {
+                    if (!resolveModuleIdentifer[moduleIdentifierId] || resolveModuleIdentifer[moduleIdentifierId].then) {
+                      resolveModuleIdentifer[moduleIdentifierId] = cacheItem;
+                    }
                     return resolve();
+                  }
+                  cacheItem.invalid = true;
+                  // resolveModuleIdentifer[moduleIdentifierId] = null;
+                  if (!resolveModuleIdentifer[moduleIdentifierId] || resolveModuleIdentifer[moduleIdentifierId].then) {
+                    resolveModuleIdentifer[moduleIdentifierId] = cacheItem;
                   }
                   reject(new Error('dependency has a new identifier'));
                 });
               });
+              if (!resolveModuleIdentifer[moduleIdentifierId]) {
+                resolveModuleIdentifer[moduleIdentifierId] = p;
+              }
             }
             return resolveModuleIdentifer[moduleIdentifierId];
           }
 
-          return Promise.resolve();
+          // return Promise.resolve();
         })
-        .then(function() {
-          // console.log('valid', cacheItem.identifier);
-          return cacheItem;
-        })
-        .catch(function(err) {
-          // console.log('invalid', cacheItem.identifier);
-          cacheItem.invalid = true;
-          moduleCache[identifier] = null;
+        // .then(function() {
+        //   // console.log('valid', cacheItem.identifier);
+        //   return cacheItem;
+        // })
+        // .catch(function(err) {
+        //   // console.log('invalid', cacheItem.identifier);
+        //   cacheItem.invalid = true;
+        //   moduleCache[identifier] = null;
+        //
+        //   return Promise.reject();
+        // });
 
-          return Promise.reject();
-        });
+        // console.log(promise.length)
+        if (promise && promise.length) {
+          return Promise.all(promise)
+          .then(function() {
+            // console.log(cacheItem);
+            if (!cacheItem || cacheItem.invalid) {
+              return Promise.reject();
+            }
+            checkedModuleCache[result.request] = cacheItem;
+            return cacheItem;
+          })
+          .catch(function(e) {
+            // console.log('error', e);
+            cacheItem.invalid = true;
+            moduleCache[identifier] = null;
+            return Promise.reject();
+          });
+        }
+        else {
+          // console.log('instant');
+          if (!cacheItem || cacheItem.invalid) {
+            if (cacheItem) {
+              cacheItem = null;
+            }
+            moduleCache[identifier] = null;
+          }
+          checkedModuleCache[result.request] = cacheItem;
+          return cacheItem;
+        }
       }
     }
-    return Promise.reject();
+    // return Promise.reject();
   }
 
   compiler.plugin('compilation', function(compilation, params) {
@@ -1104,16 +1177,24 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         fn.call(null, request, function(err, result) {
           if (err) {return cb(err);}
 
-          getModuleCacheItem(compilation, result)
-          .then(function(cacheItem) {
-            // console.log('valid', cacheItem.identifier);
-            var module = new HardModule(cacheItem);
-            cb(null, module);
-          })
-          .catch(function() {
-            // console.log('invalid', result.request);
-            cb(err, result);
-          });
+          var p = getModuleCacheItem(compilation, result);
+          if (p && p.then) {
+            return p
+            .then(function(cacheItem) {
+              // console.log('valid', cacheItem.identifier);
+              var module = new HardModule(cacheItem);
+              cb(null, module);
+            })
+            .catch(function() {
+              // console.log('invalid', result.request);
+              cb(err, result);
+            });
+          }
+          else if (p) {
+            var module = new HardModule(p);
+            return cb(null, module);
+          }
+          cb(err, result);
         });
       };
     });
