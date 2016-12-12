@@ -749,50 +749,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           });
         }
       });
-      // // Invalidate modules that depend on a userRequest that is no longer
-      // // valid.
-      // var walkDependencyBlock = function(block, callback) {
-      //   block.dependencies.forEach(callback);
-      //   block.variables.forEach(function(variable) {
-      //     variable.dependencies.forEach(callback);
-      //   });
-      //   block.blocks.forEach(function(block) {
-      //     walkDependencyBlock(block, callback);
-      //   });
-      // };
-      // // Remove the out of date cache modules.
-      // Object.keys(moduleCache).forEach(function(key) {
-      //   var cacheItem = moduleCache[key];
-      //   if (!cacheItem) {return;}
-      //   if (typeof cacheItem === 'string') {
-      //     cacheItem = JSON.parse(cacheItem);
-      //     moduleCache[key] = cacheItem;
-      //   }
-      //   var validDepends = true;
-      //   walkDependencyBlock(cacheItem, function(cacheDependency) {
-      //     if (
-      //       !cacheDependency ||
-      //       cacheDependency.contextDependency ||
-      //       typeof cacheDependency.request === 'undefined'
-      //     ) {
-      //       return;
-      //     }
-      //
-      //     var resolveId = JSON.stringify(
-      //       [cacheItem.context, cacheDependency.request]
-      //     );
-      //     var resolveItem = resolveCache[resolveId];
-      //     validDepends = validDepends &&
-      //       resolveItem &&
-      //       !resolveItem.invalid;
-      //   });
-      //   if (!validDepends) {
-      //     // console.log('invalid', key);
-      //     // cacheItem.invalid = true;
-      //     // moduleCache[key] = null;
-      //   }
-      // });
-      console.log('validate resolutions', Date.now() - start);
     })
     .then(function() {cb();}, cb);
   });
