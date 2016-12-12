@@ -1242,6 +1242,42 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       };
     });
 
+    var normalModuleFactory_create = params.normalModuleFactory.create;
+    params.normalModuleFactory.create = function(context, dependency, cb) {
+      var cacheId = resolveIdCache[context] && resolveIdCache[context][dependency.request];
+      if (!cacheId) {
+        if (!resolveIdCache[context]) {
+          resolveIdCache[context] = {};
+        }
+        cacheId =
+          resolveIdCache[context][dependency.request] =
+          JSON.stringify([context, dependency.request]);
+      }
+
+      var _this = this;
+      var resolveItem = resolveCache[cacheId];
+      if (resolveItem && !resolveItem.invalid) {
+        var p = getModuleCacheItem(compilation, resolveItem);
+        if (p && p.then) {
+          return p
+          .then(function(cacheItem) {
+            // console.log('valid', cacheItem.identifier);
+            var module = new HardModule(cacheItem);
+            cb(null, module);
+          })
+          .catch(function() {
+            // console.log('invalid', result.request);
+            normalModuleFactory_create.call(_this, context, dependency, cb);
+          });
+        }
+        else if (p) {
+          var module = new HardModule(p);
+          return cb(null, module);
+        }
+      }
+      normalModuleFactory_create.call(_this, context, dependency, cb);
+    };
+
     params.normalModuleFactory.plugin('resolver', function(fn) {
       return function(request, cb) {
         fn.call(null, request, function(err, result) {
