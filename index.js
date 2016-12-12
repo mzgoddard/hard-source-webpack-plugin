@@ -63,6 +63,7 @@ var HardModule = require('./lib/hard-module');
 
 var makeDevtoolOptions = require('./lib/devtool-options');
 var cachePrefix = require('./lib/util').cachePrefix;
+var deserializeDependencies = require('./lib/deserialize-dependencies');
 
 var hardSourceVersion = require('./package.json').version;
 
@@ -93,26 +94,27 @@ function flattenPrototype(obj) {
   return copy;
 }
 
-function serializeDependencies(deps) {
+function serializeDependencies(deps, parent) {
   return deps
   .map(function(dep) {
+    var cacheDep;
     if (typeof HarmonyImportDependency !== 'undefined') {
       if (dep instanceof HarmonyImportDependency) {
-        return {
+        cacheDep = {
           harmonyImport: true,
           request: dep.request,
         };
       }
-      if (dep instanceof HarmonyExportImportedSpecifierDependency) {
-        return {
+      else if (dep instanceof HarmonyExportImportedSpecifierDependency) {
+        cacheDep = {
           harmonyRequest: dep.importDependency.request,
           harmonyExportImportedSpecifier: true,
           harmonyId: dep.id,
           harmonyName: dep.name,
         };
       }
-      if (dep instanceof HarmonyImportSpecifierDependency) {
-        return {
+      else if (dep instanceof HarmonyImportSpecifierDependency) {
+        cacheDep = {
           harmonyRequest: dep.importDependency.request,
           harmonyImportSpecifier: true,
           harmonyId: dep.id,
@@ -121,49 +123,64 @@ function serializeDependencies(deps) {
         };
       }
     }
-    if (dep.originModule) {
-      return {
+    if (!cacheDep && dep.originModule) {
+      cacheDep = {
         harmonyExport: true,
         harmonyId: dep.id,
         harmonyName: dep.describeHarmonyExport().exportedName,
         harmonyPrecedence: dep.describeHarmonyExport().precedence,
       };
     }
-    return {
-      contextDependency: dep instanceof ContextDependency,
-      contextCritical: dep.critical,
-      constDependency: (
-        dep instanceof ConstDependency ||
-        dep instanceof AMDDefineDependency
-      ),
-      request: dep.request,
-      recursive: dep.recursive,
-      regExp: dep.regExp ? dep.regExp.source : null,
-      async: dep.async,
-      loc: flattenPrototype(dep.loc),
-    };
+    if (!cacheDep) {
+      cacheDep = {
+        contextDependency: dep instanceof ContextDependency,
+        contextCritical: dep.critical,
+        constDependency: (
+          dep instanceof ConstDependency ||
+          dep instanceof AMDDefineDependency
+        ),
+        request: dep.request,
+        recursive: dep.recursive,
+        regExp: dep.regExp ? dep.regExp.source : null,
+        async: dep.async,
+        loc: flattenPrototype(dep.loc),
+      };
+    }
+
+    // The identifier this dependency should resolve to.
+    var _resolvedModuleIdentifier = dep.module && dep.module.identifier();
+    // An identifier to dereference a dependency under a module to some per
+    // dependency value
+    var _inContextDependencyIdentifier = parent && JSON.stringify([parent.context, cacheDep]);
+    // An identifier from the dependency to the cached resolution information
+    // for building a module.
+    var _resolveCacheId = parent && cacheDep.request && JSON.stringify([parent.context, cacheDep.request]);
+    cacheDep._resolvedModuleIdentifier = _resolvedModuleIdentifier;
+    cacheDep._inContextDependencyIdentifier = _inContextDependencyIdentifier;
+    cacheDep._resolveCacheId = _resolveCacheId;
+    return cacheDep;
   })
   .filter(function(req) {
     return req.request || req.constDependency || req.harmonyExport || req.harmonyImportSpecifier || req.harmonyExportImportedSpecifier;
   });
 }
-function serializeVariables(vars) {
+function serializeVariables(vars, parent) {
   return vars.map(function(variable) {
     return {
       name: variable.name,
       expression: variable.expression,
-      dependencies: serializeDependencies(variable.dependencies),
+      dependencies: serializeDependencies(variable.dependencies, parent),
     }
   });
 }
-function serializeBlocks(blocks) {
+function serializeBlocks(blocks, parent) {
   return blocks.map(function(block) {
     return {
       async: block instanceof AsyncDependenciesBlock,
       name: block.chunkName,
-      dependencies: serializeDependencies(block.dependencies),
-      variables: serializeVariables(block.variables),
-      blocks: serializeBlocks(block.blocks),
+      dependencies: serializeDependencies(block.dependencies, parent),
+      variables: serializeVariables(block.variables, parent),
+      blocks: serializeBlocks(block.blocks, parent),
     };
   });
 }
@@ -418,6 +435,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               });
             }));
           })
+          .catch(() => [])
           .then(function(items) {
             return items.reduce(function(carry, item) {
               return carry.concat(item);
@@ -590,52 +608,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }
       });
     })
-    .then(function() {
-      // Invalidate modules that depend on a userRequest that is no longer
-      // valid.
-      var walkDependencyBlock = function(block, callback) {
-        block.dependencies.forEach(callback);
-        block.variables.forEach(function(variable) {
-          variable.dependencies.forEach(callback);
-        });
-        block.blocks.forEach(function(block) {
-          walkDependencyBlock(block, callback);
-        });
-      };
-      // Remove the out of date cache modules.
-      Object.keys(moduleCache).forEach(function(key) {
-        var cacheItem = moduleCache[key];
-        if (!cacheItem) {return;}
-        if (typeof cacheItem === 'string') {
-          cacheItem = JSON.parse(cacheItem);
-          moduleCache[key] = cacheItem;
-        }
-        var validDepends = true;
-        walkDependencyBlock(cacheItem, function(cacheDependency) {
-          if (
-            !cacheDependency ||
-            cacheDependency.contextDependency ||
-            typeof cacheDependency.request === 'undefined'
-          ) {
-            return;
-          }
-
-          var resolveId = JSON.stringify(
-            [cacheItem.context, cacheDependency.request]
-          );
-          var resolveItem = resolveCache[resolveId];
-          validDepends = validDepends &&
-            resolveItem &&
-            resolveItem.resource &&
-            Boolean(fileTs[resolveItem.resource.split('?')[0]]);
-        });
-        if (!validDepends) {
-          // console.log('invalid', key);
-          cacheItem.invalid = true;
-          moduleCache[key] = null;
-        }
-      });
-    })
     .then(function() {cb();}, cb);
   });
 
@@ -666,6 +638,189 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       factories.set(HardContextDependency, hardContextFactory);
     });
   });
+
+  function getModuleCacheItem(compilation, result) {
+    // a map of dependency identifiers to factory.create checks
+    var checkedDependencies =
+      compilation.__hardSource_checkedDependencies =
+      compilation.__hardSource_checkedDependencies || {};
+    // a map of module identifiers to fully checked modules
+    var checkedModules =
+      compilation.__hardSource_checkedModules =
+      compilation.__hardSource_checkedModules || {};
+
+    if (checkedModules[result.request]) {
+      return checkedModules[result.request];
+    }
+
+    var identifierPrefix = cachePrefix(compilation);
+    if (identifierPrefix === null) {
+      return;
+    }
+    var identifier = identifierPrefix + result.request;
+
+    if (moduleCache[identifier] && !moduleCache[identifier].invalid) {
+      var cacheItem = moduleCache[identifier];
+
+      if (typeof cacheItem === 'string') {
+        cacheItem = JSON.parse(cacheItem);
+        moduleCache[identifier] = cacheItem;
+      }
+      if (Array.isArray(cacheItem.assets)) {
+        cacheItem.assets = (cacheItem.assets || [])
+        .reduce(function(carry, key) {
+          carry[key] = assetCache[requestHash(key)];
+          return carry;
+        }, {});
+      }
+
+      if (!HardModule.needRebuild(
+        cacheItem,
+        cacheItem.fileDependencies,
+        cacheItem.contextDependencies,
+        fileTimestamps,
+        contextTimestamps,
+        fileMd5s,
+        cachedMd5s
+      )) {
+        var promise = null;
+
+        var walkDependencyBlock = function(block, callback) {
+          var addPromise = function(item) {
+            var p = callback(item);
+            if (p && p.then) {
+              if (!promise) {promise = [];}
+              promise.push(p);
+            }
+          };
+          block.dependencies.forEach(addPromise)
+          block.variables.forEach(function(variable) {
+            variable.dependencies.forEach(addPromise);
+          })
+          block.blocks.forEach(function(block) {
+            walkDependencyBlock(block, callback);
+          })
+        };
+
+        var state = {state: {imports: {}}};
+
+        walkDependencyBlock(cacheItem, function(cacheDependency) {
+          if (
+            cacheDependency &&
+            !cacheDependency.contextDependency &&
+            typeof cacheDependency.request !== 'undefined'
+          ) {
+            var resolveId = cacheDependency._resolveCacheId;
+            var resolveItem = resolveCache[resolveId];
+            if (
+              resolveItem &&
+              // !resolveItem.invalid
+              resolveItem.request &&
+              resolveItem.resource &&
+              fileTimestamps[resolveItem.resource.split('?')[0]]
+            ) {
+              var depIdentifier = identifierPrefix + resolveItem.request;
+              var depCacheItem = moduleCache[depIdentifier];
+              if (
+                depCacheItem &&
+                depCacheItem.fileDependencies
+                .reduce(function(carry, file) {
+                  return carry && fileTimestamps[file];
+                }, true) &&
+                depCacheItem.contextDependencies
+                .reduce(function(carry, dir) {
+                  return carry && contextTimestamps[dir];
+                }, true)
+              ) {
+                return;
+              }
+              else if (depCacheItem) {
+                return;
+              }
+            }
+            // else if (resolveItem && resolveItem.invalid) {
+            //   cacheItem.invalid = true;
+            //   return;
+            // }
+          }
+
+          if (
+            cacheDependency._resolvedModuleIdentifier &&
+            cacheDependency._inContextDependencyIdentifier
+          ) {
+            var dependencyIdentifier = cacheDependency._inContextDependencyIdentifier;
+            if (!checkedDependencies[dependencyIdentifier]) {
+              var dependency = deserializeDependencies.dependencies.call(state, [cacheDependency], null)[0];
+              var factory = compilation.dependencyFactories.get(dependency.constructor);
+              var p = new Promise(function(resolve, reject) {
+                var callFactory = function(fn) {
+                  if (factory.create.length === 2) {
+                    factory.create({
+                      contextInfo: {
+                        issuer: cacheItem.resource.split('?')[0],
+                      },
+                      context: cacheItem.context,
+                      dependencies: [dependency],
+                    }, fn);
+                  }
+                  if (factory.create.length === 3) {
+                    factory.create(cacheItem.context, dependency, fn);
+                  }
+                };
+                callFactory(function(err, depModule) {
+                  if (
+                    !checkedDependencies[dependencyIdentifier] ||
+                    checkedDependencies[dependencyIdentifier].then
+                  ) {
+                    checkedDependencies[dependencyIdentifier] = cacheItem;
+                  }
+                  if (err) {
+                    cacheItem.invalid = true;
+                    return reject(err);
+                  }
+                  if (cacheDependency._resolvedModuleIdentifier === depModule.identifier()) {
+                    return resolve();
+                  }
+                  cacheItem.invalid = true;
+                  reject(new Error('dependency has a new identifier'));
+                });
+              });
+              if (!checkedDependencies[dependencyIdentifier]) {
+                checkedDependencies[dependencyIdentifier] = p;
+              }
+            }
+            return checkedDependencies[dependencyIdentifier];
+          }
+        });
+
+        if (promise && promise.length) {
+          return Promise.all(promise)
+          .then(function() {
+            if (!cacheItem || cacheItem.invalid) {
+              return Promise.reject();
+            }
+            checkedModules[result.request] = cacheItem;
+            return cacheItem;
+          })
+          .catch(function(e) {
+            cacheItem.invalid = true;
+            moduleCache[identifier] = null;
+            return Promise.reject();
+          });
+        }
+        else {
+          if (!cacheItem || cacheItem.invalid) {
+            if (cacheItem) {
+              cacheItem = null;
+            }
+            moduleCache[identifier] = null;
+          }
+          checkedModules[result.request] = cacheItem;
+          return cacheItem;
+        }
+      }
+    }
+  }
 
   compiler.plugin('compilation', function(compilation, params) {
     if (!active) {return;}
@@ -794,43 +949,24 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         fn.call(null, request, function(err, result) {
           if (err) {return cb(err);}
 
-          var identifierPrefix = cachePrefix(compilation);
-          if (identifierPrefix === null) {
-            return cb(err, result);
-          }
-          var identifier = identifierPrefix + result.request;
-
-          if (moduleCache[identifier]) {
-            var cacheItem = moduleCache[identifier];
-
-            if (typeof cacheItem === 'string') {
-              cacheItem = JSON.parse(cacheItem);
-              moduleCache[identifier] = cacheItem;
-            }
-            if (Array.isArray(cacheItem.assets)) {
-              cacheItem.assets = (cacheItem.assets || [])
-              .reduce(function(carry, key) {
-                carry[key] = assetCache[requestHash(key)];
-                return carry;
-              }, {});
-            }
-
-            if (!HardModule.needRebuild(
-              cacheItem,
-              cacheItem.fileDependencies,
-              cacheItem.contextDependencies,
-              // [],
-              fileTimestamps,
-              contextTimestamps,
-              fileMd5s,
-              cachedMd5s
-            )) {
+          var p = getModuleCacheItem(compilation, result);
+          if (p && p.then) {
+            return p
+            .then(function(cacheItem) {
+              // console.log('valid', cacheItem.identifier);
               var module = new HardModule(cacheItem);
-
-              return cb(null, module);
-            }
+              cb(null, module);
+            })
+            .catch(function() {
+              // console.log('invalid', result.request);
+              cb(err, result);
+            });
           }
-          return cb(null, result);
+          else if (p) {
+            var module = new HardModule(p);
+            return cb(null, module);
+          }
+          cb(err, result);
         });
       };
     });
@@ -979,6 +1115,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
 
       if (!lodash.isEqual(compilation.fileDependencies, dataCache.fileDependencies)) {
+        // console.log(compilation.fileDependencies);
         // dataCache.fileDependencies = (dataCache.fileDependencies || [])
         // .concat(fileDependenciesDiff);
         lodash.difference(dataCache.fileDependencies, compilation.fileDependencies).forEach(function(file) {
@@ -1070,15 +1207,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       });
     }
 
-    function serializeError(error) {
+    function serializeError(error, parent) {
       var serialized = {
         message: error.message,
       };
       if (error.origin) {
-        serialized.origin = serializeDependencies([error.origin])[0];
+        serialized.origin = serializeDependencies([error.origin], parent)[0];
       }
       if (error.dependencies) {
-        serialized.dependencies = serializeDependencies(error.dependencies);
+        serialized.dependencies = serializeDependencies(error.dependencies, parent);
       }
       return serialized;
     }
@@ -1144,9 +1281,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           baseMap: module.useSourceMap && source.map(),
           hashContent: serializeHashContent(module),
 
-          dependencies: serializeDependencies(module.dependencies),
-          variables: serializeVariables(module.variables),
-          blocks: serializeBlocks(module.blocks),
+          dependencies: serializeDependencies(module.dependencies, module),
+          variables: serializeVariables(module.variables, module),
+          blocks: serializeBlocks(module.blocks, module),
 
           fileDependencies: module.fileDependencies,
           contextDependencies: module.contextDependencies,
@@ -1230,9 +1367,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           baseMap: module.useSourceMap && source.map(),
           hashContent: serializeHashContent(module),
 
-          dependencies: serializeDependencies(module.dependencies),
-          variables: serializeVariables(module.variables),
-          blocks: serializeBlocks(module.blocks),
+          dependencies: serializeDependencies(module.dependencies, module),
+          variables: serializeVariables(module.variables, module),
+          blocks: serializeBlocks(module.blocks, module),
         };
 
         moduleOps.push({

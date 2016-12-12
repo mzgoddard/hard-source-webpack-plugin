@@ -1,0 +1,1 @@
+require('./loader.js!./fib');

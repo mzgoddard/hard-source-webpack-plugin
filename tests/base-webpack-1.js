@@ -23,6 +23,7 @@ describe('basic webpack use - compiles identically', function() {
   itCompilesTwice('base-amd-1dep');
   itCompilesTwice('base-amd-context');
   itCompilesTwice('base-amd-code-split');
+  itCompilesTwice('base-external');
 
 });
 
@@ -33,6 +34,7 @@ describe('basic webpack use - compiles hard modules', function() {
   itCompilesHardModules('base-deep-context', ['./a \\d']);
   itCompilesHardModules('base-code-split', ['./fib.js', './index.js']);
   itCompilesHardModules('base-query-request', ['./fib.js?argument']);
+  itCompilesHardModules('base-external', ['./index.js']);
 
 });
 
@@ -164,6 +166,27 @@ describe('basic webpack use - builds changes', function() {
     expect(output.run1['main.js'].toString()).to.match(/exports = 12/);
     expect(output.run2['main.js'].toString()).to.not.match(/c\/12\.js/);
     expect(output.run2['main.js'].toString()).to.not.match(/exports = 12/);
+  });
+
+  itCompilesChange('base-context-move', {
+    'vendor/a/1.js': 'module.exports = 1;',
+    'vendor/a/2.js': 'module.exports = 2;',
+    'vendor/a/3.js': 'module.exports = 3;',
+    'vendor/a/4.js': 'module.exports = 4;',
+    'vendor/a/5.js': 'module.exports = 5;',
+    'web_modules/a': null,
+  }, {
+    'web_modules/a/1.js': 'module.exports = 11;',
+    'web_modules/a/2.js': 'module.exports = 12;',
+    'web_modules/a/3.js': 'module.exports = 13;',
+    'web_modules/a/4.js': 'module.exports = 14;',
+    'web_modules/a/5.js': 'module.exports = 15;',
+    'vendor/a': null,
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/exports = 1;/);
+    expect(output.run1['main.js'].toString()).to.not.match(/exports = 11;/);
+    expect(output.run2['main.js'].toString()).to.match(/exports = 11;/);
+    expect(output.run2['main.js'].toString()).to.not.match(/exports = 1;/);
   });
 
 });

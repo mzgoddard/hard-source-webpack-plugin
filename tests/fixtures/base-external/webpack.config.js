@@ -1,15 +1,15 @@
-var DllPlugin = require('webpack').DllPlugin;
 var HardSourceWebpackPlugin = require('../../..');
 
 module.exports = {
   context: __dirname,
-  entry: {
-    'dll': ['./fib.js'],
-  },
+  entry: './index.js',
   output: {
     path: __dirname + '/tmp',
-    filename: 'dll.js',
-    library: '[name]_[hash]',
+    filename: 'main.js',
+  },
+  externals: function(context, request, cb) {
+    if (request === './fib') {return cb(null, './fib', 'commonjs2');}
+    cb();
   },
   recordsPath: __dirname + '/tmp/cache/records.json',
   plugins: [
@@ -18,11 +18,6 @@ module.exports = {
       environmentPaths: {
         root: __dirname + '/../../..',
       },
-    }),
-    new DllPlugin({
-      path: __dirname + '/tmp/dll-manifest.json',
-      name: '[name]_[hash]',
-      context: __dirname,
     }),
   ],
 };
