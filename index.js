@@ -107,6 +107,7 @@ function serializeDependencies(deps) {
       }
       if (dep instanceof HarmonyExportImportedSpecifierDependency) {
         return {
+          moduleIdentifier: dep.module && dep.module.identifier(),
           harmonyRequest: dep.importDependency.request,
           harmonyExportImportedSpecifier: true,
           harmonyId: dep.id,
@@ -115,6 +116,7 @@ function serializeDependencies(deps) {
       }
       if (dep instanceof HarmonyImportSpecifierDependency) {
         return {
+          moduleIdentifier: dep.module && dep.module.identifier(),
           harmonyRequest: dep.importDependency.request,
           harmonyImportSpecifier: true,
           harmonyId: dep.id,
