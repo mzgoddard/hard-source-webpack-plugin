@@ -10,6 +10,10 @@ Context dependencies and ContextModules are now supported. This information is s
 
 Webpack's memory cache allows webpack to make assumptions about previously built modules and skip build steps it would otherwise perform on those modules. That cache is now filled with up to date modules from the HardSource cache letting builds with webpack or the first build with a webpack server to gain the performance those assumptions support.
 
+## 0.3.X Patches
+
+- `0.3.1` Fix false positive invalidation against modules like Delegated and External
+
 # 0.2.0
 
 Builds and stores checksums of files built by webpack to better determine when to rebuild modules. This helps HardSource rebuild less in CI environments.
