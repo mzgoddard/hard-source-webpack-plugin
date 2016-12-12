@@ -892,6 +892,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   new EnhancedResolvePlugin(enhancedResolveCache).apply(compiler);
 
+  var resolveIdCache = {};
+
   compiler.plugin('compilation', function(compilation, params) {
     if (!active) {return;}
 
@@ -997,7 +999,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     params.normalModuleFactory.plugin('resolver', function(fn) {
       return function(request, cb) {
-        var cacheId = JSON.stringify([request.context, request.request]);
+        var cacheId = resolveIdCache[request.context] && resolveIdCache[request.context][request.request];
+        if (!cacheId) {
+          if (!resolveIdCache[request.context]) {
+            resolveIdCache[request.context] = {};
+          }
+          cacheId =
+            resolveIdCache[request.context][request.request] =
+            JSON.stringify([request.context, request.request]);
+        }
 
         var next = function() {
           var originalRequest = request;
