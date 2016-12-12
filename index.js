@@ -1267,6 +1267,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     var memoryCache = compilation.cache;
     var addModuleDependencies = Promise.promisify(compilation.addModuleDependencies, {context: compilation});
     var queue = [];
+    var validated = [];
     var errorAndCallback = function errorAndCallback(err) {
       err.dependencies = dependencies;
       err.origin = module;
@@ -1374,94 +1375,147 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             });
           }
           var resolveItem = resolveCache[resolveId];
-          var promise = Promise.resolve();
-          if (resolveItem && resolveItem.request) {
-            var mid = 'm' + resolveItem.request;
-            var depModule = memoryCache[mid];
-            if (
-              depModule &&
-              depModule.isHard &&
-              depModule.isHard()
-            ) {
-              promise = getModuleCacheItem(compilation, resolveItem)
-              .then(function() {return depModule;})
-              .catch(function() {});
-            }
-          }
-          return promise
-          .then(function(depModule) {
-            for(var i = 0; i < dependencies.length; i++) {
-              if(dep.isEqualResource(dependencies[i][0])) {
-                if (depModule)
-                  return hardDependencies[i].push(dep);
-                return dependencies[i].push(dep);
+          var promise;
+          var depModule;
+          if (dep && dep.moduleIdentifier) {
+            var mid = 'm' + dep.moduleIdentifier;
+            depModule = memoryCache[mid];
+            if (depModule) {
+              var p = getModuleCacheItem(compilation, {request: depModule.request});
+              if (p && p.then) {
+                promise = p;
+                depModule = null;
+                console.log('deferred');
+              }
+              else if (!p) {
+                depModule = null;
               }
             }
-            if (depModule)
-              return hardDependencies.push([depModule, dep]);
-            dependencies.push([dep]);
-          });
+            // if (validated.indexOf(depModule) === -1) {
+            //   depModule = null;
+            // }
+          }
+          if (depModule) {
+            for(var i = 0; i < hardDependencies.length; i++) {
+              if(dep.isEqualResource(hardDependencies[i][1])) {
+                return hardDependencies[i].push(dep);
+              }
+            }
+            return hardDependencies.push([depModule, dep]);
+          }
+          for(var i = 0; i < dependencies.length; i++) {
+            if(dep.isEqualResource(dependencies[i][0])) {
+              return dependencies[i].push(dep);
+            }
+          }
+          dependencies.push([dep]);
         }
 
         function addDependenciesBlock(block) {
-          var promises = [];
           if(block.dependencies) {
-            promises = promises.concat(block.dependencies.map(addDependency));
+            block.dependencies.map(addDependency);
           }
           if(block.blocks) {
-            promises = promises.concat(block.blocks.map(addDependenciesBlock));
+            block.blocks.map(addDependenciesBlock);
           }
           if(block.variables) {
-            promises = promises.concat(
-              block.variables.map(function(v) {
-                return Promise.all(v.dependencies.map(addDependency));
-              })
-            );
-          }
-          return Promise.all(promises);
-        }
-        return addDependenciesBlock(module)
-        .then(function() {
-          return Promise.all(
-            hardDependencies
-            .map(function(dependencies) {
-              var depModule = dependencies.shift();
-              // console.log('prefetch', depModule.identifier());
-              return add(depModule, dependencies, module);
-              // queue.push([depModule, dependencies, module]);
+            block.variables.map(function(v) {
+              v.dependencies.map(addDependency);
             })
-            .concat((function() {
-              if (dependencies.length) {
-                return addModuleDependencies(module, dependencies, compilation.bail, null, true);
-              }
-            })())
-          );
-        });
+          }
+        }
+        addDependenciesBlock(module);
+        // console.log(module.cacheItem.identifier, hardDependencies.length, dependencies.length);
+        hardDependencies
+        .map(function(dependencies) {
+          var depModule = dependencies.shift();
+          // console.log('prefetch', depModule.identifier());
+          // return add(depModule, dependencies, module);
+          queue.push([depModule, dependencies, module]);
+        })
+        if (dependencies.length) {
+          return addModuleDependencies(module, dependencies, compilation.bail, null, true);
+        }
       }
       return processDeps(module);
       // return processModuleDependencies(module);
     }
-    return Promise.all(Object.keys(memoryCache)
+    // var checks = getFactoryChecks(compilation);
+    // return Promise.all(Object.keys(checks)
+    // .map(function(key) {
+    //   return checks[key];
+    // }))
+    var checks = {};
+    validated = Object.keys(memoryCache)
+    .map(function(key) {
+      var module = memoryCache[key];
+      return module;
+    });
+    // return Promise.resolve()
+    // .then(function() {
+      return Promise.all(Object.keys(memoryCache)
+      .map(function(key) {
+        var module = memoryCache[key];
+        var p;
+        if (
+          module.isHard &&
+          module.isHard() &&
+          (p = getModuleCacheItem(compilation, {request: module.request}), p && !p.then)
+        ) {
+          var promise = add(module);
+          while (queue.length) {
+            if (queue.stop) {
+              throw queue.stop;
+            }
+            promise = Promise.all([promise, add.apply(null, queue.pop())]);
+          }
+          return promise;
+        }
+      }));
+    // });
+    return Promise.all(
+    // validated =
+    Object.keys(memoryCache)
     .map(function(key) {
       var module = memoryCache[key];
       if (
         module.isHard &&
         module.isHard() &&
-        !HardModule.needRebuild(
-          module.cacheItem,
-          module.fileDependencies || [],
-          module.contextDependencies,
-          fileTimestamps, contextTimestamps,
-          fileMd5s, cachedMd5s
-        )
+        true
+        // !HardModule.needRebuild(
+        //   module.cacheItem,
+        //   module.cacheItem.fileDependencies || [],
+        //   module.cacheItem.contextDependencies || [],
+        //   fileTimestamps,
+        //   contextTimestamps,
+        //   fileMd5s,
+        //   cachedMd5s
+        // )
       ) {
+        // return module;
         return getModuleCacheItem(compilation, {request: module.request})
-        .then(function() {
-          return add(module);
-        })
-        .catch(function() {});
+        .then(function() {return module;});
       }
-    }))
+    })
+    // .filter(Boolean);
+    )
+    .then(function(_validated) {
+      validated = _validated
+      .filter(Boolean);
+      // return Promise.all(validated
+      return validated
+      .map(function(module) {
+        var promise = add(module);
+        while (queue.length) {
+          if (queue.stop) {
+            throw queue.stop;
+          }
+          promise = Promise.all([promise, add.apply(null, queue.pop())]);
+        }
+        return promise;
+      })
+      // );
+    });
     // .then(function() {
     //   function loop() {
     //     var promise = Promise.resolve();
