@@ -656,57 +656,23 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }
         var resolveKey = resolveInverseIdCache[key];
         var resolveItem = resolveCache[key];
+
         if (resolveItem.type === 'context') {
-          var querylessContext = resolveItem.querylessResource ? resolveItem.querylessResource : (resolveItem.querylessResource = resolveItem.resource.split('?')[0]);
-          // var contextMissingId = resolverIdCache[resolveKey[0]] && resolverIdCache[resolveKey[0]][querylessContext];
-          // if (!contextMissingId) {
-          //   if (!resolverIdCache[resolveKey[0]]) {
-          //     resolverIdCache[resolveKey[0]] = {};
-          //   }
-          //   contextMissingId =
-          //     resolverIdCache[resolveKey[0]][querylessContext] =
-          //     JSON.stringify([resolveKey[0], querylessContext]);
-          // }
-          // var contextMissing = missingCache.context[contextMissingId];
+          var querylessContext = resolveItem._querylessResource;
           var contextMissing = enhancedResolveCache.getMissing('context', resolveKey[0], querylessContext);
           if (!contextMissing) {resolveItem.invalid = true;}
         }
         else {
-          var querylessNormal = resolveItem.querylessResource ? resolveItem.querylessResource : (resolveItem.querylessResource = resolveItem.resource.split('?')[0]);
-          // var normalMissingId = resolverIdCache[resolveKey[0]] && resolverIdCache[resolveKey[0]][querylessNormal];
-          // if (!normalMissingId) {
-          //   if (!resolverIdCache[resolveKey[0]]) {
-          //     resolverIdCache[resolveKey[0]] = {};
-          //   }
-          //   normalMissingId =
-          //     resolverIdCache[resolveKey[0]][querylessNormal] =
-          //     JSON.stringify([resolveKey[0], querylessNormal]);
-          // }
-          if (lastBuild) {return;}
+          var querylessNormal = resolveItem._querylessResource;
           var normalMissing = enhancedResolveCache.getMissing('normal', resolveKey[0], querylessNormal);
-          // console.log('normal', resolveKey[0], querylessNormal, normalMissing);
           if (!normalMissing) {resolveItem.invalid = true;}
-          resolveItem.loaders.forEach(function(loader) {
-            if (typeof loader === 'object') {
-              loader = loader.loader;
-            }
-            var querylessLoader = loader.split('?')[0];
-            // var loaderMissingId = resolverIdCache[resolveKey[0]] && resolverIdCache[resolveKey[0]][querylessLoader];
-            // if (!loaderMissingId) {
-            //   if (!resolverIdCache[resolveKey[0]]) {
-            //     resolverIdCache[resolveKey[0]] = {};
-            //   }
-            //   loaderMissingId =
-            //     resolverIdCache[resolveKey[0]][querylessLoader] =
-            //     JSON.stringify([resolveKey[0], querylessLoader]);
-            // }
-            // var loaderMissing = missingCache.loader[loaderMissingId];
+
+          if (lastBuild) {return;}
+
+          resolveItem._querylessLoaders.forEach(function(querylessLoader) {
             var loaderMissing = enhancedResolveCache.getMissing('loader', resolveKey[0], querylessLoader);
             if (!loaderMissing) {resolveItem.invalid = true;}
           });
-        }
-        if (resolveItem.invalid) {
-          // console.log('invalid', key);
         }
       });
     })
@@ -1041,6 +1007,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             }
             if (!request.source) {
               resolveCache[cacheId] = Object.assign({}, request, {
+                _querylessResource: request.resource.split('?')[0],
+                _querylessLoaders: request.loaders.map(function(loader) {
+                  if (typeof loader === 'object') {
+                    return loader.loader.split('?')[0];
+                  }
+                  return loader.split('?')[0];
+                }),
                 parser: null,
                 parserOptions: request.parser[NS + '/parser-options'],
                 dependencies: null,
