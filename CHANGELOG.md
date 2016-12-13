@@ -12,6 +12,7 @@ Webpack's memory cache allows webpack to make assumptions about previously built
 
 ## 0.3.X Patches
 
+- `0.3.2` Support webpack 2.1.0-beta.28
 - `0.3.1` Fix false positive invalidation against modules like Delegated and External
 
 # 0.2.0
