@@ -123,7 +123,7 @@ function serializeDependencies(deps, parent) {
         };
       }
     }
-    if (!cacheDep && dep.originModule) {
+    if (!cacheDep && dep.originModule && dep.describeHarmonyExport) {
       cacheDep = {
         harmonyExport: true,
         harmonyId: dep.id,

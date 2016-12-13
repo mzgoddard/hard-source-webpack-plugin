@@ -1,17 +1,31 @@
 var expect = require('chai').expect;
 
+var itCompiles = require('./util').itCompiles;
 var itCompilesTwice = require('./util').itCompilesTwice;
 var itCompilesChange = require('./util').itCompilesChange;
+var itCompilesHardModules = require('./util').itCompilesHardModules;
 var describeWP2 = require('./util').describeWP2;
 
 describeWP2('basic webpack 2 use - compiles identically', function() {
 
   itCompilesTwice('base-es2015-module');
+  itCompilesTwice('base-es2015-module-compatibility');
   itCompilesTwice('base-es2015-rename-module');
   itCompilesTwice('base-es2015-system-context');
   itCompilesTwice('base-es2015-system-module');
   itCompilesTwice('base-warning-context');
   itCompilesTwice('base-warning-es2015');
+
+  itCompilesHardModules('base-es2015-module', ['./index.js', './obj.js', './fib.js']);
+  itCompilesHardModules('base-es2015-module-compatibility', ['./index.js', './obj.js', './fib.js']);
+
+  itCompiles(
+    'it includes compatibility dependency in base-es2015-module-compatibility', 
+    'base-es2015-module-compatibility',
+    function(output) {
+      expect(output.run2['main.js'].toString()).to.contain('__esModule');
+    }
+  );
 
 });
 
