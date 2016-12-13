@@ -173,6 +173,22 @@ exports.readFiles = function(outputPath) {
 };
 
 exports.itCompiles = function(name, fixturePath, fnA, fnB, expectHandle) {
+  if (!fnA) {
+    expectHandle = fixturePath;
+    fixturePath = name;
+    fnB = function() {};
+    fnA = function() {};
+  }
+  if (!fnB) {
+    expectHandle = fnA;
+    fnB = function() {};
+    fnA = function() {};
+  }
+  if (!expectHandle) {
+    expectHandle = fnB;
+    fnB = fnA;
+  }
+
   before(function() {
     return exports.clean(fixturePath);
   });
