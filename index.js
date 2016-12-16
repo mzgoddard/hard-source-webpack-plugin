@@ -884,11 +884,28 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               reasonItem.invalid = true;
               moduleCache[identifier] = null;
             }
+            if (reason.dependency.__NormalModuleFactoryCache) {
+              reason.dependency.__NormalModuleFactoryCache = null;
+              reason.module.reasons.forEach(function(reason) {
+                reason.dependency.__NormalModuleFactoryCache = null;
+              });
+            }
           });
           return true;
         }
         return carry;
       }, false);
+
+      needAdditionalPass = compilation.modules.reduce(function(carry, module) {
+        if (module.isHard && module.isHard() && module.cacheItem.invalid) {
+          module.reasons.forEach(function(reason) {
+            reason.dependency.__NormalModuleFactoryCache = null;
+          });
+          return true;
+        }
+        return carry;
+      }, needAdditionalPass);
+
       cb();
     });
 
@@ -960,12 +977,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           if (p && p.then) {
             return p
             .then(function(cacheItem) {
-              // console.log('valid', cacheItem.identifier);
               var module = new HardModule(cacheItem);
               cb(null, module);
             })
             .catch(function() {
-              // console.log('invalid', result.request);
               cb(err, result);
             });
           }
@@ -1122,9 +1137,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
 
       if (!lodash.isEqual(compilation.fileDependencies, dataCache.fileDependencies)) {
-        // console.log(compilation.fileDependencies);
-        // dataCache.fileDependencies = (dataCache.fileDependencies || [])
-        // .concat(fileDependenciesDiff);
         lodash.difference(dataCache.fileDependencies, compilation.fileDependencies).forEach(function(file) {
           buildingMd5s[file] = Promise.resolve({
             mtime: 0,
