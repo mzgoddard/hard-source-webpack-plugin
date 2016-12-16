@@ -656,7 +656,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       compilation.__hardSource_checkedModules =
       compilation.__hardSource_checkedModules || {};
 
-    if (checkedModules[result.request]) {
+    if (checkedModules[result.request] && !checkedModules[result.request].invalid) {
       return checkedModules[result.request];
     }
 
