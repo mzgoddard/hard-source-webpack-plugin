@@ -896,10 +896,18 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         return carry;
       }, false);
 
+      // Bust webpack's NormalModule unsafeCache. Best case this is done before
+      // the compilation really gets started. In the worse case it gets here and
+      // we have to tell it to build again.
       needAdditionalPass = compilation.modules.reduce(function(carry, module) {
-        if (module.isHard && module.isHard() && module.cacheItem.invalid) {
+        if (
+          module.isHard && module.isHard() &&
+          HardModule.needRebuild(module.cacheItem, module.fileDependencies, module.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)
+        ) {
           module.reasons.forEach(function(reason) {
-            reason.dependency.__NormalModuleFactoryCache = null;
+            if (reason.dependency.__NormalModuleFactoryCache) {
+              reason.dependency.__NormalModuleFactoryCache = null;
+            }
           });
           return true;
         }
@@ -1079,11 +1087,26 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   compiler.plugin('make', function(compilation, cb) {
     if (compilation.cache) {
       var prefix = cachePrefix(compilation);
-      if (prefix === null) {return cb();}
-      if (preloadCacheByPrefix[prefix]) {return cb();}
-      preloadCacheByPrefix[prefix] = true;
+      if (prefix !== null && !preloadCacheByPrefix[prefix]) {
+        preloadCacheByPrefix[prefix] = true;
 
-      preload(prefix, compilation.cache);
+        preload(prefix, compilation.cache);
+      }
+
+      // Bust dependencies to HardModules in webpack 2's NormalModule
+      // unsafeCache to avoid an additional pass that would bust them.
+      Object.keys(compilation.cache).forEach(function(key) {
+        var module = compilation.cache[key];
+        if (module && module.isHard && module.isHard()) {
+          if (HardModule.needRebuild(module.cacheItem, module.fileDependencies, module.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)) {
+            module.reasons.forEach(function(reason) {
+              if (reason.dependency.__NormalModuleFactoryCache) {
+                reason.dependency.__NormalModuleFactoryCache = null;
+              }
+            });
+          }
+        }
+      });
     }
     return cb();
   });
