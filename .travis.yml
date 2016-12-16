@@ -7,11 +7,11 @@ node_js:
 env:
   matrix:
     - WEBPACK_VERSION=1.13.1
-    - WEBPACK_VERSION=2.1.0-beta.28 EXTRACT_TEXT_VERSION=2.0.0-beta.4
+    - WEBPACK_VERSION=2.2.0-rc.0 EXTRACT_TEXT_VERSION=2.0.0-beta.4
 matrix:
   fast_finish: true
   allow_failures:
-    - env: WEBPACK_VERSION=2.1.0-beta.28 EXTRACT_TEXT_VERSION=2.0.0-beta.4
+    - env: WEBPACK_VERSION=2.2.0-rc.0 EXTRACT_TEXT_VERSION=2.0.0-beta.4
 before_script:
   - npm rm webpack extract-text-webpack-plugin
   - npm install webpack@$WEBPACK_VERSION extract-text-webpack-plugin@$EXTRACT_TEXT_VERSION

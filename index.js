@@ -365,7 +365,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     }
   });
 
-  compiler.plugin('after-environment', function() {
+  function bindFS() {
     stat = Promise.promisify(
       compiler.inputFileSystem.stat,
       {context: compiler.inputFileSystem}
@@ -457,7 +457,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         return contexts;
       });
     };
-  });
+  }
+
+  if (compiler.inputFileSystem) {
+    bindFS();
+  }
+  else {
+    compiler.plugin('after-environment', bindFS);
+  }
 
   compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
     if (!active) {return cb();}
@@ -649,7 +656,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       compilation.__hardSource_checkedModules =
       compilation.__hardSource_checkedModules || {};
 
-    if (checkedModules[result.request]) {
+    if (checkedModules[result.request] && !checkedModules[result.request].invalid) {
       return checkedModules[result.request];
     }
 
@@ -877,11 +884,36 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               reasonItem.invalid = true;
               moduleCache[identifier] = null;
             }
+            if (reason.dependency.__NormalModuleFactoryCache) {
+              reason.dependency.__NormalModuleFactoryCache = null;
+              reason.module.reasons.forEach(function(reason) {
+                reason.dependency.__NormalModuleFactoryCache = null;
+              });
+            }
           });
           return true;
         }
         return carry;
       }, false);
+
+      // Bust webpack's NormalModule unsafeCache. Best case this is done before
+      // the compilation really gets started. In the worse case it gets here and
+      // we have to tell it to build again.
+      needAdditionalPass = compilation.modules.reduce(function(carry, module) {
+        if (
+          module.isHard && module.isHard() &&
+          HardModule.needRebuild(module.cacheItem, module.fileDependencies, module.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)
+        ) {
+          module.reasons.forEach(function(reason) {
+            if (reason.dependency.__NormalModuleFactoryCache) {
+              reason.dependency.__NormalModuleFactoryCache = null;
+            }
+          });
+          return true;
+        }
+        return carry;
+      }, needAdditionalPass);
+
       cb();
     });
 
@@ -953,12 +985,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           if (p && p.then) {
             return p
             .then(function(cacheItem) {
-              // console.log('valid', cacheItem.identifier);
               var module = new HardModule(cacheItem);
               cb(null, module);
             })
             .catch(function() {
-              // console.log('invalid', result.request);
               cb(err, result);
             });
           }
@@ -1057,11 +1087,26 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   compiler.plugin('make', function(compilation, cb) {
     if (compilation.cache) {
       var prefix = cachePrefix(compilation);
-      if (prefix === null) {return cb();}
-      if (preloadCacheByPrefix[prefix]) {return cb();}
-      preloadCacheByPrefix[prefix] = true;
+      if (prefix !== null && !preloadCacheByPrefix[prefix]) {
+        preloadCacheByPrefix[prefix] = true;
 
-      preload(prefix, compilation.cache);
+        preload(prefix, compilation.cache);
+      }
+
+      // Bust dependencies to HardModules in webpack 2's NormalModule
+      // unsafeCache to avoid an additional pass that would bust them.
+      Object.keys(compilation.cache).forEach(function(key) {
+        var module = compilation.cache[key];
+        if (module && module.isHard && module.isHard()) {
+          if (HardModule.needRebuild(module.cacheItem, module.fileDependencies, module.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)) {
+            module.reasons.forEach(function(reason) {
+              if (reason.dependency.__NormalModuleFactoryCache) {
+                reason.dependency.__NormalModuleFactoryCache = null;
+              }
+            });
+          }
+        }
+      });
     }
     return cb();
   });
@@ -1115,9 +1160,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
 
       if (!lodash.isEqual(compilation.fileDependencies, dataCache.fileDependencies)) {
-        // console.log(compilation.fileDependencies);
-        // dataCache.fileDependencies = (dataCache.fileDependencies || [])
-        // .concat(fileDependenciesDiff);
         lodash.difference(dataCache.fileDependencies, compilation.fileDependencies).forEach(function(file) {
           buildingMd5s[file] = Promise.resolve({
             mtime: 0,
