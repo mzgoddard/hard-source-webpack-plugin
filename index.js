@@ -365,7 +365,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     }
   });
 
-  compiler.plugin('after-environment', function() {
+  function bindFS() {
     stat = Promise.promisify(
       compiler.inputFileSystem.stat,
       {context: compiler.inputFileSystem}
@@ -457,7 +457,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         return contexts;
       });
     };
-  });
+  }
+
+  if (compiler.inputFileSystem) {
+    bindFS();
+  }
+  else {
+    compiler.plugin('after-environment', bindFS);
+  }
 
   compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
     if (!active) {return cb();}
