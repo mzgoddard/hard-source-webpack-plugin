@@ -16,10 +16,14 @@ describeWP2('plugin webpack 2 use - builds changes', function() {
       'console.log(fib(3));',
     ].join('\n'),
   }, function(output) {
-    expect(output.run1['main.js'].toString()).to.contain('e.a');
-    expect(output.run1['main.js'].toString()).to.not.contain('t.a');
-    expect(output.run2['main.js'].toString()).to.contain('r.i(e.a)');
-    expect(output.run2['main.js'].toString()).to.contain('t.a');
+    var main1 = output.run1['main.js'].toString();
+    var main2 = output.run2['main.js'].toString();
+    var id1 = /var (\w)=\w\(0\)/.exec(main1)[1];
+    var id2 = /var (\w)=\w\(0\)/.exec(main2)[1];
+    expect(main1).to.contain(id1 + '.a');
+    expect(main1).to.not.match(/(\w\.a)=function/);
+    expect(main2).to.contain('r.i(' + id2 + '.a)');
+    expect(main2).to.match(/(\w\.a)=function/);
   });
 
   itCompilesChange('plugin-hmr-es2015', {
