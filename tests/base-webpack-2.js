@@ -10,6 +10,8 @@ describeWP2('basic webpack 2 use - compiles identically', function() {
 
   itCompilesTwice('base-es2015-module');
   itCompilesTwice('base-es2015-module-compatibility');
+  itCompilesTwice('base-es2015-module-export-before-import');
+  itCompilesTwice('base-es2015-module-use-before-import');
   itCompilesTwice('base-es2015-rename-module');
   itCompilesTwice('base-es2015-system-context');
   itCompilesTwice('base-es2015-system-module');
@@ -18,6 +20,8 @@ describeWP2('basic webpack 2 use - compiles identically', function() {
 
   itCompilesHardModules('base-es2015-module', ['./index.js', './obj.js', './fib.js']);
   itCompilesHardModules('base-es2015-module-compatibility', ['./index.js', './obj.js', './fib.js']);
+  itCompilesHardModules('base-es2015-module-export-before-import', ['./index.js', './obj.js', './fib.js']);
+  itCompilesHardModules('base-es2015-module-use-before-import', ['./index.js', './obj.js', './fib.js']);
 
   itCompiles(
     'it includes compatibility dependency in base-es2015-module-compatibility', 
