@@ -67,6 +67,7 @@ var cachePrefix = require('./lib/util').cachePrefix;
 var deserializeDependencies = require('./lib/deserialize-dependencies');
 
 var HashCache = require('./lib/hash-cache');
+var SourceCache = require('./lib/source-cache');
 
 var hardSourceVersion = require('./package.json').version;
 
@@ -336,6 +337,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var resolveCache = {};
   var moduleCache = {};
+  var sourceCache = new SourceCache();
   var assetCache = {};
   var dataCache = {};
   // var md5Cache = {};
@@ -356,6 +358,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     new LevelDbSliceSerializer({rootPath: path.join(cacheDirPath, 'db'), slice: 'resolve'});
   var moduleCacheSerializer = this.moduleCacheSerializer =
     new LevelDbSliceSerializer({rootPath: path.join(cacheDirPath, 'db'), slice: 'modules'});
+  var sourceCacheSerializer = this.sourceCacheSerializer =
+    new LevelDbSliceSerializer({rootPath: path.join(cacheDirPath, 'db'), slice: 'source'});
   var dataCacheSerializer = this.dataCacheSerializer =
     new LevelDbSliceSerializer({rootPath: path.join(cacheDirPath, 'db'), slice: 'data'});
   var md5CacheSerializer = this.md5CacheSerializer =
@@ -520,6 +524,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         // Reset the cache, we can't use it do to an environment change.
         resolveCache = {};
         moduleCache = {};
+        sourceCache.reset();
         assetCache = {};
         dataCache = {};
         // md5Cache = {};
@@ -548,6 +553,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         moduleCacheSerializer.read()
         .then(function(_moduleCache) {moduleCache = _moduleCache;}),
+
+        sourceCacheSerializer.read()
+        .then(sourceCache.load),
 
         dataCacheSerializer.read()
         .then(function(_dataCache) {dataCache = _dataCache;})
@@ -596,6 +604,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         factory: contextFactory,
         resolveCache: resolveCache,
         moduleCache: moduleCache,
+        sourceCache: sourceCache,
         fileTimestamps: fileTimestamps,
         fileMd5s: fileMd5s,
         cachedMd5s: cachedMd5s,
@@ -648,6 +657,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           return carry;
         }, {});
       }
+      sourceCache.initModuleItem(compilation, cacheItem);
 
       if (!HardModule.needRebuild(
         cacheItem,
@@ -979,7 +989,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     });
   });
 
-  function preload(prefix, memoryCache) {
+  function preload(compilation, prefix, memoryCache) {
     Object.keys(moduleCache)
     .map(function(key) {
       if (key.indexOf(prefix) !== 0) {return;}
@@ -1003,6 +1013,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               return carry;
             }, {});
           }
+          sourceCache.initModuleItem(compilation, cacheItem);
           var module = memoryCache[memCacheId] = new HardModule(cacheItem);
           module.build(null, null, null, null, function() {});
           return module;
@@ -1048,7 +1059,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         if (preloadCacheByPrefix[prefix]) {return cb(null, data);}
         preloadCacheByPrefix[prefix] = true;
 
-        preload(prefix, compilation.cache);
+        preload(compilation, prefix, compilation.cache);
       }
       return cb(null, data);
     });
@@ -1060,7 +1071,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       if (prefix !== null && !preloadCacheByPrefix[prefix]) {
         preloadCacheByPrefix[prefix] = true;
 
-        preload(prefix, compilation.cache);
+        preload(compilation, prefix, compilation.cache);
       }
 
       // Bust dependencies to HardModules in webpack 2's NormalModule
@@ -1220,14 +1231,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             module.issuer && typeof module.issuer === 'object' ? module.issuer.identifier() :
             null,
 
-          rawSource: module._source ? module._source.source() : null,
-          source: source.source(),
-          map: devtoolOptions && source.map(devtoolOptions),
-          // Some plugins (e.g. UglifyJs) set useSourceMap on a module. If that
-          // option is set we should always store some source map info and
-          // separating it from the normal devtool options may be necessary.
-          baseMap: module.useSourceMap && source.map(),
-          hashContent: serializeHashContent(module),
+          // rawSource: module._source ? module._source.source() : null,
+          // source: source.source(),
+          // map: devtoolOptions && source.map(devtoolOptions),
+          // // Some plugins (e.g. UglifyJs) set useSourceMap on a module. If that
+          // // option is set we should always store some source map info and
+          // // separating it from the normal devtool options may be necessary.
+          // baseMap: module.useSourceMap && source.map(),
+          // hashContent: serializeHashContent(module),
 
           dependencies: serializeDependencies(module.dependencies, module),
           variables: serializeVariables(module.variables, module),
@@ -1253,6 +1264,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           moduleCache[identifier] = null;
           return;
         }
+
+        sourceCache.setModule(compilation, devtoolOptions, module);
 
         moduleOps.push({
           key: identifier,
@@ -1307,13 +1320,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           used: module.used,
           usedExports: module.usedExports,
 
-          source: source.source(),
-          map: devtoolOptions && source.map(devtoolOptions),
-          // Some plugins (e.g. UglifyJs) set useSourceMap on a module. If that
-          // option is set we should always store some source map info and
-          // separating it from the normal devtool options may be necessary.
-          baseMap: module.useSourceMap && source.map(),
-          hashContent: serializeHashContent(module),
+          // source: source.source(),
+          // map: devtoolOptions && source.map(devtoolOptions),
+          // // Some plugins (e.g. UglifyJs) set useSourceMap on a module. If that
+          // // option is set we should always store some source map info and
+          // // separating it from the normal devtool options may be necessary.
+          // baseMap: module.useSourceMap && source.map(),
+          // hashContent: serializeHashContent(module),
 
           dependencies: serializeDependencies(module.dependencies, module),
           variables: serializeVariables(module.variables, module),
@@ -1324,6 +1337,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           key: identifier,
           value: JSON.stringify(moduleCache[identifier]),
         });
+
+        sourceCache.setModule(compilation, devtoolOptions, module);
       }
     });
 
@@ -1334,6 +1349,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       resolveCacheSerializer.write(resolveOps),
       assetCacheSerializer.write(assetOps),
       moduleCacheSerializer.write(moduleOps),
+      sourceCacheSerializer.write(sourceCache.save()),
       dataCacheSerializer.write(dataOps),
       md5Ops.then(md5CacheSerializer.write),
     ])
