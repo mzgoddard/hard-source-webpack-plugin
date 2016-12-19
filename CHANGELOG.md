@@ -12,6 +12,7 @@ Webpack's memory cache allows webpack to make assumptions about previously built
 
 ## 0.3.X Patches
 
+- `0.3.6` Allow webpack 2 rc versions in package peer dependencies
 - `0.3.5` Support out of order harmony import specifiers
 - `0.3.4` Support webpack 2.2.0-rc.0
 - `0.3.3` Support webpack 2.1.0-beta.28
