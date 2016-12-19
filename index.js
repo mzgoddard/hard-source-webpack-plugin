@@ -1026,6 +1026,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       ) {
         var memCacheId = 'm' + cacheItem.identifier;
         if (!memoryCache[memCacheId]) {
+          sourceCache.initModuleItem(compilation, cacheItem);
           var module = memoryCache[memCacheId] = new HardContextModule(cacheItem);
           module.build(null, null, null, null, function() {});
           return module;
