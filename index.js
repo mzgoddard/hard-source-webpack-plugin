@@ -586,8 +586,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     return hashCache.buildHashes({stat: stat, readdir: readdir, md5: md5})
     .then(function() {
-      fileTimestamps = hashCache.fileTimestamps();
-      contextTimestamps = hashCache.contextTimestamps();
+      fileTimestamps = compiler.fileTimestamps = hashCache.fileTimestamps();
+      contextTimestamps = compiler.contextTimestamps = hashCache.contextTimestamps();
       fileMd5s = hashCache.fileMd5s();
       cachedMd5s = hashCache.cachedMd5s();
     })
