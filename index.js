@@ -633,7 +633,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var dataCache = {};
   // var md5Cache = {};
   var hashCache = new HashCache();
+  var lastStamp = '';
   var currentStamp = '';
+  var lastVersion = '';
 
   var fileMd5s = {};
   var cachedMd5s = {};
@@ -797,7 +799,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         hash += '_' + _this.configHash;
       }
 
+      lastStamp = stamp;
       currentStamp = hash;
+      lastVersion = versionStamp;
       if (!hash || hash !== stamp || hardSourceVersion !== versionStamp) {
         if (hash && stamp) {
           console.error('Environment has changed (node_modules or configuration was updated).\nHardSourceWebpackPlugin will reset the cache and store a fresh one.');
@@ -1759,8 +1763,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     // });
 
     Promise.all([
-      fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
-      fsWriteFile(path.join(cacheDirPath, 'version'), hardSourceVersion, 'utf8'),
+      lastStamp !== currentStamp && fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
+      lastVersion !== hardSourceVersion && fsWriteFile(path.join(cacheDirPath, 'version'), hardSourceVersion, 'utf8'),
       // fsWriteFile(resolveCachePath, JSON.stringify(resolveCache), 'utf8'),
       resolveCacheSerializer.write(resolveOps),
       assetCacheSerializer.write(assetOps),
