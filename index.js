@@ -31,7 +31,11 @@ var SingleEntryDependency = require('webpack/lib/dependencies/SingleEntryDepende
 
 var ContextModule = require('webpack/lib/ContextModule');
 var NormalModule = require('webpack/lib/NormalModule');
-var NullDependencyTemplate = require('webpack/lib/dependencies/NullDependencyTemplate');
+try{
+  var NullDependencyTemplate = require('webpack/lib/dependencies/NullDependencyTemplate');
+} catch(ex) {
+  var NullDependencyTemplate = require('webpack/lib/dependencies/NullDependency').Template;
+}
 var NullFactory = require('webpack/lib/NullFactory');
 
 var HarmonyImportDependency, HarmonyImportSpecifierDependency, HarmonyExportImportedSpecifierDependency, SystemImportContextDependency;
