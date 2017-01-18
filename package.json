@@ -33,11 +33,11 @@
     "mocha": "^3.0.2",
     "rimraf": "^2.5.4",
     "style-loader": "^0.13.1",
-    "webpack": "^1.13.1",
+    "webpack": "^2.2.0",
     "webpack-isomorphic-tools": "^2.5.7"
   },
   "peerDependencies": {
-    "webpack": ">=1.13.1 || ^2.1.0-beta || ^2.2.0-rc"
+    "webpack": "^2.2.0"
   },
   "dependencies": {
     "bluebird": "^3.0.0",
