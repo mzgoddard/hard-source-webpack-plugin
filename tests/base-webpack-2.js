@@ -47,10 +47,10 @@ describeWP2('basic webpack 2 use - builds changes', function() {
     ].join('\n'),
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.contain('"a" /* key */');
-    expect(output.run1['main.js'].toString()).to.not.contain('exports["a"]');
+    expect(output.run1['main.js'].toString()).to.not.contain('__webpack_exports__["a"]');
     expect(output.run2['main.js'].toString()).to.contain('"a" /* fib */');
-    expect(output.run2['main.js'].toString()).to.contain('__webpack_require__.d(exports, "a"');
-    expect(output.run2['main.js'].toString()).to.contain('exports["a"]');
+    expect(output.run2['main.js'].toString()).to.contain('__webpack_require__.d(__webpack_exports__, "a"');
+    expect(output.run2['main.js'].toString()).to.contain('__webpack_exports__["a"]');
   });
 
   itCompilesChange('base-change-es2015-commonjs-module', {
@@ -65,10 +65,10 @@ describeWP2('basic webpack 2 use - builds changes', function() {
     ].join('\n'),
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.contain('"a" /* key */');
-    expect(output.run1['main.js'].toString()).to.not.contain('exports["a"]');
+    expect(output.run1['main.js'].toString()).to.not.contain('__webpack_exports__["a"]');
     expect(output.run2['main.js'].toString()).to.contain('__webpack_require__(0).fib');
-    expect(output.run2['main.js'].toString()).to.contain('__webpack_require__.d(exports, "fib"');
-    expect(output.run2['main.js'].toString()).to.contain('exports["a"]');
+    expect(output.run2['main.js'].toString()).to.contain('__webpack_require__.d(__webpack_exports__, "fib"');
+    expect(output.run2['main.js'].toString()).to.contain('__webpack_exports__["a"]');
   });
 
   itCompilesChange('base-change-es2015-export-module', {
@@ -83,9 +83,9 @@ describeWP2('basic webpack 2 use - builds changes', function() {
     ].join('\n'),
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.contain('"a" /* key */');
-    expect(output.run1['main.js'].toString()).to.not.contain('exports["a"]');
+    expect(output.run1['main.js'].toString()).to.not.contain('__webpack_exports__["a"]');
     expect(output.run2['main.js'].toString()).to.contain('"a" /* fib */');
-    expect(output.run2['main.js'].toString()).to.contain('exports["a"]');
+    expect(output.run2['main.js'].toString()).to.contain('__webpack_exports__["a"]');
   });
 
   itCompilesChange('base-change-es2015-export-order-module', {
@@ -148,9 +148,9 @@ describeWP2('basic webpack 2 use - builds changes', function() {
     ].join('\n'),
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.contain('"a" /* key */');
-    expect(output.run1['main.js'].toString()).to.not.contain('exports["a"]');
+    expect(output.run1['main.js'].toString()).to.not.contain('__webpack_exports__["a"]');
     expect(output.run2['main.js'].toString()).to.contain('"a" /* fib */');
-    expect(output.run2['main.js'].toString()).to.contain('exports["a"]');
+    expect(output.run2['main.js'].toString()).to.contain('__webpack_exports__["a"]');
   });
 
   itCompilesChange('base-change-es2015-default-module', {
@@ -165,9 +165,9 @@ describeWP2('basic webpack 2 use - builds changes', function() {
     ].join('\n'),
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.contain('"a" /* key */');
-    expect(output.run1['main.js'].toString()).to.contain('exports["a"]');
+    expect(output.run1['main.js'].toString()).to.contain('__webpack_exports__["a"]');
     expect(output.run2['main.js'].toString()).to.contain('"b" /* fib */');
-    expect(output.run2['main.js'].toString()).to.contain('exports["a"]');
+    expect(output.run2['main.js'].toString()).to.contain('__webpack_exports__["a"]');
   });
 
   itCompilesChange('base-change-es2015-rename-module', {
@@ -182,9 +182,9 @@ describeWP2('basic webpack 2 use - builds changes', function() {
     ].join('\n'),
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.contain('"a" /* rekey */');
-    expect(output.run1['main.js'].toString()).to.not.contain('exports["a"]');
+    expect(output.run1['main.js'].toString()).to.not.contain('__webpack_exports__["a"]');
     expect(output.run2['main.js'].toString()).to.contain('"a" /* refib */');
-    expect(output.run2['main.js'].toString()).to.contain('exports["a"]');
+    expect(output.run2['main.js'].toString()).to.contain('__webpack_exports__["a"]');
   });
 
   itCompilesChange('base-change-es2015-module', {
@@ -199,9 +199,9 @@ describeWP2('basic webpack 2 use - builds changes', function() {
     ].join('\n'),
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.contain('"a" /* fib */');
-    expect(output.run1['main.js'].toString()).to.contain('exports["a"]');
+    expect(output.run1['main.js'].toString()).to.contain('__webpack_exports__["a"]');
     expect(output.run2['main.js'].toString()).to.contain('"a" /* key */');
-    expect(output.run2['main.js'].toString()).to.not.contain('exports["a"]');
+    expect(output.run2['main.js'].toString()).to.not.contain('__webpack_exports__["a"]');
   });
 
   itCompilesChange('base-change-es2015-export-module', {
@@ -216,9 +216,9 @@ describeWP2('basic webpack 2 use - builds changes', function() {
     ].join('\n'),
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.contain('"a" /* fib */');
-    expect(output.run1['main.js'].toString()).to.contain('exports["a"]');
+    expect(output.run1['main.js'].toString()).to.contain('__webpack_exports__["a"]');
     expect(output.run2['main.js'].toString()).to.contain('"a" /* key */');
-    expect(output.run2['main.js'].toString()).to.not.contain('exports["a"]');
+    expect(output.run2['main.js'].toString()).to.not.contain('__webpack_exports__["a"]');
   });
 
   itCompilesChange('base-change-es2015-all-module', {
@@ -233,9 +233,9 @@ describeWP2('basic webpack 2 use - builds changes', function() {
     ].join('\n'),
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.contain('"a" /* fib */');
-    expect(output.run1['main.js'].toString()).to.contain('exports["a"]');
+    expect(output.run1['main.js'].toString()).to.contain('__webpack_exports__["a"]');
     expect(output.run2['main.js'].toString()).to.contain('"a" /* key */');
-    expect(output.run2['main.js'].toString()).to.not.contain('exports["a"]');
+    expect(output.run2['main.js'].toString()).to.not.contain('__webpack_exports__["a"]');
   });
 
   itCompilesChange('base-change-es2015-default-module', {
@@ -250,9 +250,9 @@ describeWP2('basic webpack 2 use - builds changes', function() {
     ].join('\n'),
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.contain('"b" /* fib */');
-    expect(output.run1['main.js'].toString()).to.contain('exports["a"]');
+    expect(output.run1['main.js'].toString()).to.contain('__webpack_exports__["a"]');
     expect(output.run2['main.js'].toString()).to.contain('"a" /* key */');
-    expect(output.run2['main.js'].toString()).to.contain('exports["a"]');
+    expect(output.run2['main.js'].toString()).to.contain('__webpack_exports__["a"]');
   });
 
   itCompilesChange('base-change-es2015-rename-module', {
@@ -267,9 +267,9 @@ describeWP2('basic webpack 2 use - builds changes', function() {
     ].join('\n'),
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.contain('"a" /* refib */');
-    expect(output.run1['main.js'].toString()).to.contain('exports["a"]');
+    expect(output.run1['main.js'].toString()).to.contain('__webpack_exports__["a"]');
     expect(output.run2['main.js'].toString()).to.contain('"a" /* rekey */');
-    expect(output.run2['main.js'].toString()).to.not.contain('exports["a"]');
+    expect(output.run2['main.js'].toString()).to.not.contain('__webpack_exports__["a"]');
   });
 
 });

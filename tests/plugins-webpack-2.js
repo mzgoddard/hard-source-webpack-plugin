@@ -39,7 +39,7 @@ describeWP2('plugin webpack 2 use - builds changes', function() {
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.match(/return key/);
     expect(output.run1['main.js'].toString()).to.match(/\/* key/);
-    expect(output.run2['main.js'].toString()).to.match(/exports\["a"\]/);
+    expect(output.run2['main.js'].toString()).to.match(/__webpack_exports__\["a"\]/);
     expect(output.run2['main.js'].toString()).to.match(/\/* fib/);
     expect(Object.keys(output.run2).filter(function(key) {
       return /\.hot-update\.json/.test(key);

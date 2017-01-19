@@ -1334,6 +1334,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           meta: module.meta,
           used: module.used,
           usedExports: module.usedExports,
+          // HarmonyDetectionParserPlugin
+          exportsArgument: module.exportsArgument,
           issuer:
             typeof module.issuer === 'string' ? module.issuer :
             module.issuer && typeof module.issuer === 'object' ? module.issuer.identifier() :
