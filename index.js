@@ -38,15 +38,22 @@ try{
 }
 var NullFactory = require('webpack/lib/NullFactory');
 
-var HarmonyImportDependency, HarmonyImportSpecifierDependency, HarmonyExportImportedSpecifierDependency, SystemImportContextDependency;
+var HarmonyCompatiblilityDependency;
+var HarmonyExportImportedSpecifierDependency;
+var HarmonyImportDependency;
+var HarmonyImportSpecifierDependency;
+var ImportContextDependency;
 
 try {
+  HarmonyCompatiblilityDependency = require('webpack/lib/dependencies/HarmonyCompatiblilityDependency');
+  HarmonyExportImportedSpecifierDependency = require('webpack/lib/dependencies/HarmonyExportImportedSpecifierDependency');
   HarmonyImportDependency = require('webpack/lib/dependencies/HarmonyImportDependency');
   HarmonyImportSpecifierDependency = require('webpack/lib/dependencies/HarmonyImportSpecifierDependency');
-  HarmonyExportImportedSpecifierDependency = require('webpack/lib/dependencies/HarmonyExportImportedSpecifierDependency');
-  SystemImportContextDependency = require('webpack/lib/dependencies/SystemImportContextDependency');
+  ImportContextDependency = require('webpack/lib/dependencies/ImportContextDependency');
 }
-catch (_) {}
+catch (_) {
+  HarmonyCompatiblilityDependency = function() {};
+}
 
 var HardModuleDependency = require('./lib/dependencies').HardModuleDependency;
 var HardContextDependency = require('./lib/dependencies').HardContextDependency;
@@ -57,6 +64,7 @@ require('./lib/dependencies').HardHarmonyImportDependency;
 var HardHarmonyImportSpecifierDependency =
 require('./lib/dependencies').HardHarmonyImportSpecifierDependency;
 var HardHarmonyExportImportedSpecifierDependency = require('./lib/dependencies').HardHarmonyExportImportedSpecifierDependency;
+var HardHarmonyCompatiblilityDependency = require('./lib/dependencies').HardHarmonyCompatiblilityDependency;
 
 var FileSerializer = require('./lib/cache-serializers').FileSerializer;
 var LevelDbSerializer = require('./lib/cache-serializers').LevelDbSerializer;
@@ -126,6 +134,11 @@ function serializeDependencies(deps, parent) {
           loc: flattenPrototype(dep.loc),
         };
       }
+      else if (dep instanceof HarmonyCompatiblilityDependency) {
+        cacheDep = {
+          harmonyCompatibility: true,
+        };
+      }
     }
     if (!cacheDep && dep.originModule && dep.describeHarmonyExport) {
       cacheDep = {
@@ -165,7 +178,12 @@ function serializeDependencies(deps, parent) {
     return cacheDep;
   })
   .filter(function(req) {
-    return req.request || req.constDependency || req.harmonyExport || req.harmonyImportSpecifier || req.harmonyExportImportedSpecifier;
+    return req.request ||
+      req.constDependency ||
+      req.harmonyExport ||
+      req.harmonyImportSpecifier ||
+      req.harmonyExportImportedSpecifier ||
+      req.harmonyCompatibility;
   });
 }
 function serializeVariables(vars, parent) {
@@ -642,8 +660,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       factories.set(RequireContextDependency, hardContextFactory);
       factories.set(RequireResolveContextDependency, hardContextFactory);
 
-      if (SystemImportContextDependency) {
-        factories.set(SystemImportContextDependency, hardContextFactory);
+      if (ImportContextDependency) {
+        factories.set(ImportContextDependency, hardContextFactory);
       }
 
       factories.set(HardContextDependency, hardContextFactory);
@@ -856,6 +874,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     compilation.dependencyFactories.set(HardHarmonyImportSpecifierDependency, new NullFactory());
     compilation.dependencyTemplates.set(HardHarmonyImportSpecifierDependency, new NullDependencyTemplate);
+
+    compilation.dependencyFactories.set(HardHarmonyCompatiblilityDependency, new NullFactory());
+    compilation.dependencyTemplates.set(HardHarmonyCompatiblilityDependency, new NullDependencyTemplate);
 
     compilation.dependencyFactories.set(HardHarmonyExportImportedSpecifierDependency, new NullFactory());
     compilation.dependencyTemplates.set(HardHarmonyExportImportedSpecifierDependency, new NullDependencyTemplate);
@@ -1313,6 +1334,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           meta: module.meta,
           used: module.used,
           usedExports: module.usedExports,
+          // HarmonyDetectionParserPlugin
+          exportsArgument: module.exportsArgument,
           issuer:
             typeof module.issuer === 'string' ? module.issuer :
             module.issuer && typeof module.issuer === 'object' ? module.issuer.identifier() :

@@ -26,7 +26,7 @@
   "devDependencies": {
     "chai": "^3.5.0",
     "css-loader": "^0.26.1",
-    "extract-text-webpack-plugin": "^1.0.1",
+    "extract-text-webpack-plugin": "^1.0.1 || ^2.0.0-beta",
     "file-loader": "^0.9.0",
     "html-webpack-plugin": "^2.22.0",
     "memory-fs": "^0.4.1",
@@ -37,7 +37,7 @@
     "webpack-isomorphic-tools": "^2.5.7"
   },
   "peerDependencies": {
-    "webpack": ">=1.13.1 || ^2.1.0-beta || ^2.2.0-rc"
+    "webpack": ">=1.13.1 || ^2.1.0-beta || ^2.2.0-rc || ^2.2.0"
   },
   "dependencies": {
     "bluebird": "^3.0.0",
