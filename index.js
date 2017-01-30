@@ -807,6 +807,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                     cacheItem.invalid = true;
                     return reject(err);
                   }
+                  // IgnorePlugin and other plugins can call this callback
+                  // without an error or module.
+                  if (!depModule) {return resolve();}
+
                   if (cacheDependency._resolvedModuleIdentifier === depModule.identifier()) {
                     return resolve();
                   }
@@ -1005,6 +1009,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       return function(request, cb) {
         fn.call(null, request, function(err, result) {
           if (err) {return cb(err);}
+          // IgnorePlugin and other plugins can call this callback without an
+          // error or module.
+          if (!result) {return cb();}
 
           var p = getModuleCacheItem(compilation, result);
           if (p && p.then) {
