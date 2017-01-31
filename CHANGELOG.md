@@ -12,6 +12,7 @@ Webpack's memory cache allows webpack to make assumptions about previously built
 
 ## 0.3.X Patches
 
+- `0.3.9` Support webpack.IgnorePlugin
 - `0.3.8` Support webpack 2.2.0 stable release
 - `0.3.7` Support webpack 2.2.0-rc.4 (by @swernerx)
 - `0.3.6` Allow webpack 2 rc versions in package peer dependencies
