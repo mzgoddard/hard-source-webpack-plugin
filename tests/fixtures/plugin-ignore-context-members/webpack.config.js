@@ -16,6 +16,6 @@ module.exports = {
         root: __dirname + '/../../..',
       },
     }),
-    new IgnorePlugin(/tmp/, /\.\/a/),
+    new IgnorePlugin(/\.\/a\/[1-5]/),
   ],
 };
