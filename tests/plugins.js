@@ -26,6 +26,7 @@ describe('plugin webpack use', function() {
   itCompilesTwice('plugin-hmr-process-env', {exportStats: true});
   itCompilesTwice('plugin-ignore-1dep');
   itCompilesTwice('plugin-ignore-context');
+  itCompilesTwice('plugin-ignore-context-members');
 
   itCompilesHardModules('plugin-dll', ['./fib.js']);
   itCompilesHardModules('plugin-dll-reference', ['./index.js']);
