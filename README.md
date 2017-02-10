@@ -1,12 +1,12 @@
 # HardSourceWebpackPlugin [![Build Status](https://travis-ci.org/mzgoddard/hard-source-webpack-plugin.svg?branch=master)](https://travis-ci.org/mzgoddard/hard-source-webpack-plugin)
 
-`HardSourceWebpackPlugin` is a plugin for webpack to cache an intermediate step modules reach during a webpack. Run webpack twice with this plugin, the first build will take the normal amount of time. The second time, the build time will be greatly reduced.
+`HardSourceWebpackPlugin` is a plugin for webpack to provide an intermediate caching step for modules. In order to see results, you'll need to run webpack twice with this plugin: the first build will take the normal amount of time. The second build will be signficantly faster.
 
-Please note this plugin cannot track all possible changes that may invalidate a member of the cache. If you make a change outside your project's source code like updating a depending loader or webpack plugin or other step to your build process, you may need to delete the existing hard source cache. HardSourceWebpackPlugin can detect when the original content for a module has changed thanks to webpack's normal facilities used in watch-mode rebuilds. HardSourceWebpackPlugin can not guarantee it will detect when loaders and plugins that modify your code have changed. You may need to delete your current HardSource cache when you modify your build process by adding, removing, updating loaders and plugins or changing any part of your build configuration.
+_Please note:_ this plugin cannot track all possible changes that may invalidate a member of the cache. If you make a change outside of your project's source code like updating a depending loader or webpack plugin or other step to your build process, you may need to delete the existing hard source cache. HardSourceWebpackPlugin can detect when the original content for a module has changed thanks to webpack's normal facilities used in watch-mode rebuilds. HardSourceWebpackPlugin can not guarantee it will detect when loaders and plugins that modify your code have changed. You may need to delete your current HardSource cache when you modify your build process by adding, removing, updating loaders and plugins or changing any part of your build configuration.
 
-HardSourceWebpackPlugin makes the assumption that any cacheable module is deterministic between builds, or that it will not change. Loaders already help determine this by setting a cacheable flag when they operate on a module. After the loaders execute webpack's mangling of module loading statements is the only common thing left to make deterministic. webpack does this through ID records. Writing these records to the file system must be turned on. In use in conjuction with webpack-dev-server, this plugin will ensure the records are written to the file system, as the dev-server writes them to memory.
+HardSourceWebpackPlugin makes the assumption that any cacheable module is deterministic between builds, or that it will not change. Loaders already help determine this by setting a cacheable flag when they operate on a module. After the loaders execute webpack's mangling of module loading statements is the only common thing left to make deterministic. webpack does this through ID records. Writing these records to the file system must be turned on. In use in conjuction with `webpack-dev-server`, this plugin will ensure the records are written to the file system, as `webpack-dev-server` writes them to memory.
 
-A webpack config with HardSourceWebpackPlugin may look like
+A webpack config with HardSourceWebpackPlugin may look like this:
 
 ```js
 var HardSourceWebpackPlugin = require('hard-source-webpack-plugin');
@@ -61,9 +61,9 @@ module.exports = {
 
 ### `cacheDirectory`
 
-A absolute or relative path to store intermediate webpack details to support faster subsequent builds for dependencies that did not change inbetween builds.
+An absolute or relative path to store intermediate webpack details to support faster subsequent builds for dependencies that did not change in between builds.
 
-This directory is best unique per webpack configuration in a project. HardSourceWebpackPlugin cannot detect differences in webpack configurations inbetween runs. Instead using the same directory will pollute a build with build items from another configuration. You can naturally have sub directories for each config like `hard-source-cache/dev` and `hard-source-cache/prod`.
+This directory is best unique per webpack configuration in a project. HardSourceWebpackPlugin cannot detect differences in webpack configurations inbetween runs. Instead, using the same directory will pollute a build with build items from another configuration. You can naturally have sub directories for each config like `hard-source-cache/dev` and `hard-source-cache/prod`.
 
 Building a unique cacheDirectory can also be done with help with the `configHash` option.
 
@@ -73,11 +73,11 @@ Set webpack's `recordsPath` option if not already set with a value constructed l
 
 ### `configHash`
 
-An optional field that takes a string or function. The function is called and passed the webpack config that the plugin first sees. Its called at this time so any changes to your config between reading it from disk and creating the compiler can be considered. Often this will help HardSource distinguish between webpack configs and if the previous cache can be used in cases like combining webpack config partials or turning on Hot Module Replacement through an option to the webpack's dev server.
+An optional field that takes a string or function. The function is called and passed the webpack config that the plugin first sees. It's called at this time so any changes to your config between reading it from disk and creating the compiler can be considered. Often this will help HardSource distinguish between webpack configs and if the previous cache can be used in cases like combining webpack config partials or turning on Hot Module Replacement through an option to the webpack's dev server.
 
 #### Using configHash in the cacheDirectory
 
-One of configHash's use cases is when building a webpack config from multiple parts and having HardSource's config in one of those common parts. In that case you need a different cache folder for each combination of webpack config parts. Including `[confighash]` in your cacheDirectory will use `configHash` HardSource option in where the cache is read and stored.
+One of `configHash`'s use cases is when building a webpack config from multiple parts and having HardSource's config in one of those common parts. In that case you need a different cache folder for each combination of webpack config parts. Including `[confighash]` in your cacheDirectory will use `configHash` HardSource option in where the cache is read and stored.
 
 Since using `[confighash]` in cacheDirectory means multiple caches it is also best to have multiple webpack id records. Records means modules get the same ids over multiple builds. It also means different webpack configs with different loaders will mean different ids. If the same records used in a development build were then used in a production build the module ids will be further apart than records for just production builds or records without this plugin. So to help using different records per config, `[confighash]` can also be used in the `recordsPath` option passed to HardSourceWebpackPlugin.
 
