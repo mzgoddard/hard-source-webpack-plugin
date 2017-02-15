@@ -166,6 +166,7 @@ function serializeDependencies(deps, parent) {
         recursive: dep.recursive,
         regExp: dep.regExp ? dep.regExp.source : null,
         async: dep.async,
+        optional: dep.optional,
         loc: flattenPrototype(dep.loc),
       };
     }
