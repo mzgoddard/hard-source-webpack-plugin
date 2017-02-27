@@ -719,6 +719,28 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         return handles;
       })(),
     ])
+    .then(function() {
+      // Invalidate resolve cache items.
+      Object.keys(resolveCache).forEach(function(key) {
+        var resolveKey = JSON.parse(key);
+        var resolveItem = resolveCache[key];
+        if (resolveItem.type === 'context') {
+          var contextMissing = missingCache.context[JSON.stringify([resolveKey.context, resolveItem.resource.split('?')[0]])];
+          if (!contextMissing || contextMissing.invalid) {resolveItem.invalid = true;}
+        }
+        else {
+          var normalMissing = missingCache.normal[JSON.stringify([resolveKey[0], resolveItem.resource.split('?')[0]])];
+          if (!normalMissing || normalMissing.invalid) {resolveItem.invalid = true;}
+          resolveItem.loaders.forEach(function(loader) {
+            if (typeof loader === 'object') {
+              loader = loader.loader;
+            }
+            var loaderMissing = missingCache.loader[JSON.stringify([resolveKey[0], loader.split('?')[0]])];
+            if (!loaderMissing || loaderMissing.invalid) {resolveItem.invalid = true;}
+          });
+        }
+      });
+    })
     .then(function() {cb();}, cb);
   });
 
@@ -825,10 +847,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             var resolveItem = resolveCache[resolveId];
             if (
               resolveItem &&
-              // !resolveItem.invalid
-              resolveItem.request &&
-              resolveItem.resource &&
-              fileTimestamps[resolveItem.resource.split('?')[0]]
+              !resolveItem.invalid
             ) {
               var depIdentifier = identifierPrefix + resolveItem.request;
               var depCacheItem = moduleCache[depIdentifier];
@@ -849,10 +868,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                 return;
               }
             }
-            // else if (resolveItem && resolveItem.invalid) {
-            //   cacheItem.invalid = true;
-            //   return;
-            // }
+            else if (resolveItem && resolveItem.invalid) {
+              cacheItem.invalid = true;
+              return;
+            }
           }
 
           if (
@@ -937,7 +956,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     }
   }
 
-  compiler.plugin('after-plugins', function() {
+  compiler.plugin('after-resolvers', function() {
     function configureMissing(key, resolver) {
       // console.log(missingCache[key], resolverCache[key]);
       // missingCache[key] = missingCache[key] || {};
