@@ -3,6 +3,5 @@ module.exports = function(source) {
   return [
     '// loader.js',
     source,
-  ].join('
-');
+  ].join('\n');
 };
