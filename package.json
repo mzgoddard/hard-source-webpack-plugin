@@ -26,7 +26,7 @@
   "devDependencies": {
     "chai": "^3.5.0",
     "css-loader": "^0.26.1",
-    "extract-text-webpack-plugin": "^1.0.1",
+    "extract-text-webpack-plugin": "^2.1.0",
     "file-loader": "^0.10.1",
     "html-webpack-plugin": "^2.22.0",
     "memory-fs": "^0.4.1",
