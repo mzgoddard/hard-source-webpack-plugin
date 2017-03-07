@@ -44,7 +44,7 @@
     "level": "^1.4.0",
     "lodash": "^4.15.0",
     "mkdirp": "^0.5.1",
-    "source-list-map": "^0.1.6",
+    "source-list-map": "^1.0.0",
     "source-map": "^0.5.6",
     "webpack-sources": "^0.1.2",
     "webpack-core": "~0.6.0"
