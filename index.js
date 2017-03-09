@@ -991,7 +991,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           if (result) {
             var inverseId = JSON.stringify([context, result.split('?')[0]]);
             var resolveId = JSON.stringify([context, request]);
-            missingCache[key][inverseId] = localMissing.filter(function(missed, missedIndex) {
+            missingCache[key][inverseId] = localMissing
+            .filter(function(missed) {
+              return missed.indexOf('node_modules') === -1;
+            })
+            .filter(function(missed, missedIndex) {
               var index = localMissing.indexOf(missed);
               if (index === -1 || index < missedIndex) {
                 return false;
@@ -1000,7 +1004,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                 return false;
               }
               return true;
-            }).concat(result.split('?')[0]);
+            })
+            .concat(result.split('?')[0]);
             missingCache[key][inverseId].new = true;
             resolverCache[key][resolveId] = {
               result: result.split('?')[0],
