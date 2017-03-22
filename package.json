@@ -37,7 +37,7 @@
     "webpack-isomorphic-tools": "^3.0.0"
   },
   "peerDependencies": {
-    "webpack": ">=1.13.1 || ^2.1.0-beta || ^2.2.0-rc || ^2.2.0"
+    "webpack": "2.2.1"
   },
   "dependencies": {
     "bluebird": "^3.0.0",
