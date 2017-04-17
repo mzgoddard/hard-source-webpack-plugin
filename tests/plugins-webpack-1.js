@@ -27,6 +27,7 @@ describe('plugin webpack use', function() {
   itCompilesTwice('plugin-ignore-1dep');
   itCompilesTwice('plugin-ignore-context');
   itCompilesTwice('plugin-ignore-context-members');
+  itCompilesTwice('plugin-child-compiler-resolutions');
 
   itCompilesHardModules('plugin-dll', ['./fib.js']);
   itCompilesHardModules('plugin-dll-reference', ['./index.js']);
