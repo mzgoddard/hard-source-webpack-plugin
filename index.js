@@ -112,7 +112,7 @@ function flattenPrototype(obj) {
   return copy;
 }
 
-function serializeDependencies(deps, parent) {
+function serializeDependencies(deps, parent, compilation) {
   return deps
   .map(function(dep) {
     var cacheDep;
@@ -171,17 +171,21 @@ function serializeDependencies(deps, parent) {
       };
     }
 
-    // The identifier this dependency should resolve to.
-    var _resolvedModuleIdentifier = dep.module && dep.module.identifier();
-    // An identifier to dereference a dependency under a module to some per
-    // dependency value
-    var _inContextDependencyIdentifier = parent && JSON.stringify([parent.context, cacheDep]);
-    // An identifier from the dependency to the cached resolution information
-    // for building a module.
-    var _resolveCacheId = parent && cacheDep.request && JSON.stringify([parent.context, cacheDep.request]);
-    cacheDep._resolvedModuleIdentifier = _resolvedModuleIdentifier;
-    cacheDep._inContextDependencyIdentifier = _inContextDependencyIdentifier;
-    cacheDep._resolveCacheId = _resolveCacheId;
+    var identifierPrefix = cachePrefix(compilation);
+    if (identifierPrefix !== null) {
+      // The identifier this dependency should resolve to.
+      var _resolvedModuleIdentifier = dep.module && dep.module.identifier();
+      // An identifier to dereference a dependency under a module to some per
+      // dependency value
+      var _inContextDependencyIdentifier = parent && JSON.stringify([parent.context, cacheDep]);
+      // An identifier from the dependency to the cached resolution information
+      // for building a module.
+      var _resolveCacheId = parent && cacheDep.request && JSON.stringify([identifierPrefix, parent.context, cacheDep.request]);
+      cacheDep._resolvedModuleIdentifier = _resolvedModuleIdentifier;
+      cacheDep._inContextDependencyIdentifier = _inContextDependencyIdentifier;
+      cacheDep._resolveCacheId = _resolveCacheId;
+    }
+
     return cacheDep;
   })
   .filter(function(req) {
@@ -193,23 +197,23 @@ function serializeDependencies(deps, parent) {
       req.harmonyCompatibility;
   });
 }
-function serializeVariables(vars, parent) {
+function serializeVariables(vars, parent, compilation) {
   return vars.map(function(variable) {
     return {
       name: variable.name,
       expression: variable.expression,
-      dependencies: serializeDependencies(variable.dependencies, parent),
+      dependencies: serializeDependencies(variable.dependencies, parent, compilation),
     }
   });
 }
-function serializeBlocks(blocks, parent) {
+function serializeBlocks(blocks, parent, compilation) {
   return blocks.map(function(block) {
     return {
       async: block instanceof AsyncDependenciesBlock,
       name: block.chunkName,
-      dependencies: serializeDependencies(block.dependencies, parent),
-      variables: serializeVariables(block.variables, parent),
-      blocks: serializeBlocks(block.blocks, parent),
+      dependencies: serializeDependencies(block.dependencies, parent, compilation),
+      variables: serializeVariables(block.variables, parent, compilation),
+      blocks: serializeBlocks(block.blocks, parent, compilation),
     };
   });
 }
@@ -970,7 +974,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     params.normalModuleFactory.plugin('resolver', function(fn) {
       return function(request, cb) {
-        var cacheId = JSON.stringify([request.context, request.request]);
+        var identifierPrefix = cachePrefix(compilation);
+        if (identifierPrefix === null) {return fn.call(null, request, cb);}
+
+        var cacheId = JSON.stringify([identifierPrefix, request.context, request.request]);
 
         var next = function() {
           var originalRequest = request;
@@ -1293,10 +1300,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         message: error.message,
       };
       if (error.origin) {
-        serialized.origin = serializeDependencies([error.origin], parent)[0];
+        serialized.origin = serializeDependencies([error.origin], parent, compilation)[0];
       }
       if (error.dependencies) {
-        serialized.dependencies = serializeDependencies(error.dependencies, parent);
+        serialized.dependencies = serializeDependencies(error.dependencies, parent, compilation);
       }
       return serialized;
     }
@@ -1364,9 +1371,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           baseMap: module.useSourceMap && source.map(),
           hashContent: serializeHashContent(module),
 
-          dependencies: serializeDependencies(module.dependencies, module),
-          variables: serializeVariables(module.variables, module),
-          blocks: serializeBlocks(module.blocks, module),
+          dependencies: serializeDependencies(module.dependencies, module, compilation),
+          variables: serializeVariables(module.variables, module, compilation),
+          blocks: serializeBlocks(module.blocks, module, compilation),
 
           fileDependencies: module.fileDependencies,
           contextDependencies: module.contextDependencies,
@@ -1450,9 +1457,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           baseMap: module.useSourceMap && source.map(),
           hashContent: serializeHashContent(module),
 
-          dependencies: serializeDependencies(module.dependencies, module),
-          variables: serializeVariables(module.variables, module),
-          blocks: serializeBlocks(module.blocks, module),
+          dependencies: serializeDependencies(module.dependencies, module, compilation),
+          variables: serializeVariables(module.variables, module, compilation),
+          blocks: serializeBlocks(module.blocks, module, compilation),
         };
 
         moduleOps.push({
