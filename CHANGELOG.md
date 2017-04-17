@@ -12,6 +12,7 @@ Webpack's memory cache allows webpack to make assumptions about previously built
 
 ## 0.3.X Patches
 
+- `0.3.12` Support different resolutions in different child compilations
 - `0.3.11` Support optional dependencies
 - `0.3.10` Fix webpack typo'd dependency (HarmonyCompatiblilityDependency)
 - `0.3.9` Support webpack.IgnorePlugin
