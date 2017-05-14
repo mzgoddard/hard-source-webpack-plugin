@@ -30,7 +30,7 @@
     "file-loader": "^0.10.1",
     "html-webpack-plugin": "^2.22.0",
     "memory-fs": "^0.4.1",
-    "mocha": "^3.0.2",
+    "mocha": "^3.4.0",
     "rimraf": "^2.5.4",
     "style-loader": "^0.13.1",
     "webpack": "^1.13.1",
