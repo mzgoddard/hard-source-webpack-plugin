@@ -80,6 +80,8 @@ var HardContextModule = require('./lib/hard-context-module');
 var HardContextModuleFactory = require('./lib/hard-context-module-factory');
 var HardModule = require('./lib/hard-module');
 
+var LoggerFactory = require('./lib/logger-factory');
+
 var makeDevtoolOptions = require('./lib/devtool-options');
 var cachePrefix = require('./lib/util').cachePrefix;
 var deserializeDependencies = require('./lib/deserialize-dependencies');
@@ -271,6 +273,12 @@ module.exports = HardSourceWebpackPlugin;
 HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var options = this.options;
   var active = true;
+
+  var logger = new LoggerFactory(compiler).create();
+
+  var loggerCore = logger.from('core');
+  logger.lock();
+
   if (!options.cacheDirectory) {
     options.cacheDirectory = 'node_modules/.cache/hard-source/[confighash]';
   }
@@ -290,14 +298,31 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var configHashInDirectory =
     options.cacheDirectory.search(/\[confighash\]/) !== -1;
   if (configHashInDirectory && !this.configHash) {
-    console.error('HardSourceWebpackPlugin cannot use [confighash] in cacheDirectory without configHash option being set and returning a non-falsy value.');
+    loggerCore.error(
+      {
+        id: 'confighash-directory-no-confighash',
+        cacheDirectory: options.cacheDirectory
+      },
+      'HardSourceWebpackPlugin cannot use [confighash] in cacheDirectory ' +
+      'without configHash option being set and returning a non-falsy value.'
+    );
     active = false;
+    compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
+      logger.unlock();
+      cb();
+    });
     return;
   }
 
   var environmentHasher = null;
   if (typeof options.environmentPaths !== 'undefined') {
-    console.error('HardSourceWebpackPlugin: environmentPaths is deprecated, please use environmentHash. environmentHash accepts the same options.');
+    loggerCore.error(
+      {
+        id: 'environment-paths-deprecated'
+      },
+      'HardSourceWebpackPlugin: environmentPaths is deprecated, please use ' +
+      'environmentHash. environmentHash accepts the same options.'
+    );
     if (options.environmentPaths === false) {
       environmentHasher = function() {
         return Promise.resolve('');
@@ -316,7 +341,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   }
   if (typeof options.environmentHash !== 'undefined') {
     if (environmentHasher) {
-      console.error('HardSourceWebpackPlugin: environmentHash is a new option replacing environmentPaths. Please use only environmentHash.');
+      loggerCore.warn(
+        {},
+        'HardSourceWebpackPlugin: environmentHash is a new option replacing ' +
+        'environmentPaths. Please use only environmentHash.'
+      );
     }
     if (options.environmentHash === false) {
       environmentHasher = function() {
@@ -345,7 +374,17 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   if (options.recordsInputPath || options.recordsPath) {
     if (compiler.options.recordsInputPath || compiler.options.recordsPath) {
-      console.error('HardSourceWebpackPlugin will not set recordsInputPath when it is already set. Using current value:', compiler.options.recordsInputPath || compiler.options.recordsPath);
+      loggerCore.error(
+        {
+          webpackRecordsInputPath: compiler.options.recordsInputPath,
+          webpackRecordsPath: compiler.options.recordsPath,
+          hardSourceRecordsInputPath: options.recordsInputPath,
+          hardSourceRecordsPath: options.recordsPath,
+        },
+        'HardSourceWebpackPlugin will not set recordsInputPath when it is ' +
+        'already set. Using current value: ' +
+        (compiler.options.recordsInputPath || compiler.options.recordsPath)
+      );
     }
     else {
       compiler.options.recordsInputPath =
@@ -361,7 +400,17 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   }
   if (options.recordsOutputPath || options.recordsPath) {
     if (compiler.options.recordsOutputPath || compiler.options.recordsPath) {
-      console.error('HardSourceWebpackPlugin will not set recordsOutputPath when it is already set. Using current value:', compiler.options.recordsOutputPath || compiler.options.recordsPath);
+      loggerCore.error(
+        {
+          webpackRecordsOutputPath: compiler.options.recordsInputPath,
+          webpackRecordsPath: compiler.options.recordsPath,
+          hardSourceRecordsOutputPath: options.recordsOutputPath,
+          hardSourceRecordsPath: options.recordsPath,
+        },
+        'HardSourceWebpackPlugin will not set recordsOutputPath when it is ' +
+        'already set. Using current value: ' +
+        (compiler.options.recordsOutputPath || compiler.options.recordsPath)
+      );
     }
     else {
       compiler.options.recordsOutputPath =
@@ -409,7 +458,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     if (
       !compiler.recordsInputPath || !compiler.recordsOutputPath
     ) {
-      console.error('HardSourceWebpackPlugin requires recordsPath to be set.');
+      loggerCore.error(
+        {},
+        'HardSourceWebpackPlugin requires recordsPath to be set.'
+      );
       active = false;
     }
   });
@@ -516,6 +568,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   }
 
   compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
+    logger.unlock();
+
     if (!active) {return cb();}
 
     try {
@@ -524,7 +578,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     catch (_) {
       mkdirp.sync(cacheAssetDirPath);
       if (configHashInDirectory) {
-        console.log('HardSourceWebpackPlugin is writing to a new confighash path for the first time:', cacheDirPath);
+        loggerCore.log(
+          {
+            id: 'new-config-hash',
+            cacheDirPath: cacheDirPath
+          },
+          'HardSourceWebpackPlugin is writing to a new confighash path for ' + 
+          'the first time: ' + cacheDirPath
+        );
       }
     }
     var start = Date.now();
@@ -550,10 +611,24 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       currentStamp = hash;
       if (!hash || hash !== stamp || hardSourceVersion !== versionStamp) {
         if (hash && stamp) {
-          console.error('Environment has changed (node_modules or configuration was updated).\nHardSourceWebpackPlugin will reset the cache and store a fresh one.');
+          loggerCore.error(
+            {
+              id: 'environment-changed'
+            },
+            'Environment has changed (node_modules or configuration was ' +
+            'updated).\nHardSourceWebpackPlugin will reset the cache and ' +
+            'store a fresh one.'
+          );
         }
         else if (versionStamp && hardSourceVersion !== versionStamp) {
-          console.error('Installed HardSource version does not match the saved cache.\nHardSourceWebpackPlugin will reset the cache and store a fresh one.');
+          loggerCore.error(
+            {
+              id: 'hard-source-changed'
+            },
+            'Installed HardSource version does not match the saved ' +
+            'cache.\nHardSourceWebpackPlugin will reset the cache and store ' +
+            'a fresh one.'
+          );
         }
 
         // Reset the cache, we can't use it do to an environment change.

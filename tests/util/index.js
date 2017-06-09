@@ -10,6 +10,7 @@ var mkdirp = require('mkdirp');
 var Promise = require('bluebird');
 var rimraf = require('rimraf');
 var webpack = require('webpack');
+var mkdirp = require('mkdirp');
 
 function wrapModule(code) {
   return '(function(exports, require, module, __filename, __dirname) {' +
@@ -343,7 +344,10 @@ exports.itCompilesHardModules = function(fixturePath, filesA, filesB, expectHand
 
 exports.clean = function(fixturePath) {
   var tmpPath = path.join(__dirname, '..', 'fixtures', fixturePath, 'tmp');
-  return Promise.promisify(rimraf)(tmpPath);
+  return Promise.promisify(rimraf)(tmpPath)
+  .then(function() {
+    return Promise.promisify(mkdirp)(tmpPath);
+  });
 };
 
 exports.describeWP2 = function() {

@@ -2,6 +2,7 @@ var expect = require('chai').expect;
 
 var clean = require('./util').clean;
 var compile = require('./util').compile;
+var itCompiles = require('./util').itCompiles;
 var itCompilesTwice = require('./util').itCompilesTwice;
 var itCompilesChange = require('./util').itCompilesChange;
 var itCompilesHardModules = require('./util').itCompilesHardModules;
@@ -28,6 +29,7 @@ describe('plugin webpack use', function() {
   itCompilesTwice('plugin-ignore-context');
   itCompilesTwice('plugin-ignore-context-members');
   itCompilesTwice('plugin-child-compiler-resolutions');
+  itCompilesTwice('plugin-logger-child-no-memory');
 
   itCompilesHardModules('plugin-dll', ['./fib.js']);
   itCompilesHardModules('plugin-dll-reference', ['./index.js']);
@@ -103,4 +105,15 @@ describe('plugin webpack use - builds changes', function() {
   //   });
   // });
 
+});
+
+describe('plugin webpack use - logging', function() {
+  itCompiles(
+    'plugin-logger-child-no-memory',
+    'plugin-logger-child-no-memory',
+    function(out) {
+      expect(out.run1['log.json'].toString()).to.not.match(/^[]$/);
+      expect(out.run2['log.json'].toString()).to.not.match(/^[]$/);
+    }
+  );
 });
