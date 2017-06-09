@@ -184,10 +184,10 @@ function serializeDependencies(deps, parent, compilation) {
       var _inContextDependencyIdentifier = parent && JSON.stringify([parent.context, cacheDep]);
       // An identifier from the dependency to the cached resolution information
       // for building a module.
-      var _resolveCacheId = parent && cacheDep.request && JSON.stringify([identifierPrefix, parent.context, cacheDep.request]);
+      var _moduleResolveCacheId = parent && cacheDep.request && JSON.stringify([identifierPrefix, parent.context, cacheDep.request]);
       cacheDep._resolvedModuleIdentifier = _resolvedModuleIdentifier;
       cacheDep._inContextDependencyIdentifier = _inContextDependencyIdentifier;
-      cacheDep._resolveCacheId = _resolveCacheId;
+      cacheDep._moduleResolveCacheId = _moduleResolveCacheId;
     }
 
     return cacheDep;
@@ -429,12 +429,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var cacheAssetDirPath = path.join(cacheDirPath, 'assets');
   var resolveCachePath = path.join(cacheDirPath, 'resolve.json');
 
-  var resolveCache = {};
   var moduleCache = {};
   var assetCache = {};
   var dataCache = {};
+  var moduleResolveCache = {};
   var md5Cache = {};
   var currentStamp = '';
+
+  var moduleResolveCacheChange = [];
 
   var fileMd5s = {};
   var cachedMd5s = {};
@@ -448,6 +450,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var moduleCacheSerializer;
   var dataCacheSerializer;
   var md5CacheSerializer;
+  var moduleResolveCacheSerializer;
 
   var _this = this;
 
@@ -611,6 +614,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           type: 'data',
           cacheDirPath: cacheDirPath,
         });
+        moduleResolveCacheSerializer = cacheSerializerFactory.create({
+          name: 'module-resolve',
+          type: 'data',
+          cacheDirPath: cacheDirPath,
+        });
       }
       catch (err) {
         return cb(err);
@@ -659,10 +667,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }
 
         // Reset the cache, we can't use it do to an environment change.
-        resolveCache = {};
         moduleCache = {};
         assetCache = {};
         dataCache = {};
+        moduleResolveCache = {};
         md5Cache = {};
         fileTimestamps = {};
         contextTimestamps = {};
@@ -672,10 +680,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       if (Object.keys(moduleCache).length) {return Promise.resolve();}
 
       return Promise.all([
-        fsReadFile(resolveCachePath, 'utf8')
-        .then(JSON.parse)
-        .then(function(_resolveCache) {resolveCache = _resolveCache}),
-
         assetCacheSerializer.read()
         .then(function(_assetCache) {assetCache = _assetCache;}),
 
@@ -702,6 +706,18 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             }
 
             cachedMd5s[key] = md5Cache[key].hash;
+          });
+        }),
+
+        moduleResolveCacheSerializer.read()
+        .then(function(_moduleResolveCache) {
+          moduleResolveCache = _moduleResolveCache;
+        })
+        .then(function() {
+          Object.keys(moduleResolveCache).forEach(function(key) {
+            if (typeof moduleResolveCache[key] === 'string') {
+              moduleResolveCache[key] = JSON.parse(moduleResolveCache[key]);
+            }
           });
         }),
       ])
@@ -777,7 +793,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       var hardContextFactory = new HardContextModuleFactory({
         compilation: compilation,
         factory: contextFactory,
-        resolveCache: resolveCache,
+        resolveCache: moduleResolveCache,
         moduleCache: moduleCache,
         fileTimestamps: fileTimestamps,
         fileMd5s: fileMd5s,
@@ -868,8 +884,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             !cacheDependency.contextDependency &&
             typeof cacheDependency.request !== 'undefined'
           ) {
-            var resolveId = cacheDependency._resolveCacheId;
-            var resolveItem = resolveCache[resolveId];
+            var resolveId = cacheDependency._moduleResolveCacheId;
+            var resolveItem = moduleResolveCache[resolveId];
             if (
               resolveItem &&
               // !resolveItem.invalid
@@ -1104,7 +1120,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               return cb(err);
             }
             if (!request.source) {
-              resolveCache[cacheId] = Object.assign({}, request, {
+              moduleResolveCacheChange.push(cacheId);
+              moduleResolveCache[cacheId] = Object.assign({}, request, {
                 parser: null,
                 parserOptions: request.parser[NS + '/parser-options'],
                 dependencies: null,
@@ -1115,7 +1132,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         };
 
         var fromCache = function() {
-          var result = Object.assign({}, resolveCache[cacheId]);
+          var result = Object.assign({}, moduleResolveCache[cacheId]);
           result.dependencies = request.dependencies;
           result.parser = compilation.compiler.parser;
           if (!result.parser || !result.parser.parse) {
@@ -1124,8 +1141,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           return cb(null, result);
         };
 
-        if (resolveCache[cacheId]) {
-          var resource = resolveCache[cacheId].resource.split('?')[0];
+        if (moduleResolveCache[cacheId]) {
+          var resource = moduleResolveCache[cacheId].resource.split('?')[0];
           if (fileTimestamps[resource]) {
             return fromCache();
           }
@@ -1296,6 +1313,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     var dataOps = [];
     var md5Ops = [];
     var assetOps = [];
+    var moduleResolveOps = [];
 
     var buildingMd5s = {};
 
@@ -1394,6 +1412,24 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       });
 
       buildMd5Ops(dataCache.contextDependencies);
+
+      moduleResolveCacheChange
+      .reduce(function(carry, value) {
+        if (carry.indexOf(value) === -1) {
+          carry.push(value);
+        }
+        return carry;
+      }, [])
+      .forEach(function(key) {
+        moduleResolveOps.push({
+          key: key,
+          value: moduleResolveCache[key] ?
+            JSON.stringify(moduleResolveCache[key]) :
+            null,
+        });
+      });
+
+      moduleResolveCacheChange = [];
     }
 
     // moduleCache.fileDependencies = compilation.fileDependencies;
@@ -1598,7 +1634,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     Promise.all([
       fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
       fsWriteFile(path.join(cacheDirPath, 'version'), hardSourceVersion, 'utf8'),
-      fsWriteFile(resolveCachePath, JSON.stringify(resolveCache), 'utf8'),
+      moduleResolveCacheSerializer.write(moduleResolveOps),
       assetCacheSerializer.write(assetOps),
       moduleCacheSerializer.write(moduleOps),
       dataCacheSerializer.write(dataOps),
