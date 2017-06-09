@@ -1298,6 +1298,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     function serializeError(error, parent) {
       var serialized = {
         message: error.message,
+        details: error.details,
       };
       if (error.origin) {
         serialized.origin = serializeDependencies([error.origin], parent, compilation)[0];
