@@ -73,9 +73,6 @@ require('./lib/dependencies').HardHarmonyImportSpecifierDependency;
 var HardHarmonyExportImportedSpecifierDependency = require('./lib/dependencies').HardHarmonyExportImportedSpecifierDependency;
 var HardHarmonyCompatibilityDependency = require('./lib/dependencies').HardHarmonyCompatibilityDependency;
 
-var FileSerializer = require('./lib/cache-serializers').FileSerializer;
-var LevelDbSerializer = require('./lib/cache-serializers').LevelDbSerializer;
-
 var HardContextModule = require('./lib/hard-context-module');
 var HardContextModuleFactory = require('./lib/hard-context-module-factory');
 var HardModule = require('./lib/hard-module');
@@ -85,6 +82,8 @@ var LoggerFactory = require('./lib/logger-factory');
 var makeDevtoolOptions = require('./lib/devtool-options');
 var cachePrefix = require('./lib/util').cachePrefix;
 var deserializeDependencies = require('./lib/deserialize-dependencies');
+
+var CacheSerializerFactory = require('./lib/cache-serializer-factory');
 
 var hardSourceVersion = require('./package.json').version;
 
@@ -442,14 +441,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var contextMd5s = {};
   var contextTimestamps = {};
 
-  var assetCacheSerializer = this.assetCacheSerializer =
-    new FileSerializer({cacheDirPath: path.join(cacheDirPath, 'assets')});
-  var moduleCacheSerializer = this.moduleCacheSerializer =
-    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'modules')});
-  var dataCacheSerializer = this.dataCacheSerializer =
-    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'data')});
-  var md5CacheSerializer = this.md5CacheSerializer =
-    new LevelDbSerializer({cacheDirPath: path.join(cacheDirPath, 'md5')});
+  var cacheSerializerFactory = new CacheSerializerFactory(compiler);
+
+  var assetCacheSerializer;
+  var moduleCacheSerializer;
+  var dataCacheSerializer;
+  var md5CacheSerializer;
+
   var _this = this;
 
   var stat, readdir, mtime, md5, contextStamps;
@@ -589,6 +587,34 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
     }
     var start = Date.now();
+
+    if (!assetCacheSerializer) {
+      try {
+        assetCacheSerializer = cacheSerializerFactory.create({
+          name: 'assets',
+          type: 'file',
+          cacheDirPath: cacheDirPath,
+        });
+        moduleCacheSerializer = cacheSerializerFactory.create({
+          name: 'module',
+          type: 'data',
+          cacheDirPath: cacheDirPath,
+        });
+        dataCacheSerializer = cacheSerializerFactory.create({
+          name: 'data',
+          type: 'data',
+          cacheDirPath: cacheDirPath,
+        });
+        md5CacheSerializer = cacheSerializerFactory.create({
+          name: 'md5',
+          type: 'data',
+          cacheDirPath: cacheDirPath,
+        });
+      }
+      catch (err) {
+        return cb(err);
+      }
+    }
 
     Promise.all([
       fsReadFile(path.join(cacheDirPath, 'stamp'), 'utf8')
