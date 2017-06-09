@@ -84,6 +84,8 @@ var cachePrefix = require('./lib/util').cachePrefix;
 var deserializeDependencies = require('./lib/deserialize-dependencies');
 
 var CacheSerializerFactory = require('./lib/cache-serializer-factory');
+var HardSourceJsonSerializerPlugin =
+  require('./lib/hard-source-json-serializer-plugin');
 
 var hardSourceVersion = require('./package.json').version;
 
@@ -268,7 +270,6 @@ HardSourceWebpackPlugin.prototype.getCachePath = function(suffix) {
   return this.getPath(this.options.cacheDirectory, suffix);
 };
 
-module.exports = HardSourceWebpackPlugin;
 HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var options = this.options;
   var active = true;
@@ -1621,3 +1622,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     );
   });
 };
+
+module.exports = HardSourceWebpackPlugin;
+
+HardSourceWebpackPlugin.HardSourceJsonSerializerPlugin = HardSourceJsonSerializerPlugin;

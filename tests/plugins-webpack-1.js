@@ -30,11 +30,13 @@ describe('plugin webpack use', function() {
   itCompilesTwice('plugin-ignore-context-members');
   itCompilesTwice('plugin-child-compiler-resolutions');
   itCompilesTwice('plugin-logger-child-no-memory');
+  itCompilesTwice('plugin-serializer-json-base-1dep');
 
   itCompilesHardModules('plugin-dll', ['./fib.js']);
   itCompilesHardModules('plugin-dll-reference', ['./index.js']);
   itCompilesHardModules('plugin-dll-reference-scope', ['./index.js']);
   itCompilesHardModules('plugin-html-lodash', [/lodash\/lodash\.js$/, /\!\.\/index\.html$/]);
+  itCompilesHardModules('plugin-serializer-json-base-1dep', ['./fib.js', './index.js']);
 
 });
 
