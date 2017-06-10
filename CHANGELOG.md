@@ -1,3 +1,56 @@
+# 0.4.0
+
+- Low level resolution cache
+- Missing resolution attempt check
+- Expose a 'hard-source-cache-factory' plugin hook on the compiler
+- Cache module resolutions in a cache serializer
+- Expose a 'hard-source-log' plugin hook on the compiler
+- Default options
+
+## Release Features
+
+### Low level resolution cache
+
+Prior versions of hard-source cache resolution values the NormalModuleFactory creates and a similar data for the ContextModuleFactory. These higher level resolutions provide a lot of hard-sources performance gain by reusing those values when resolving modules as long as an assumption holds. The file or context the resolution points at must still exist. The low level resolution cache takes this further caching the work resolving files, loaders, and contexts. These cached resolutions can be reused between multiple module resolutions as they may share files or loaders. Two modules with the same file but different loaders go through separate NormalModuleFactory resolutions meaning they hit the lower level resolvers. This new cache provides some performance gains in regards to the reused values.
+
+### Missing resolution attempt check
+
+Highly related to the low level resolution cache is the missing resolution attempt check that can be made. When the low level resolvers try to find the resource for a request it can optionally build an array of missing paths that it tried. Caching that information hard-source now provides a stronger assurance that what should have been built is. Seeing any of those missing attempts now existing means the old resolution is invalid and any related NormalModuleFactory resolution is also invalid. During the new build, hard-source will let the normal resolutions occur and store the new information.
+
+### `'hard-source-cache-factory'` plugin
+
+Leading up to changing the default cache serializer (#53), hard-source has its first plugin hook to make it more flexible. The `'hard-source-cache-factory'` plugin hook on the webpack compiler lets a users determine how the cache is write to and read from disk. Documentation on this is in the `lib/cache-serializer-factory.js` module.
+
+With this hook a working additional serializer and plugin is available to replace the leveldb default serializer with a json serializer. This serializer is primarily available for debugging the contents of the cache as they're directly human readable.
+
+To use this plugin you can add it to your config
+
+```js
+plugins: [
+  // other plugins
+  new HardSourceWebpackPlugin.HardSourceJsonSerializerPlugin(),
+```
+
+As a step to #53 a patch version with a replacement to the leveldb will come out during `v0.4.x` that will become the default in `v0.5.0`.
+
+### Cache module resolutions in a cache serializer
+
+Up until this version the NormalModuleFactory resolutions were using some old code to write and read its cache. That has been replaced with a cache serializer like the other caches. This has little effect on reading but provides a small performance gain when writing changes to the cache from the build. The cache serializers are able to write out changes instead of needing to write out the whole cache. This may a small measurable impact on large project where they were writing out the whole module resolution cache.
+
+### `'hard-source-log'` plugin
+
+A second plugin hook in this release, `'hard-source-log'` presents a way to control the logging output from hard-source. Two obvious uses is a plugin to silence its output or another to write the output to disk. Documentation on this plugin hook can be found in `lib/logger-factory.js`.
+
+With a plugin approach to logging, more logging of lower levels (debug, log) will be added that a plugin will optionally enable for writting out. This additional logging will cover when and why modules are invalidated, timing and other information to help debug hard-source.
+
+### Default options
+
+Past versions required at least the `cacheDirectory` and `recordsPath` options, along with recommending the `configHash` option. This release sets defaults for these making hard-source easier to use.
+
+- `cacheDirectory` defaults to `'node_modules/.cache/hard-source/[confighash]'`
+- `recordsPath` defaults to `'node_modules/.cache/hard-source/[confighash]/records.json'`
+- `configHash` defaults to `require('node-object-hash')({sort: false}).hash`
+
 # 0.3.0
 
 - Internal env-hash implementation relying on file hashes
