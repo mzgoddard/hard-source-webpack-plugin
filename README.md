@@ -2,6 +2,26 @@
 
 `HardSourceWebpackPlugin` is a plugin for webpack to provide an intermediate caching step for modules. In order to see results, you'll need to run webpack twice with this plugin: the first build will take the normal amount of time. The second build will be signficantly faster.
 
+Install with `npm install --save hard-source-webpack-plugin` or `yarn`. And include the plugin in your webpack's plugins configuration.
+
+```js
+plugins: [
+  new HardSourceWebpackPlugin()
+]
+```
+
+Before version `0.4` a few required configuration values were needed for the plugin. Since those options are the most useful ones here is an example.
+
+```js
+new HardSourceWebpackPlugin({
+  cacheDirectory: 'node_modules/.cache/hard-source/[confighash]',
+  recordsPath: 'node_modules/.cache/hard-source/[confighash]/records.json',
+  configHash: require('node-object-hash')({sort: false}).hash,
+})
+```
+
+The values in this example are the defaults hard source uses. If you want to store your cache somewhere else you can freely set these to modify that. `'node-object-hash'` is the recommended library to build a hash of the configuration that hard-source can use in the `cacheDirectory` if specified. It's now included as a dependency for the defaults. If you want to customize your `configHash` it's recommended to have your package depend on `node-object-hash` and not use hard-source's version.
+
 _Please note:_ this plugin cannot track all possible changes that may invalidate a member of the cache. If you make a change outside of your project's source code like updating a depending loader or webpack plugin or other step to your build process, you may need to delete the existing hard source cache. HardSourceWebpackPlugin can detect when the original content for a module has changed thanks to webpack's normal facilities used in watch-mode rebuilds. HardSourceWebpackPlugin can not guarantee it will detect when loaders and plugins that modify your code have changed. You may need to delete your current HardSource cache when you modify your build process by adding, removing, updating loaders and plugins or changing any part of your build configuration.
 
 HardSourceWebpackPlugin makes the assumption that any cacheable module is deterministic between builds, or that it will not change. Loaders already help determine this by setting a cacheable flag when they operate on a module. After the loaders execute webpack's mangling of module loading statements is the only common thing left to make deterministic. webpack does this through ID records. Writing these records to the file system must be turned on. In use in conjuction with `webpack-dev-server`, this plugin will ensure the records are written to the file system, as `webpack-dev-server` writes them to memory.
@@ -18,12 +38,11 @@ module.exports = {
   plugins: [
     new HardSourceWebpackPlugin({
       // Either an absolute path or relative to output.path.
-      cacheDirectory: 'path/to/cache/[confighash]',
+      cacheDirectory: 'node_modules/.cache/hard-source/[confighash]',
       // Either an absolute path or relative to output.path. Sets webpack's
       // recordsPath if not already set.
-      recordsPath: 'path/to/cache/[confighash]/records.json',
-      // Optional field. Either a string value or function that returns a
-      // string value.
+      recordsPath: 'node_modules/.cache/hard-source/[confighash]/records.json',
+      // Either a string value or function that returns a string value.
       configHash: function(webpackConfig) {
         // Build a string value used by HardSource to determine which cache to
         // use if [confighash] is in cacheDirectory or if the cache should be
@@ -32,8 +51,8 @@ module.exports = {
         // node-object-hash on npm can be used to build this.
         return require('node-object-hash')({sort: false}).hash(webpackConfig);
       },
-      // Optional field. This field determines when to throw away the whole
-      // cache if for example npm modules were updated.
+      // This field determines when to throw away the whole cache if for
+      // example npm modules were updated.
       environmentHash: {
         root: process.cwd(),
         directories: ['node_modules'],
@@ -73,7 +92,7 @@ Set webpack's `recordsPath` option if not already set with a value constructed l
 
 ### `configHash`
 
-An optional field that takes a string or function. The function is called and passed the webpack config that the plugin first sees. It's called at this time so any changes to your config between reading it from disk and creating the compiler can be considered. Often this will help HardSource distinguish between webpack configs and if the previous cache can be used in cases like combining webpack config partials or turning on Hot Module Replacement through an option to the webpack's dev server.
+A field that takes a string or function. The function is called and passed the webpack config that the plugin first sees. It's called at this time so any changes to your config between reading it from disk and creating the compiler can be considered. Often this will help HardSource distinguish between webpack configs and if the previous cache can be used in cases like combining webpack config partials or turning on Hot Module Replacement through an option to the webpack's dev server.
 
 #### Using configHash in the cacheDirectory
 
