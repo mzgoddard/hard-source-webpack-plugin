@@ -37,6 +37,7 @@ describe('basic webpack use - compiles hard modules', function() {
   itCompilesHardModules('base-code-split', ['./fib.js', './index.js']);
   itCompilesHardModules('base-query-request', ['./fib.js?argument']);
   itCompilesHardModules('base-external', ['./index.js']);
+  itCompilesHardModules('base-options-default', ['./fib.js', './index.js']);
 
 });
 

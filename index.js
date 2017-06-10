@@ -7,6 +7,7 @@ var lodash = require('lodash');
 var mkdirp = require('mkdirp');
 
 var Promise = require('bluebird');
+var nodeObjectHash = require('node-object-hash');
 
 var envHash = require('./lib/env-hash');
 // try {
@@ -271,9 +272,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var options = this.options;
   var active = true;
   if (!options.cacheDirectory) {
-    console.error('HardSourceWebpackPlugin requires a cacheDirectory setting.');
-    active = false;
-    return;
+    options.cacheDirectory = 'node_modules/.cache/hard-source/[confighash]';
   }
 
   this.compilerOutputOptions = compiler.options.output;
@@ -285,6 +284,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       this.configHash = options.configHash(compiler.options);
     }
   }
+  else {
+    this.configHash = nodeObjectHash({sort: false}).hash;
+  }
   var configHashInDirectory =
     options.cacheDirectory.search(/\[confighash\]/) !== -1;
   if (configHashInDirectory && !this.configHash) {
@@ -295,7 +297,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var environmentHasher = null;
   if (typeof options.environmentPaths !== 'undefined') {
-    // TODO 0.3.0 Add deprecation message.
+    console.error('HardSourceWebpackPlugin: environmentPaths is deprecated, please use environmentHash. environmentHash accepts the same options.');
     if (options.environmentPaths === false) {
       environmentHasher = function() {
         return Promise.resolve('');
@@ -350,6 +352,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         this.getPath(options.recordsInputPath || options.recordsPath);
     }
   }
+  else if (
+    !compiler.options.recordsInputPath &&
+    !compiler.options.recordsPath
+  ) {
+    compiler.options.recordsInputPath =
+      this.getPath('node_modules/.cache/hard-source/[confighash]/records.json');
+  }
   if (options.recordsOutputPath || options.recordsPath) {
     if (compiler.options.recordsOutputPath || compiler.options.recordsPath) {
       console.error('HardSourceWebpackPlugin will not set recordsOutputPath when it is already set. Using current value:', compiler.options.recordsOutputPath || compiler.options.recordsPath);
@@ -358,6 +367,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       compiler.options.recordsOutputPath =
         this.getPath(options.recordsOutputPath || options.recordsPath);
     }
+  }
+  else if (
+    !compiler.options.recordsOutputPath &&
+    !compiler.options.recordsPath
+  ) {
+    compiler.options.recordsOutputPath =
+      this.getPath('node_modules/.cache/hard-source/[confighash]/records.json');
   }
 
   var cacheDirPath = this.getCachePath();
