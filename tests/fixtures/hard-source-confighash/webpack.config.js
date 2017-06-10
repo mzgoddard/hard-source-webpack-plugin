@@ -16,7 +16,7 @@ module.exports = {
       configHash: function(config) {
         return fs.readFileSync(__dirname + '/config-hash', 'utf8');
       },
-      environmentPaths: {
+      environmentHash: {
         root: __dirname + '/../../..',
       },
     }),
