@@ -44,6 +44,7 @@ exports.compile = function(fixturePath, options) {
   .then(function(stats) {
     return Promise.all([
       readdir(compiler.options.output.path)
+      .catch(function() {return [];})
       .map(function(name) {
         var fullname = path.join(compiler.options.output.path, name);
         return stat(fullname)
@@ -55,6 +56,7 @@ exports.compile = function(fixturePath, options) {
         });
       }),
       fsReaddir(compiler.options.output.path)
+      .catch(function() {return [];})
       .map(function(name) {
         var fullname = path.join(compiler.options.output.path, name);
         return fsStat(fullname)
@@ -154,6 +156,7 @@ exports.readFiles = function(outputPath) {
   var fsStat = Promise.promisify(fs.stat, {context: fs});
 
   return fsReaddir(outputPath)
+  .catch(function() {return [];})
   .map(function(name) {
     var fullname = path.join(outputPath, name);
     return fsStat(fullname)

@@ -13,7 +13,7 @@ module.exports = {
   plugins: [
     new HardSourceWebpackPlugin({
       cacheDirectory: 'cache',
-      environmentPaths: {
+      environmentHash: {
         root: __dirname + '/../../..',
       },
     }),

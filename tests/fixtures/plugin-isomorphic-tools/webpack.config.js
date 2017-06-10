@@ -27,7 +27,7 @@ module.exports = {
     webpackIsomorphicToolsPlugin.development(),
     new HardSourceWebpackPlugin({
       cacheDirectory: 'cache',
-      environmentPaths: {
+      environmentHash: {
         root: __dirname + '/../../..',
       },
     }),

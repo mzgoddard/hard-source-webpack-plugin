@@ -43,7 +43,7 @@ module.exports = {
     new UglifyJsPlugin(),
     new HardSourceWebpackPlugin({
       cacheDirectory: 'cache',
-      environmentPaths: {
+      environmentHash: {
         root: __dirname + '/../../..',
       },
     }),

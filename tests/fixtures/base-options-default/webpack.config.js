@@ -1,5 +1,3 @@
-var HtmlPlugin = require('html-webpack-plugin');
-
 var HardSourceWebpackPlugin = require('../../..');
 
 module.exports = {
@@ -9,15 +7,8 @@ module.exports = {
     path: __dirname + '/tmp',
     filename: 'main.js',
   },
-  recordsPath: __dirname + '/tmp/cache/records.json',
   plugins: [
-    new HtmlPlugin({
-      template: 'index.html',
-      filename: 'index.html',
-      cache: false,
-    }),
     new HardSourceWebpackPlugin({
-      cacheDirectory: 'cache',
       environmentHash: {
         root: __dirname + '/../../..',
       },
