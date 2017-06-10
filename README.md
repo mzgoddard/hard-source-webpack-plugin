@@ -30,7 +30,7 @@ module.exports = {
         // replaced if [confighash] does not appear in cacheDirectory.
         //
         // node-object-hash on npm can be used to build this.
-        return require('node-object-hash')().hash(webpackConfig);
+        return require('node-object-hash')({sort: false}).hash(webpackConfig);
       },
       // Optional field. This field determines when to throw away the whole
       // cache if for example npm modules were updated.
