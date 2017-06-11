@@ -7,6 +7,10 @@
 - Expose a 'hard-source-log' plugin hook on the compiler
 - Default options
 
+## 0.4.X Patches
+
+- `0.4.1` Add Appveyor CI
+
 ## Release Features
 
 ### Low level resolution cache
