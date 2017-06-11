@@ -249,7 +249,7 @@ function serializeHashContent(module) {
 // };
 
 function HardSourceWebpackPlugin(options) {
-  this.options = options;
+  this.options = options || {};
 }
 
 HardSourceWebpackPlugin.prototype.getPath = function(dirName, suffix) {
@@ -280,7 +280,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   logger.lock();
 
   if (!options.cacheDirectory) {
-    options.cacheDirectory = 'node_modules/.cache/hard-source/[confighash]';
+    options.cacheDirectory = path.resolve(
+      process.cwd(),
+      compiler.options.context,
+      'node_modules/.cache/hard-source/[confighash]'
+    );
   }
 
   this.compilerOutputOptions = compiler.options.output;
@@ -395,8 +399,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     !compiler.options.recordsInputPath &&
     !compiler.options.recordsPath
   ) {
-    compiler.options.recordsInputPath =
-      this.getPath('node_modules/.cache/hard-source/[confighash]/records.json');
+    options.recordsInputPath = path.join(options.cacheDirectory, 'records.json');
+    compiler.options.recordsInputPath = this.getPath(options.recordsInputPath);
   }
   if (options.recordsOutputPath || options.recordsPath) {
     if (compiler.options.recordsOutputPath || compiler.options.recordsPath) {
@@ -421,8 +425,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     !compiler.options.recordsOutputPath &&
     !compiler.options.recordsPath
   ) {
+    options.recordsOutputPath = path.join(options.cacheDirectory, 'records.json');
     compiler.options.recordsOutputPath =
-      this.getPath('node_modules/.cache/hard-source/[confighash]/records.json');
+      this.getPath(options.recordsOutputPath);
   }
 
   var cacheDirPath = this.getCachePath();
