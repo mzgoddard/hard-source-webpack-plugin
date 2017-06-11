@@ -9,6 +9,7 @@
 
 ## 0.4.X Patches
 
+- `0.4.2` Tune default options
 - `0.4.1` Add Appveyor CI
 
 ## Release Features
