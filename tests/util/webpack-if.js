@@ -8,7 +8,7 @@ exports.webpack1 = function(obj, elseObj) {
 };
 
 exports.webpack2 = function(obj, elseObj) {
-  if (require('webpack/package.json').version[0] === '2') {
+  if (require('webpack/package.json').version[0] !== '1') {
     return obj;
   }
   else {

@@ -7,7 +7,7 @@ var ifWebpack1 = function(obj) {
 };
 
 var ifWebpack2 = function(obj) {
-  if (require('webpack/package.json').version[0] === '2') {
+  if (require('webpack/package.json').version[0] !== '1') {
     return obj;
   }
 };

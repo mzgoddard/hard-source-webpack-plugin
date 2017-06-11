@@ -25,19 +25,19 @@
   "license": "ISC",
   "devDependencies": {
     "chai": "^3.5.0",
-    "css-loader": "^0.26.1",
-    "extract-text-webpack-plugin": "^1.0.1",
-    "file-loader": "^0.10.1",
+    "css-loader": "^0.27.0",
+    "extract-text-webpack-plugin": "^2.0.0 || ^1.0.1",
+    "file-loader": "^0.11.0 || ^0.10.1",
     "html-webpack-plugin": "^2.22.0",
     "memory-fs": "^0.4.1",
     "mocha": "^3.0.2",
     "rimraf": "^2.5.4",
-    "style-loader": "^0.13.1",
-    "webpack": "^1.13.1",
+    "style-loader": "^0.14.0",
+    "webpack": "^3.0.0 || ^3.0.0-rc.0 || ^2.1.0 || ^1.13.1",
     "webpack-isomorphic-tools": "^3.0.0"
   },
   "peerDependencies": {
-    "webpack": ">=1.13.1 || ^2.1.0-beta || ^2.2.0-rc || ^2.2.0"
+    "webpack": "*"
   },
   "dependencies": {
     "bluebird": "^3.0.0",
@@ -48,6 +48,6 @@
     "source-list-map": "^0.1.6",
     "source-map": "^0.5.6",
     "webpack-core": "~0.6.0",
-    "webpack-sources": "^0.1.2"
+    "webpack-sources": "^1.0.1"
   }
 }

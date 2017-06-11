@@ -1,20 +1,17 @@
 language: node_js
-node_js:
-  - "7"
-  - "4"
 
-env:
-  matrix:
-    - WEBPACK_VERSION=1 EXTRACT_TEXT_VERSION=1
-    - WEBPACK_VERSION=2 EXTRACT_TEXT_VERSION=2
 matrix:
   fast_finish: true
-  allow_failures:
-    - node_js: "4"
-      env: WEBPACK_VERSION=2 EXTRACT_TEXT_VERSION=2
+  include:
+    - node_js: 7
+      env: WEBPACK_VERSION=1 EXTRACT_TEXT_VERSION=1 BABEL_LOADER=6 FILE_LOADER=0.10
+    - node_js: 7
+      env: WEBPACK_VERSION=2 EXTRACT_TEXT_VERSION=2 BABEL_LOADER=7 FILE_LOADER=0.11
+    - node_js: 4
+      env: WEBPACK_VERSION=1 EXTRACT_TEXT_VERSION=1 BABEL_LOADER=6 FILE_LOADER=0.10
+
 before_script:
-  - npm rm webpack extract-text-webpack-plugin
-  - npm install webpack@$WEBPACK_VERSION extract-text-webpack-plugin@$EXTRACT_TEXT_VERSION
+  - npm install webpack@$WEBPACK_VERSION extract-text-webpack-plugin@$EXTRACT_TEXT_VERSION file-loader@$FILE_LOADER
 cache:
   directories:
     - node_modules
