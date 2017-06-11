@@ -1,0 +1,31 @@
+# Test against the latest version of this Node.js version
+environment:
+  matrix:
+    - nodejs_version: "4"
+      webpack_version: "1"
+      extract_text_version: "1"
+    - nodejs_version: "6"
+      webpack_version: "2"
+      extract_text_version: "2"
+    - nodejs_version: "7"
+      webpack_version: "2"
+      extract_text_version: "2"
+
+# Install scripts. (runs after repo cloning)
+install:
+  # Get the latest stable version of Node.js or io.js
+  - ps: Install-Product node $env:nodejs_version
+  # install modules
+  - npm install
+  - npm install webpack@%webpack_version% extract-text-webpack-plugin@%extract_text_version%
+
+# Post-install test scripts.
+test_script:
+  # Output useful info for debugging.
+  - node --version
+  - npm --version
+  # run tests
+  - npm test
+
+# Don't actually build.
+build: off
