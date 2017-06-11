@@ -5,5 +5,5 @@ module.exports = function(source) {};
 
 module.exports.pitch = function(remainingRequest) {
   this.cacheable && this.cacheable();
-  return '// ' + remainingRequest;
+  return '// ' + remainingRequest.replace(/\\/g, '/');
 };
