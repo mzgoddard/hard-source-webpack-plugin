@@ -7,14 +7,19 @@ module.exports = {
     path: __dirname + '/tmp',
     filename: 'main.js',
   },
+  cache: true,
   recordsPath: __dirname + '/tmp/cache/records.json',
+  module: {
+    loaders: [
+      {
+        test: /\.png$/,
+        loader: 'file-loader',
+      },
+    ],
+  },
   plugins: [
     new HardSourceWebpackPlugin({
       cacheDirectory: 'cache',
-      environmentHash: {
-        root: __dirname + '/../../..',
-      },
     }),
-    new HardSourceWebpackPlugin.HardSourceJsonSerializerPlugin(),
   ],
 };
