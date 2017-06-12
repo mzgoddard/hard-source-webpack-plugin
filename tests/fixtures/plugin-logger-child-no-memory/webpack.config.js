@@ -22,7 +22,7 @@ module.exports = {
     new HardSourceWebpackPlugin({
       cacheDirectory: __dirname + '/tmp/cache',
       recordsPath: __dirname + '/tmp/cache/records.json',
-      environmentPaths: {
+      environmentHash: {
         root: __dirname + '/../../..',
       },
     }),
