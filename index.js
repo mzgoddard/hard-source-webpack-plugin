@@ -1841,6 +1841,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         if (assets.length) {
           assetOps = assetOps.concat(assets);
+          assets.forEach(function(op) {
+            assetCache[op.key] = op.value;
+          });
         }
       }
 
