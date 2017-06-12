@@ -324,8 +324,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       {
         id: 'environment-paths-deprecated'
       },
-      'HardSourceWebpackPlugin: environmentPaths is deprecated, please use ' +
-      'environmentHash. environmentHash accepts the same options.'
+      'environmentPaths is deprecated, please use environmentHash. ' +
+      'environmentHash accepts the same options.'
     );
     if (options.environmentPaths === false) {
       environmentHasher = function() {
@@ -346,9 +346,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   if (typeof options.environmentHash !== 'undefined') {
     if (environmentHasher) {
       loggerCore.warn(
-        {},
-        'HardSourceWebpackPlugin: environmentHash is a new option replacing ' +
-        'environmentPaths. Please use only environmentHash.'
+        {
+          id: 'environment-paths-and-hash-defined'
+        },
+        'environmentHash is a new option replacing environmentPaths. Please ' +
+        'use only environmentHash.'
       );
     }
     if (options.environmentHash === false) {
@@ -380,13 +382,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     if (compiler.options.recordsInputPath || compiler.options.recordsPath) {
       loggerCore.error(
         {
+          id: 'records-input-path-set-in-root-config',
           webpackRecordsInputPath: compiler.options.recordsInputPath,
           webpackRecordsPath: compiler.options.recordsPath,
           hardSourceRecordsInputPath: options.recordsInputPath,
           hardSourceRecordsPath: options.recordsPath,
         },
-        'HardSourceWebpackPlugin will not set recordsInputPath when it is ' +
-        'already set. Using current value: ' +
+        'Can not set recordsInputPath when it is already set. Using current ' +
+        'value: ' +
         (compiler.options.recordsInputPath || compiler.options.recordsPath)
       );
     }
@@ -406,13 +409,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     if (compiler.options.recordsOutputPath || compiler.options.recordsPath) {
       loggerCore.error(
         {
+          id: 'records-output-path-set-in-root-config',
           webpackRecordsOutputPath: compiler.options.recordsInputPath,
           webpackRecordsPath: compiler.options.recordsPath,
           hardSourceRecordsOutputPath: options.recordsOutputPath,
           hardSourceRecordsPath: options.recordsPath,
         },
-        'HardSourceWebpackPlugin will not set recordsOutputPath when it is ' +
-        'already set. Using current value: ' +
+        'Can not set recordsOutputPath when it is already set. Using current ' +
+        'value: ' +
         (compiler.options.recordsOutputPath || compiler.options.recordsPath)
       );
     }
@@ -470,8 +474,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       !compiler.recordsInputPath || !compiler.recordsOutputPath
     ) {
       loggerCore.error(
-        {},
-        'HardSourceWebpackPlugin requires recordsPath to be set.'
+        {
+          id: 'no-records-path'
+        },
+        'recordsPath must be set.'
       );
       active = false;
     }
