@@ -31,8 +31,15 @@ function callModule(fn, filename) {
 
 exports.compile = function(fixturePath, options) {
   var configPath = path.join(__dirname, '..', 'fixtures', fixturePath, 'webpack.config.js');
-  var compiler = webpack(callModule(vm.runInThisContext(wrapModule(fs.readFileSync(configPath, 'utf8')), {filename: configPath}), configPath));
+  var compiler = (options || {}).compiler ||
+    webpack(callModule(vm.runInThisContext(
+      wrapModule(fs.readFileSync(configPath, 'utf8')),
+      {filename: configPath}
+    ), configPath));
+
+  compiler.inputFileSystem.purge();
   var outputfs = compiler.outputFileSystem = new MemoryFS();
+
   var readdir = Promise.promisify(outputfs.readdir, {context: outputfs});
   var readFile = Promise.promisify(outputfs.readFile, {context: outputfs});
   var stat = Promise.promisify(outputfs.stat, {context: outputfs});
@@ -79,6 +86,7 @@ exports.compile = function(fixturePath, options) {
       return carry;
     }, {})
     .then(function(carry) {
+      // console.log(stats.toJson());
       if (options && options.exportStats) {
         var statsJson = stats.toJson({
           errors: true,
@@ -94,6 +102,7 @@ exports.compile = function(fixturePath, options) {
         return {
           out: carry,
           compilation: stats.compilation,
+          compiler: stats.compilation.compiler,
         };
       }
       else {
@@ -176,21 +185,23 @@ exports.readFiles = function(outputPath) {
   }, {});
 };
 
-exports.itCompiles = function(name, fixturePath, fnA, fnB, expectHandle) {
-  if (!fnA) {
+exports.itCompiles = function(name, fixturePath, fns, expectHandle) {
+  if (!fns) {
     expectHandle = fixturePath;
     fixturePath = name;
-    fnB = function() {};
-    fnA = function() {};
+    fns = [function() {}, function() {}];
   }
-  if (!fnB) {
-    expectHandle = fnA;
-    fnB = function() {};
-    fnA = function() {};
+  else if (!expectHandle) {
+    expectHandle = fns;
+    fns = [function() {}, function() {}];
   }
-  if (!expectHandle) {
-    expectHandle = fnB;
-    fnB = fnA;
+  else if (arguments.length === 4) {
+    expectHandle = arguments[3];
+    fns = fns[arguments[2], arguments[2]];
+  }
+  else if (arguments.length > 4) {
+    fns = [].slice.call(arguments, 2, arguments.length - 1);
+    expectHandle = arguments[arguments.length - 1];
   }
 
   before(function() {
@@ -200,35 +211,39 @@ exports.itCompiles = function(name, fixturePath, fnA, fnB, expectHandle) {
   it(name, function() {
     this.timeout(20000);
     this.slow(4000);
-    var run1;
-    var setup1, setup2;
+    var runs = [];
+    var setups = [];
+    var runIndex = 0;
+    function doRun() {
+      return Promise.resolve()
+      .then(function() {})
+      .then(function() {
+        return fns[runIndex](runs[runIndex - 1]);
+      })
+      .then(function(_setup) {
+        setups[runIndex] = _setup;
+        return exports.compile(fixturePath, _setup);
+      })
+      .then(function(run) {
+        runs[runIndex] = run;
+        runIndex++;
+        if (runIndex < fns.length) {
+          return doRun();
+        }
+      });
+    }
     return Promise.resolve()
     .then(function() {
-      return fnA();
-    })
-    .then(function(_setup1) {
-      setup1 = _setup1;
-      run1 = exports.compile(fixturePath, setup1);
-      return run1;
-    })
-    // Delay enough time so that file timestamps are different.
-    .then(function() {
-      // return new Promise(function(resolve) {setTimeout(resolve, 1000);});
+      return doRun();
     })
     .then(function() {
-      return fnB();
-    })
-    .then(function(_setup2) {
-      setup2 = _setup2;
-      var run2 = exports.compile(fixturePath, setup2);
-      return Promise.all([run1, run2]);
-    })
-    .then(function(runs) {
       expectHandle({
         run1: runs[0],
         run2: runs[1],
-        setup1: setup1,
-        setup2: setup2,
+        runs: runs,
+        setup1: setups[0],
+        setup2: setups[1],
+        setups: setups,
       });
     });
   });
