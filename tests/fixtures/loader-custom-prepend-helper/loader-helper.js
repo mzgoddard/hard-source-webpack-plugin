@@ -1,3 +1,3 @@
-function helper(b) {
-  console.log(b);
+function helper(a) {
+  console.log(a);
 }
