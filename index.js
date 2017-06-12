@@ -288,6 +288,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   }
 
   this.compilerOutputOptions = compiler.options.output;
+  if (!options.configHash) {
+    options.configHash = nodeObjectHash({sort: false}).hash;
+  }
   if (options.configHash) {
     if (typeof options.configHash === 'string') {
       this.configHash = options.configHash;
@@ -295,9 +298,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     else if (typeof options.configHash === 'function') {
       this.configHash = options.configHash(compiler.options);
     }
-  }
-  else {
-    this.configHash = nodeObjectHash({sort: false}).hash;
   }
   var configHashInDirectory =
     options.cacheDirectory.search(/\[confighash\]/) !== -1;
