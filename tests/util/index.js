@@ -365,12 +365,16 @@ exports.clean = function(fixturePath) {
   });
 };
 
-exports.describeWP2 = function() {
-  var wpVersion = Number(require('webpack/package.json').version[0]);
-  if (wpVersion > 1) {
-    describe.apply(null, arguments);
-  }
-  else {
-    describe.skip.apply(null, arguments);
-  }
+exports.describeWP = function(version) {
+  return function() {
+    var wpVersion = Number(require('webpack/package.json').version[0]);
+    if (wpVersion >= version) {
+      describe.apply(null, arguments);
+    }
+    else {
+      describe.skip.apply(null, arguments);
+    }
+  };
 };
+
+exports.describeWP2 = exports.describeWP(2);
