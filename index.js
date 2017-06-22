@@ -1089,10 +1089,24 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                   }
                   cacheItem.invalid = true;
                   reject(new Error('dependency has a new identifier'));
+                  loggerCore.info(
+                    {
+                      id: 'invalid-module--must-update-dependency',
+                      moduleIdentifier: cacheItem.identifier,
+                      dependedModuleIdentifier: depModule.identifier()
+                    },
+                    'The cached "' + cacheItem.identifier + '" module is ' +
+                    'invalid. It depends on a module that has resolved to a ' +
+                    'new identifier. Either its loaders changed or the ' +
+                    'resolved file on disk moved.'
+                  );
                 });
               });
               if (!checkedDependencies[dependencyIdentifier]) {
                 checkedDependencies[dependencyIdentifier] = p;
+              }
+              else {
+                return p;
               }
             }
             return checkedDependencies[dependencyIdentifier];
