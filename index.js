@@ -1799,7 +1799,17 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       return serialized;
     }
 
+    var modules = compilation.modules.slice();
+
     compilation.modules.forEach(function(module) {
+      if (module.modules) {
+        module.modules.forEach(function(usedModule) {
+          modules.push(usedModule);
+        });
+      }
+    });
+
+    modules.forEach(function(module) {
       var identifierPrefix = cachePrefix(compilation);
       if (identifierPrefix === null) {
         return;
