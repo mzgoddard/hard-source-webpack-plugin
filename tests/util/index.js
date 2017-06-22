@@ -58,7 +58,7 @@ exports.compile = function(fixturePath, options) {
         return stat(fullname)
         .then(function(stat) {
           if (stat.isFile()) {
-            return readFile(fullname)
+            return readFile(fullname, fullname.endsWith('.js') ? 'utf8' : '')
             .then(function(file) {return [name, file];});
           }
         });
@@ -70,7 +70,7 @@ exports.compile = function(fixturePath, options) {
         return fsStat(fullname)
         .then(function(stat) {
           if (stat.isFile()) {
-            return fsReadFile(fullname)
+            return fsReadFile(fullname, fullname.endsWith('.js') ? 'utf8' : '')
             .then(function(file) {return [name, file];});
           }
         });
