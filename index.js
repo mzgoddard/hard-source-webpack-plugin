@@ -125,11 +125,15 @@ function serializeDependencies(deps, parent, compilation) {
         cacheDep = {
           harmonyImport: true,
           request: dep.request,
+          importedVar: dep.importedVar,
+          range: dep.range,
         };
       }
       else if (dep instanceof HarmonyExportImportedSpecifierDependency) {
         cacheDep = {
           harmonyRequest: dep.importDependency.request,
+          harmonyImportedVar: dep.importDependency.importedVar,
+          harmonyRange: dep.importDependency.range,
           harmonyExportImportedSpecifier: true,
           harmonyId: dep.id,
           harmonyName: dep.name,
@@ -138,6 +142,8 @@ function serializeDependencies(deps, parent, compilation) {
       else if (dep instanceof HarmonyImportSpecifierDependency) {
         cacheDep = {
           harmonyRequest: dep.importDependency.request,
+          harmonyImportedVar: dep.importDependency.importedVar,
+          harmonyRange: dep.importDependency.range,
           harmonyImportSpecifier: true,
           harmonyId: dep.id,
           harmonyName: dep.name,
@@ -1840,6 +1846,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           meta: module.meta,
           used: module.used,
           usedExports: module.usedExports,
+          providedExports: module.providedExports,
           // HarmonyDetectionParserPlugin
           exportsArgument: module.exportsArgument,
           issuer:
