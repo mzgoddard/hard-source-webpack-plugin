@@ -31,6 +31,7 @@ describe('plugin webpack use', function() {
   itCompilesTwice('plugin-child-compiler-resolutions');
   itCompilesTwice('plugin-logger-child-no-memory');
   itCompilesTwice('plugin-serializer-json-base-1dep');
+  itCompilesTwice('plugin-source-map-1dep');
 
   itCompilesHardModules('plugin-dll', ['./fib.js']);
   itCompilesHardModules('plugin-dll-reference', ['./index.js']);
