@@ -178,7 +178,8 @@ function serializeDependencies(deps, parent, compilation) {
     var identifierPrefix = cachePrefix(compilation);
     if (identifierPrefix !== null) {
       // The identifier this dependency should resolve to.
-      var _resolvedModuleIdentifier = dep.module && dep.module.identifier();
+      var _resolvedModuleIdentifier =
+        dep.module && dep.__hardSource_resolvedModuleIdentifier;
       // An identifier to dereference a dependency under a module to some per
       // dependency value
       var _inContextDependencyIdentifier = parent && JSON.stringify([parent.context, cacheDep]);
@@ -1089,10 +1090,24 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                   }
                   cacheItem.invalid = true;
                   reject(new Error('dependency has a new identifier'));
+                  loggerCore.info(
+                    {
+                      id: 'invalid-module--must-update-dependency',
+                      moduleIdentifier: cacheItem.identifier,
+                      dependedModuleIdentifier: depModule.identifier()
+                    },
+                    'The cached "' + cacheItem.identifier + '" module is ' +
+                    'invalid. It depends on a module that has resolved to a ' +
+                    'new identifier. Either its loaders changed or the ' +
+                    'resolved file on disk moved.'
+                  );
                 });
               });
               if (!checkedDependencies[dependencyIdentifier]) {
                 checkedDependencies[dependencyIdentifier] = p;
+              }
+              else {
+                return p;
               }
             }
             return checkedDependencies[dependencyIdentifier];
@@ -1522,6 +1537,28 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   compiler.plugin('this-compilation', function(compilation) {
     compiler.__hardSource_topCompilation = compilation;
+  });
+
+  var walkDependencyBlock = function(block, callback) {
+    block.dependencies.forEach(callback);
+    block.variables.forEach(function(variable) {
+      variable.dependencies.forEach(callback);
+    })
+    block.blocks.forEach(function(block) {
+      walkDependencyBlock(block, callback);
+    });
+  };
+
+  compiler.plugin('compilation', function(compilation) {
+    compilation.plugin('seal', function() {
+      compilation.modules.forEach(function(module) {
+        walkDependencyBlock(module, function(dep) {
+          if (dep.module) {
+            dep.__hardSource_resolvedModuleIdentifier = dep.module.identifier();
+          }
+        });
+      });
+    });
   });
 
   compiler.plugin('after-compile', function(compilation, cb) {

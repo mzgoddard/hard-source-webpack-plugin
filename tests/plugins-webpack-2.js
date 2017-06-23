@@ -18,16 +18,16 @@ describeWP2('plugin webpack 2 use - builds changes', function() {
   }, function(output) {
     var main1 = output.run1['main.js'].toString();
     var main2 = output.run2['main.js'].toString();
-    var run1Ids = /var (\w)=(\w)\(0\)/.exec(main1);
-    var run2Ids = /var (\w)=(\w)\(0\)/.exec(main2);
+    var run1Ids = /var (\w)=(\w)\(\d\)/.exec(main1);
+    var run2Ids = /var (\w)=(\w)\(\d\)/.exec(main2);
     var run1Module = run1Ids[1];
     var run1Require = run1Ids[2];
     var run2Module = run2Ids[1];
     var run2Require = run2Ids[2];
     expect(main1).to.contain(run1Module + '.a');
-    expect(main1).to.not.contain(run1Require + '.i(' + run1Module + '.a)');
+    expect(main1).to.not.match(new RegExp(run1Require + '\\.i\\(' + run1Module + '\\.a\\)\\(|' + run1Module + '\\.a\\('));
     expect(main1).to.not.match(/(\w\.a)=function/);
-    expect(main2).to.contain(run2Require + '.i(' + run2Module + '.a)');
+    expect(main2).to.match(new RegExp(run2Require + '\\.i\\(' + run2Module + '\\.a\\)\\(|' + run2Module + '\\.a\\('));
     expect(main2).to.match(/(\w\.a)=function/);
   });
 

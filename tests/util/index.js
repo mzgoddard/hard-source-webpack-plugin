@@ -58,7 +58,7 @@ exports.compile = function(fixturePath, options) {
         return stat(fullname)
         .then(function(stat) {
           if (stat.isFile()) {
-            return readFile(fullname)
+            return readFile(fullname, fullname.endsWith('.js') ? 'utf8' : '')
             .then(function(file) {return [name, file];});
           }
         });
@@ -70,7 +70,7 @@ exports.compile = function(fixturePath, options) {
         return fsStat(fullname)
         .then(function(stat) {
           if (stat.isFile()) {
-            return fsReadFile(fullname)
+            return fsReadFile(fullname, fullname.endsWith('.js') ? 'utf8' : '')
             .then(function(file) {return [name, file];});
           }
         });
@@ -365,12 +365,16 @@ exports.clean = function(fixturePath) {
   });
 };
 
-exports.describeWP2 = function() {
-  var wpVersion = Number(require('webpack/package.json').version[0]);
-  if (wpVersion > 1) {
-    describe.apply(null, arguments);
-  }
-  else {
-    describe.skip.apply(null, arguments);
-  }
+exports.describeWP = function(version) {
+  return function() {
+    var wpVersion = Number(require('webpack/package.json').version[0]);
+    if (wpVersion >= version) {
+      describe.apply(null, arguments);
+    }
+    else {
+      describe.skip.apply(null, arguments);
+    }
+  };
 };
+
+exports.describeWP2 = exports.describeWP(2);

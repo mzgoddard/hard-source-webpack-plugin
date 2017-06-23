@@ -1,21 +1,16 @@
 # Test against the latest version of this Node.js version
 environment:
   matrix:
-    - nodejs_version: "4"
-      webpack_version: "1"
-      extract_text_version: "1"
-      babel_loader_version: "6"
-      file_loader_version: "0.10"
     - nodejs_version: "6"
       webpack_version: "2"
       extract_text_version: "2"
       babel_loader_version: "7"
       file_loader_version: "0.11"
     - nodejs_version: "7"
-      webpack_version: "2"
+      webpack_version: "3"
       extract_text_version: "2"
       babel_loader_version: "7"
-      file_loader_version: "0.10"
+      file_loader_version: "0.11"
 
 # Install scripts. (runs after repo cloning)
 install:

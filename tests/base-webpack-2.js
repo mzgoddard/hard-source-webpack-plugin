@@ -66,7 +66,7 @@ describeWP2('basic webpack 2 use - builds changes', function() {
   }, function(output) {
     expect(output.run1['main.js'].toString()).to.contain('"a" /* key */');
     expect(output.run1['main.js'].toString()).to.not.contain('__webpack_exports__["a"]');
-    expect(output.run2['main.js'].toString()).to.contain('__webpack_require__(0).fib');
+    expect(output.run2['main.js'].toString()).to.match(/__webpack_require__\(\d\)\.fib/);
     expect(output.run2['main.js'].toString()).to.contain('__webpack_require__.d(__webpack_exports__, "fib"');
     expect(output.run2['main.js'].toString()).to.contain('__webpack_exports__["a"]');
   });
@@ -101,8 +101,12 @@ describeWP2('basic webpack 2 use - builds changes', function() {
       'console.log(fib);',
     ].join('\n'),
   }, function(output) {
-    expect(output.run1['main.js'].toString()).to.contain('console.log(__WEBPACK_IMPORTED_MODULE_0__obj__["a" /* fib */], __WEBPACK_IMPORTED_MODULE_0__obj__["b" /* key */]);');
-    expect(output.run2['main.js'].toString()).to.contain('console.log(__WEBPACK_IMPORTED_MODULE_0__obj__["b" /* fib */], __WEBPACK_IMPORTED_MODULE_0__obj__["a" /* key */]);');
+    var run1FibId = /__webpack_exports__\["(\w)"\] = fib/.exec(output.run1['main.js'].toString())[1];
+    var run1KeyId = run1FibId === 'a' ? 'b' : 'a';
+    expect(output.run1['main.js'].toString()).to.contain('console.log(__WEBPACK_IMPORTED_MODULE_0__obj__["' + run1FibId + '" /* fib */], __WEBPACK_IMPORTED_MODULE_0__obj__["' + run1KeyId + '" /* key */]);');
+    var run2FibId = /__webpack_exports__\["(\w)"\] = fib/.exec(output.run2['main.js'].toString())[1];
+    var run2KeyId = run2FibId === 'a' ? 'b' : 'a';
+    expect(output.run2['main.js'].toString()).to.contain('console.log(__WEBPACK_IMPORTED_MODULE_0__obj__["' + run2FibId + '" /* fib */], __WEBPACK_IMPORTED_MODULE_0__obj__["' + run2KeyId + '" /* key */]);');
   });
 
   itCompilesChange('base-change-es2015-export-order-module', {
@@ -132,8 +136,12 @@ describeWP2('basic webpack 2 use - builds changes', function() {
       '}',
     ].join('\n'),
   }, function(output) {
-    expect(output.run1['main.js'].toString()).to.contain('console.log(__WEBPACK_IMPORTED_MODULE_0__obj__["a" /* fib */], __WEBPACK_IMPORTED_MODULE_0__obj__["b" /* key */]);');
-    expect(output.run2['main.js'].toString()).to.contain('console.log(__WEBPACK_IMPORTED_MODULE_0__obj__["b" /* fib */], __WEBPACK_IMPORTED_MODULE_0__obj__["a" /* key */]);');
+    var run1FibId = /__webpack_exports__\["(\w)"\] = fib/.exec(output.run1['main.js'].toString())[1];
+    var run1KeyId = run1FibId === 'a' ? 'b' : 'a';
+    expect(output.run1['main.js'].toString()).to.contain('console.log(__WEBPACK_IMPORTED_MODULE_0__obj__["' + run1FibId + '" /* fib */], __WEBPACK_IMPORTED_MODULE_0__obj__["' + run1KeyId + '" /* key */]);');
+    var run2FibId = /__webpack_exports__\["(\w)"\] = fib/.exec(output.run2['main.js'].toString())[1];
+    var run2KeyId = run2FibId === 'a' ? 'b' : 'a';
+    expect(output.run2['main.js'].toString()).to.contain('console.log(__WEBPACK_IMPORTED_MODULE_0__obj__["' + run2FibId + '" /* fib */], __WEBPACK_IMPORTED_MODULE_0__obj__["' + run2KeyId + '" /* key */]);');
   });
 
   itCompilesChange('base-change-es2015-all-module', {
