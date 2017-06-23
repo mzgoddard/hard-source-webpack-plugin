@@ -9,6 +9,7 @@
 
 ## 0.4.X Patches
 
+- `0.4.5` Add webpack 3 support. Add initial ModuleConcatenationPlugin support
 - `0.4.4` Fix configHash default value
 - `0.4.3` Fix #105. Cache assets in memory as well as disk
 - `0.4.2` Tune default options
