@@ -988,13 +988,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         cacheItem = JSON.parse(cacheItem);
         moduleCache[identifier] = cacheItem;
       }
-      if (Array.isArray(cacheItem.assets)) {
-        cacheItem.assets = (cacheItem.assets || [])
-        .reduce(function(carry, key) {
-          carry[key] = assetCache[requestHash(key)];
-          return carry;
-        }, {});
-      }
+      // if (Array.isArray(cacheItem.assets)) {
+      //   cacheItem.assets = (cacheItem.assets || [])
+      //   .reduce(function(carry, key) {
+      //     carry[key] = assetCache[requestHash(key)];
+      //     return carry;
+      //   }, {});
+      // }
 
       if (!HardModule.needRebuild(
         cacheItem,
@@ -1026,7 +1026,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         var state = {state: {imports: {}}};
 
-        walkDependencyBlock(cacheItem, function(cacheDependency) {
+        walkDependencyBlock(cacheItem.dependencyBlock, function(cacheDependency) {
           if (
             cacheDependency &&
             !cacheDependency.contextDependency &&
@@ -1058,6 +1058,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               }
             }
             else if (resolveItem && resolveItem.invalid) {
+              // console.log('invalid', 'resolved request out of date');
               cacheItem.invalid = true;
               return;
             }
@@ -1069,7 +1070,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           ) {
             var dependencyIdentifier = cacheDependency._inContextDependencyIdentifier;
             if (!checkedDependencies[dependencyIdentifier]) {
-              var dependency = deserializeDependencies.dependencies.call(state, [cacheDependency], null)[0];
+              // var dependency = deserializeDependencies.dependencies.call(state, [cacheDependency], null)[0];
+              var dependency = thaw('dependency', null, cacheDependency, {
+                state: state.state,
+                compilation: compilation,
+              });
+              // console.log(dependency);
               var factory = compilation.dependencyFactories.get(dependency.constructor);
               var p = new Promise(function(resolve, reject) {
                 var callFactory = function(fn) {
@@ -1094,6 +1100,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                     checkedDependencies[dependencyIdentifier] = cacheItem;
                   }
                   if (err) {
+                    // console.log('invalid', 'error building module');
                     cacheItem.invalid = true;
                     return reject(err);
                   }
@@ -1140,6 +1147,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             return cacheItem;
           })
           .catch(function(e) {
+            // console.log('invalid or not cached');
             cacheItem.invalid = true;
             moduleCache[identifier] = null;
             return Promise.reject();
@@ -1157,6 +1165,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }
       }
     }
+
+    // console.log('already invalid or not cached');
   }
 
   function bindResolvers() {
@@ -1309,6 +1319,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           !lodash.isEqual(cacheItem.usedExports, module.usedExports)
         )) {
           // Bust this module, the keys exported or their order has changed.
+          // console.log('invalid', 'used changed', module.reasons[0].module && module.reasons[0].module.dependencies.map(function(dep) {return dep.constructor.name}));
           cacheItem.invalid = true;
           // moduleCache[identifier] = null;
 
@@ -1427,17 +1438,33 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           if (p && p.then) {
             return p
             .then(function(cacheItem) {
-              var module = new HardModule(cacheItem);
+              var identifierPrefix = cachePrefix(compilation);
+              if (identifierPrefix === null) {
+                return;
+              }
+              var identifier = identifierPrefix + result.request;
+              var module = fetch('module', identifier);
+              // console.log(identifier, module && module.constructor.name);
+              // var module = new HardModule(cacheItem);
               cb(null, module);
             })
             .catch(function() {
+              // console.log(result.request, 'invalid or not cached', 'promise');
               cb(err, result);
             });
           }
           else if (p) {
-            var module = new HardModule(p);
+            var identifierPrefix = cachePrefix(compilation);
+            if (identifierPrefix === null) {
+              return;
+            }
+            var identifier = identifierPrefix + result.request;
+            var module = fetch('module', identifier);
+            // console.log(identifier, module && module.constructor.name);
+            // var module = new HardModule(p);
             return cb(null, module);
           }
+          // console.log(result.request, 'invalid or not cached');
           cb(err, result);
         });
       };
@@ -1468,15 +1495,17 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       ) {
         var memCacheId = 'm' + cacheItem.identifier;
         if (!memoryCache[memCacheId]) {
-          if (Array.isArray(cacheItem.assets)) {
-            cacheItem.assets = (cacheItem.assets || [])
-            .reduce(function(carry, key) {
-              carry[key] = assetCache[requestHash(key)];
-              return carry;
-            }, {});
-          }
-          var module = memoryCache[memCacheId] = new HardModule(cacheItem);
-          module.build(null, null, null, null, function() {});
+          // if (Array.isArray(cacheItem.assets)) {
+          //   cacheItem.assets = (cacheItem.assets || [])
+          //   .reduce(function(carry, key) {
+          //     carry[key] = assetCache[requestHash(key)];
+          //     return carry;
+          //   }, {});
+          // }
+          // var module = memoryCache[memCacheId] = new HardModule(cacheItem);
+          var module = memCacheId[memCacheId] = fetch('module', key);
+          // console.log('preload', key, module && module.constructor.name);
+          module.build(null, {__hardSourceMethods: {thaw: thaw, mapThaw: mapThaw}}, null, null, function() {});
           return module;
         }
       }
@@ -1487,8 +1516,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       ) {
         var memCacheId = 'm' + cacheItem.identifier;
         if (!memoryCache[memCacheId]) {
-          var module = memoryCache[memCacheId] = new HardContextModule(cacheItem);
-          module.build(null, null, null, null, function() {});
+          // var module = memoryCache[memCacheId] = new HardContextModule(cacheItem);
+          var module = memoryCache[memCacheId] = fetch('module', key);
+          module.build(null, {__hardSourceMethods: {thaw: thaw, mapThaw: mapThaw}}, null, null, function() {});
           return module;
         }
       }
@@ -1553,30 +1583,239 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     return cb();
   });
 
-  compiler.plugin('this-compilation', function(compilation) {
-    compiler.__hardSource_topCompilation = compilation;
-  });
+  var assetArchetypeCache = {
+    _ops: [],
 
-  var walkDependencyBlock = function(block, callback) {
-    block.dependencies.forEach(callback);
-    block.variables.forEach(function(variable) {
-      variable.dependencies.forEach(callback);
-    })
-    block.blocks.forEach(function(block) {
-      walkDependencyBlock(block, callback);
-    });
+    get: function(id) {
+      var hashId = requestHash(id);
+      if (assetCache[hashId]) {
+        if (typeof assetCache[hashId] === 'string') {
+          assetCache[hashId] = JSON.parse(assetCache[hashId]);
+        }
+        return assetCache[hashId];
+      }
+    },
+
+    set: function(id, item) {
+      var hashId = requestHash(id);
+      if (item) {
+        assetCache[hashId] = item;
+        this._ops.push({
+          key: hashId,
+          value: item,
+        });
+      }
+      else {
+        assetCache[hashId] = null;
+        this._ops.push({
+          key: hashId,
+          value: null,
+        });
+      }
+    },
+
+    operations: function() {
+      var ops = this._ops.slice();
+      this._ops.length = 0;
+      return ops;
+    },
   };
 
-  compiler.plugin('compilation', function(compilation) {
-    compilation.plugin('seal', function() {
-      compilation.modules.forEach(function(module) {
-        walkDependencyBlock(module, function(dep) {
-          if (dep.module) {
-            dep.__hardSource_resolvedModuleIdentifier = dep.module.identifier();
-          }
+  var moduleArchetypeCache = {
+    _ops: [],
+
+    get: function(id) {
+      if (moduleCache[id] && !moduleCache[id].invalid) {
+        if (typeof moduleCache[id] === 'string') {
+          moduleCache[id] = JSON.parse(moduleCache[id]);
+        }
+        return moduleCache[id];
+      }
+    },
+
+    set: function(id, item) {
+      moduleCache[id] = item;
+      if (item) {
+        this._ops.push({
+          key: id,
+          value: JSON.stringify(item),
         });
-      });
-    });
+      }
+      else if (moduleCache[id]) {
+        if (typeof moduleCache[id] === 'string') {
+          moduleCache[id] = JSON.parse(moduleCache[id]);
+        }
+        moduleCache[id].invalid = true;
+
+        this._ops.push({
+          key: id,
+          value: null,
+        });
+      }
+    },
+
+    operations: function() {
+      var ops = this._ops.slice();
+      this._ops.length = 0;
+      return ops;
+    },
+  };
+
+  var archetypeCaches = {
+    asset: assetArchetypeCache,
+    module: moduleArchetypeCache,
+  };
+
+  var freeze, thaw, mapFreeze, mapThaw, store, fetch;
+
+  compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
+    freeze = function(archetype, frozen, item, extra) {
+      if (!item) {
+        return item;
+      }
+
+      frozen = compiler.applyPluginsWaterfall('--hard-source-before-freeze-' + archetype, frozen, item, extra);
+      frozen = compiler.applyPluginsWaterfall('--hard-source-freeze-' + archetype, frozen, item, extra);
+      frozen = compiler.applyPluginsWaterfall('--hard-source-after-freeze-' + archetype, frozen, item, extra);
+
+      return frozen;
+    };
+    thaw = function(archetype, item, frozen, extra) {
+      if (!frozen) {
+        return frozen;
+      }
+
+      item = compiler.applyPluginsWaterfall('--hard-source-before-thaw-' + archetype, item, frozen, extra);
+      item = compiler.applyPluginsWaterfall('--hard-source-thaw-' + archetype, item, frozen, extra);
+      item = compiler.applyPluginsWaterfall('--hard-source-after-thaw-' + archetype, item, frozen, extra);
+
+      return item;
+    };
+    mapMap = function(fn, name, output, input, extra) {
+      if (output) {
+        return input.map(function(item, index) {
+          return fn(name, output[index], item, extra);
+        })
+        .filter(Boolean);
+      }
+      else {
+        return input.map(function(item) {
+          return fn(name, null, item, extra);
+        })
+        .filter(Boolean);
+      }
+    };
+    mapFreeze = function(name, frozen, items, extra) {
+      return mapMap(freeze, name, frozen, items, extra);
+    };
+    mapThaw = function(name, items, frozen, extra) {
+      return mapMap(thaw, name, items, frozen, extra);
+    };
+    store = function(archetype, id, item, extra) {
+      var cache = archetypeCaches[archetype];
+      if (item) {
+        var frozen = cache.get(id);
+        var newFrozen = freeze(archetype, frozen, item, extra);
+        if (frozen && newFrozen && newFrozen !== frozen || !frozen && newFrozen) {
+          cache.set(id, newFrozen);
+          return newFrozen;
+        }
+        else if (frozen) {
+          return frozen;
+        }
+      }
+      else {
+        cache.set(id, null);
+      }
+    };
+    fetch = function(archetype, id, extra) {
+      var cache = archetypeCaches[archetype];
+      var frozen = cache.get(id);
+      return thaw(archetype, null, frozen, extra);
+    };
+
+    var methods = {
+      freeze,
+      thaw,
+      mapFreeze,
+      mapThaw,
+      store,
+      fetch,
+    };
+    compiler.applyPlugins('--hard-source-methods', methods);
+    cb();
+  });
+
+  compiler.plugin('compilation', function(compilation) {
+    compilation.__hardSourceMethods = {
+      freeze,
+      thaw,
+      mapFreeze,
+      mapThaw,
+      store,
+      fetch,
+    };
+  });
+
+  var detectModule = function(path) {
+    try {
+      require(path);
+      return true;
+    }
+    catch (_) {
+      return false;
+    }
+  };
+
+  var webpackFeatures = {
+    concatenatedModule: detectModule('webpack/lib/ConcatenatdModule'),
+    harmonyDependencies: detectModule('webpack/lib/dependencies/HarmonyImportDependency'),
+  };
+
+  var HardCompilationPlugin = require('./lib/hard-compilation-plugin');
+  var HardAssetPlugin = require('./lib/hard-asset-plugin');
+  var HardConcatenationModulePlugin;
+  if (webpackFeatures.concatenatedModule) {
+    HardConcatenationModulePlugin = require('./lib/hard-concatenation-module-plugin');
+  }
+  var HardContextModulePlugin = require('./lib/hard-context-module-plugin');
+  var HardNormalModulePlugin = require('./lib/hard-normal-module-plugin');
+  var HardModuleAssetsPlugin = require('./lib/hard-module-assets-plugin');
+  var HardModuleErrorsPlugin = require('./lib/hard-module-errors-plugin');
+  var HardModuleExtractTextPlugin = require('./lib/hard-module-extract-text-plugin');
+  var HardDependencyBlockPlugin = require('./lib/hard-dependency-block-plugin');
+  var HardBasicDependencyPlugin = require('./lib/hard-basic-dependency-plugin');
+  var HardHarmonyDependencyPlugin;
+  if (webpackFeatures.harmonyDependencies) {
+    HardHarmonyDependencyPlugin = require('./lib/hard-harmony-dependency-plugin');
+  }
+  var HardSourceMapPlugin = require('./lib/hard-source-map-plugin');
+
+  new HardCompilationPlugin().apply(compiler);
+
+  new HardAssetPlugin().apply(compiler);
+
+  if (HardConcatenationModulePlugin) {
+    new HardConcatenationModulePlugin().apply(compiler);
+  }
+  new HardContextModulePlugin().apply(compiler);
+  new HardNormalModulePlugin().apply(compiler);
+
+  new HardModuleAssetsPlugin().apply(compiler);
+  new HardModuleErrorsPlugin().apply(compiler);
+  new HardModuleExtractTextPlugin().apply(compiler);
+
+  new HardDependencyBlockPlugin().apply(compiler);
+
+  new HardBasicDependencyPlugin().apply(compiler);
+  if (HardHarmonyDependencyPlugin) {
+    new HardHarmonyDependencyPlugin().apply(compiler);
+  }
+
+  new HardSourceMapPlugin().apply(compiler);
+
+  compiler.plugin('this-compilation', function(compilation) {
+    compiler.__hardSource_topCompilation = compilation;
   });
 
   compiler.plugin('after-compile', function(compilation, cb) {
@@ -1584,7 +1823,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     var startCacheTime = Date.now();
 
-    var devtoolOptions = makeDevtoolOptions(compiler.options);
+    // var devtoolOptions = makeDevtoolOptions(compiler.options);
 
     // fs.writeFileSync(
     //   path.join(cacheDirPath, 'file-dependencies.json'),
@@ -1799,180 +2038,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       return serialized;
     }
 
-    var modules = compilation.modules.slice();
+    var identifierPrefix = cachePrefix(compilation);
+    if (identifierPrefix !== null) {
+      freeze('compilation', null, compilation);
+    }
 
-    compilation.modules.forEach(function(module) {
-      if (module.modules) {
-        module.modules.forEach(function(usedModule) {
-          modules.push(usedModule);
-        });
-      }
-    });
-
-    modules.forEach(function(module) {
-      var identifierPrefix = cachePrefix(compilation);
-      if (identifierPrefix === null) {
-        return;
-      }
-      var identifier = identifierPrefix + module.identifier();
-      var existingCacheItem = moduleCache[identifier];
-
-      if (
-        module.request &&
-        module.cacheable &&
-        !(module instanceof HardModule) &&
-        (module instanceof NormalModule) &&
-        (
-          existingCacheItem &&
-          module.buildTimestamp > existingCacheItem.buildTimestamp ||
-          !existingCacheItem
-        )
-      ) {
-        var source = module.source(
-          compilation.dependencyTemplates,
-          compilation.moduleTemplate.outputOptions,
-          compilation.moduleTemplate.requestShortener
-        );
-        var assets = Object.keys(module.assets || {}).map(function(key) {
-          return {
-            key: requestHash(key),
-            value: module.assets[key].source(),
-          };
-        });
-        moduleCache[identifier] = {
-          moduleId: module.id,
-          context: module.context,
-          request: module.request,
-          userRequest: module.userRequest,
-          rawRequest: module.rawRequest,
-          resource: module.resource,
-          loaders: module.loaders,
-          identifier: module.identifier(),
-          // libIdent: module.libIdent &&
-          // module.libIdent({context: compiler.options.context}),
-          assets: Object.keys(module.assets || {}),
-          buildTimestamp: module.buildTimestamp,
-          strict: module.strict,
-          meta: module.meta,
-          used: module.used,
-          usedExports: module.usedExports,
-          providedExports: module.providedExports,
-          // HarmonyDetectionParserPlugin
-          exportsArgument: module.exportsArgument,
-          issuer:
-            typeof module.issuer === 'string' ? module.issuer :
-            module.issuer && typeof module.issuer === 'object' ? module.issuer.identifier() :
-            null,
-
-          rawSource: module._source ? module._source.source() : null,
-          source: source.source(),
-          map: devtoolOptions && source.map(devtoolOptions),
-          // Some plugins (e.g. UglifyJs) set useSourceMap on a module. If that
-          // option is set we should always store some source map info and
-          // separating it from the normal devtool options may be necessary.
-          baseMap: module.useSourceMap && source.map(),
-          hashContent: serializeHashContent(module),
-
-          dependencies: serializeDependencies(module.dependencies, module, compilation),
-          variables: serializeVariables(module.variables, module, compilation),
-          blocks: serializeBlocks(module.blocks, module, compilation),
-
-          fileDependencies: module.fileDependencies,
-          contextDependencies: module.contextDependencies,
-
-          errors: module.errors.map(serializeError),
-          warnings: module.warnings.map(serializeError),
-        };
-
-        // Custom plugin handling for common plugins.
-        // This will be moved in a pluginified HardSourcePlugin.
-        //
-        // Ignore the modules that kick off child compilers in extract text.
-        // These modules must always be built so the child compilers run so
-        // that assets get built.
-        if (
-          module[extractTextNS] ||
-          module.meta && module.meta[extractTextNS]
-        ) {
-          moduleCache[identifier] = null;
-          return;
-        }
-
-        moduleOps.push({
-          key: identifier,
-          value: JSON.stringify(moduleCache[identifier]),
-        });
-
-        // module.fileDependencies.forEach(function(file) {
-        //   buildMd5s.push(file);
-        // });
-        //
-        // module.contextDependencies.forEach(function(context) {
-        //   buildContextMd5s.push(file);
-        // });
-
-        if (assets.length) {
-          assetOps = assetOps.concat(assets);
-          assets.forEach(function(op) {
-            assetCache[op.key] = op.value;
-          });
-        }
-      }
-
-      if (
-        module.context &&
-        module.cacheable &&
-        !(module instanceof HardContextModule) &&
-        (module instanceof ContextModule) &&
-        (
-          existingCacheItem &&
-          module.builtTime >= existingCacheItem.builtTime ||
-          !existingCacheItem
-        )
-      ) {
-        var source = module.source(
-          compilation.dependencyTemplates,
-          compilation.moduleTemplate.outputOptions,
-          compilation.moduleTemplate.requestShortener
-        );
-        var assets = Object.keys(module.assets || {}).map(function(key) {
-          return {
-            key: requestHash(key),
-            value: module.assets[key].source(),
-          };
-        });
-        moduleCache[identifier] = {
-          moduleId: module.id,
-          context: module.context,
-          recursive: module.recursive,
-          regExp: module.regExp ? module.regExp.source : null,
-          async: module.async,
-          addons: module.addons,
-          identifier: module.identifier(),
-          builtTime: module.builtTime,
-
-          used: module.used,
-          usedExports: module.usedExports,
-
-          source: source.source(),
-          map: devtoolOptions && source.map(devtoolOptions),
-          // Some plugins (e.g. UglifyJs) set useSourceMap on a module. If that
-          // option is set we should always store some source map info and
-          // separating it from the normal devtool options may be necessary.
-          baseMap: module.useSourceMap && source.map(),
-          hashContent: serializeHashContent(module),
-
-          dependencies: serializeDependencies(module.dependencies, module, compilation),
-          variables: serializeVariables(module.variables, module, compilation),
-          blocks: serializeBlocks(module.blocks, module, compilation),
-        };
-
-        moduleOps.push({
-          key: identifier,
-          value: JSON.stringify(moduleCache[identifier]),
-        });
-      }
-    });
+    assetOps = archetypeCaches.asset.operations();
+    moduleOps = archetypeCaches.module.operations();
 
     var writeMd5Ops = Promise.all(Object.keys(buildingMd5s).map(function(key) {
       return buildingMd5s[key];
