@@ -1,3 +1,4 @@
 import fib from './fib';
-let key = 'obj';
+import {b} from './a'
+let key = b;
 export {key, fib};

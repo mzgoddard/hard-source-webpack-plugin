@@ -1058,7 +1058,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               }
             }
             else if (resolveItem && resolveItem.invalid) {
-              // console.log('invalid', 'resolved request out of date');
               cacheItem.invalid = true;
               return;
             }
@@ -1075,7 +1074,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                 state: state.state,
                 compilation: compilation,
               });
-              // console.log(dependency);
               var factory = compilation.dependencyFactories.get(dependency.constructor);
               var p = new Promise(function(resolve, reject) {
                 var callFactory = function(fn) {
@@ -1100,7 +1098,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                     checkedDependencies[dependencyIdentifier] = cacheItem;
                   }
                   if (err) {
-                    // console.log('invalid', 'error building module');
                     cacheItem.invalid = true;
                     return reject(err);
                   }
@@ -1147,7 +1144,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             return cacheItem;
           })
           .catch(function(e) {
-            // console.log('invalid or not cached');
             cacheItem.invalid = true;
             moduleCache[identifier] = null;
             return Promise.reject();
@@ -1165,13 +1161,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }
       }
     }
-
-    // console.log('already invalid or not cached');
   }
 
   function bindResolvers() {
     function configureMissing(key, resolver) {
-      // console.log(missingCache[key], resolverCache[key]);
       // missingCache[key] = missingCache[key] || {};
       // resolverCache[key] = resolverCache[key] || {};
 
@@ -1186,10 +1179,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }
         var resolveId = JSON.stringify([context, request]);
         var resolve = resolverCache[key][resolveId];
-        // console.log(key, resolverCache[key]);
-        // console.log(resolveId, resolve);
         if (resolve && !resolve.invalid) {
-          // console.log('resolve', key, resolve.result + request.split('?').slice(1).join('?'));
           var missingId = JSON.stringify([context, resolve.result]);
           var missing = missingCache[key][missingId];
           if (missing && !missing.invalid) {
@@ -1319,7 +1309,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           !lodash.isEqual(cacheItem.usedExports, module.usedExports)
         )) {
           // Bust this module, the keys exported or their order has changed.
-          // console.log('invalid', 'used changed', module.reasons[0].module && module.reasons[0].module.dependencies.map(function(dep) {return dep.constructor.name}));
           cacheItem.invalid = true;
           // moduleCache[identifier] = null;
 
@@ -1444,12 +1433,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               }
               var identifier = identifierPrefix + result.request;
               var module = fetch('module', identifier);
-              // console.log(identifier, module && module.constructor.name);
               // var module = new HardModule(cacheItem);
               cb(null, module);
             })
             .catch(function() {
-              // console.log(result.request, 'invalid or not cached', 'promise');
               cb(err, result);
             });
           }
@@ -1460,11 +1447,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             }
             var identifier = identifierPrefix + result.request;
             var module = fetch('module', identifier);
-            // console.log(identifier, module && module.constructor.name);
             // var module = new HardModule(p);
             return cb(null, module);
           }
-          // console.log(result.request, 'invalid or not cached');
           cb(err, result);
         });
       };
@@ -1504,7 +1489,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           // }
           // var module = memoryCache[memCacheId] = new HardModule(cacheItem);
           var module = memCacheId[memCacheId] = fetch('module', key);
-          // console.log('preload', key, module && module.constructor.name);
           module.build(null, {__hardSourceMethods: {thaw: thaw, mapThaw: mapThaw}}, null, null, function() {});
           return module;
         }
@@ -1768,7 +1752,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   };
 
   var webpackFeatures = {
-    concatenatedModule: detectModule('webpack/lib/ConcatenatdModule'),
+    concatenatedModule: detectModule('webpack/lib/optimize/ConcatenatedModule'),
     harmonyDependencies: detectModule('webpack/lib/dependencies/HarmonyImportDependency'),
   };
 
@@ -1795,11 +1779,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   new HardAssetPlugin().apply(compiler);
 
+  new HardContextModulePlugin().apply(compiler);
+  new HardNormalModulePlugin().apply(compiler);
+
   if (HardConcatenationModulePlugin) {
     new HardConcatenationModulePlugin().apply(compiler);
   }
-  new HardContextModulePlugin().apply(compiler);
-  new HardNormalModulePlugin().apply(compiler);
 
   new HardModuleAssetsPlugin().apply(compiler);
   new HardModuleErrorsPlugin().apply(compiler);
