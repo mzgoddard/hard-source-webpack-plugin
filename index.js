@@ -1194,7 +1194,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             // tracked the stuff in node_modules too, we'd be adding a whole
             // bunch of reduntant work.
             if (result.indexOf('node_modules') !== -1) {
-              localMissing = [];
+              localMissing = localMissing.filter(function(missed) {
+                return missed.indexOf('node_modules') === -1;
+              });
             }
 
             // In case of other cache layers, if we already have missing
