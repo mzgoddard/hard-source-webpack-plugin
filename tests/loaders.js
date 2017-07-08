@@ -13,11 +13,13 @@ describe('loader webpack use', function() {
 
   itCompilesTwice('loader-css');
   itCompilesTwice('loader-file');
+  itCompilesTwice('loader-file-use');
   itCompilesTwice('loader-custom-missing-dep');
   itCompilesTwice('loader-custom-no-dep');
 
   itCompilesHardModules('loader-css', ['./index.css']);
   itCompilesHardModules('loader-file', ['./image.png']);
+  itCompilesHardModules('loader-file-use', ['./src/index.js', './src/image.png']);
   itCompilesHardModules('loader-custom-user-loader', ['./loader.js!./index.js']);
   itCompilesHardModules('loader-custom-no-dep', ['./index.js', './loader.js!./fib.js']);
 

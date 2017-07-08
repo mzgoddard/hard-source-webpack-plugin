@@ -903,10 +903,20 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             if (typeof loader === 'object') {
               loader = loader.loader;
             }
+            // Loaders specified in a dependency are searched for from the
+            // context of the module containing that dependency.
             var loaderMissing = missingCache.loader[JSON.stringify([
               resolveKey[1],
               loader.split('?')[0]
             ])];
+            if (!loaderMissing) {
+              // webpack searches for rule based loaders from the project
+              // context.
+              loaderMissing = missingCache.loader[JSON.stringify([
+                compiler.options.context,
+                loader.split('?')[0]
+              ])];
+            }
             if (!loaderMissing || loaderMissing.invalid) {
               resolveItem.invalid = true;
             }
