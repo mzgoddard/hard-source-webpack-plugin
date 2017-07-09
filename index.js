@@ -65,7 +65,9 @@ catch (_) {
 var HardModuleDependency = require('./lib/dependencies').HardModuleDependency;
 var HardContextDependency = require('./lib/dependencies').HardContextDependency;
 var HardNullDependency = require('./lib/dependencies').HardNullDependency;
-var HardHarmonyExportDependency = require('./lib/dependencies').HardHarmonyExportDependency;
+var HardHarmonyExportExpressionDependency = require('./lib/dependencies').HardHarmonyExportExpressionDependency;
+var HardHarmonyExportHeaderDependency = require('./lib/dependencies').HardHarmonyExportHeaderDependency;
+var HardHarmonyExportSpecifierDependency = require('./lib/dependencies').HardHarmonyExportSpecifierDependency;
 var HardHarmonyImportDependency =
 require('./lib/dependencies').HardHarmonyImportDependency;
 var HardHarmonyImportSpecifierDependency =
@@ -1278,8 +1280,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     compilation.dependencyFactories.set(HardNullDependency, new NullFactory());
     compilation.dependencyTemplates.set(HardNullDependency, new NullDependencyTemplate);
 
-    compilation.dependencyFactories.set(HardHarmonyExportDependency, new NullFactory());
-    compilation.dependencyTemplates.set(HardHarmonyExportDependency, new NullDependencyTemplate);
+    compilation.dependencyFactories.set(HardHarmonyExportExpressionDependency, new NullFactory());
+    compilation.dependencyTemplates.set(HardHarmonyExportExpressionDependency, new NullDependencyTemplate);
+
+    compilation.dependencyFactories.set(HardHarmonyExportHeaderDependency, new NullFactory());
+    compilation.dependencyTemplates.set(HardHarmonyExportHeaderDependency, new NullDependencyTemplate);
+
+    compilation.dependencyFactories.set(HardHarmonyExportSpecifierDependency, new NullFactory());
+    compilation.dependencyTemplates.set(HardHarmonyExportSpecifierDependency, new NullDependencyTemplate);
 
     compilation.dependencyFactories.set(HardHarmonyImportDependency, params.normalModuleFactory);
     compilation.dependencyTemplates.set(HardHarmonyImportDependency, new NullDependencyTemplate);
