@@ -230,3 +230,18 @@ describe('loader webpack use - builds changes', function() {
   );
 
 });
+
+describe('loader webpack use - watch mode', function() {
+
+  it('loader-file-use: compiles in watch mode', function(done) {
+    compile('loader-file-use', {watch: 'startStop'})
+    .then(function(result) {
+      return compile('loader-file-use', {watch: 'startStop'});
+    })
+    .then(function(result) {
+      done();
+    })
+    .catch(done);
+  });
+
+});
