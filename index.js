@@ -913,7 +913,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               // webpack searches for rule based loaders from the project
               // context.
               loaderMissing = missingCache.loader[JSON.stringify([
-                compiler.options.context,
+                // compiler may be a Watching instance, which refers to the
+                // compiler
+                (compiler.options || compiler.compiler.options).context,
                 loader.split('?')[0]
               ])];
             }

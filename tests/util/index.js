@@ -47,8 +47,64 @@ exports.compile = function(fixturePath, options) {
   var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
   var fsStat = Promise.promisify(fs.stat, {context: fs});
   var run = Promise.promisify(compiler.run, {context: compiler});
+  var watching = options && options.watching;
+  var _watch = function() {
+    return new Promise(function(resolve, reject) {
+      watching = compiler.watch({}, function(err, stats) {
+        if (err) {return reject(err);}
+        resolve(stats);
+      });
+    });
+  };
+  var watchStart = _watch;
+  var watchStop = function() {
+    return new Promise(function(resolve, reject) {
+      watching.close(function(err, stats) {
+        watching = null;
+        if (err) {return reject(err);}
+        resolve(stats);
+      });
+    });
+  };
+  var watchStartStop = function() {
+    return _watch()
+    .then(function(stats) {
+      watching.close();
+      watching = null;
+      return stats;
+    });
+  };
+  var watchContinue = function() {
+    return new Promise(function(resolve, reject) {
+      watching.handler = function(err, stats) {
+        if (err) {return reject(err);}
+        resolve(stats);
+      };
+    });
+  };
 
-  return run()
+  var start;
+  if (options && options.watch) {
+    switch (options.watch) {
+    case 'start':
+      start = watchStart();
+      break;
+    case 'stop':
+      start = watchStop();
+      break;
+    case 'startStop':
+      start = watchStartStop();
+      break;
+    case 'continue':
+      start = watchContinue();
+      break;
+    }
+  }
+  else {
+    start = run();
+  }
+
+  return start
   .then(function(stats) {
     return Promise.all([
       readdir(compiler.options.output.path)
@@ -103,6 +159,12 @@ exports.compile = function(fixturePath, options) {
           out: carry,
           compilation: stats.compilation,
           compiler: stats.compilation.compiler,
+        };
+      }
+      if (options && options.watch) {
+        return {
+          out: carry,
+          watching: watching,
         };
       }
       else {
