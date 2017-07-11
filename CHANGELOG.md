@@ -9,6 +9,7 @@
 
 ## 0.4.X Patches
 
+- `0.4.9` Fetch loader options for rule based options in webpack > 2
 - `0.4.8` Fix error in loader rule optimization use during watch mode
 - `0.4.7` Support webpack 3's loader rules optimization
 - `0.4.6` Support direct use of SourceMapDevToolPlugin
