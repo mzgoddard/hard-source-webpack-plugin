@@ -1673,7 +1673,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var freeze, thaw, mapFreeze, mapThaw, store, fetch;
 
-  compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
+  compiler.plugin(['watch-run', 'run'], function(_compiler, cb) {
+    var compiler = _compiler;
+    if (_compiler.compiler) {
+      compiler = _compiler.compiler;
+    }
     freeze = function(archetype, frozen, item, extra) {
       if (!item) {
         return item;
