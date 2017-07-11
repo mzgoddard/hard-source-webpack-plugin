@@ -1,3 +1,13 @@
+# 0.5.0
+
+- Internal plugins for freezing and thawing modules, dependencies, and assets
+
+## Release Features
+
+The first step to providing meaningful third party hard-source plugins for deeper integration with advanced webpack plugins, this version adds internally used plugins for freezing and thawing modules, etc. These plugins are accessible externally but are prefixed with `--` to help indicate that you should avoid using them in the meantime. You are welcome to make plugins that use these hooks but the interface is likely to change and third-party users of the current state of these interfaces will not be a reason to keep the hooks from changing to what may be needed to support a wider variety of plugins.
+
+As an important example of the utility of the plugin interface modules that are put into a ConcatenatedModule are now cached, helping decreasing build times using that plugin.
+
 # 0.4.0
 
 - Low level resolution cache
