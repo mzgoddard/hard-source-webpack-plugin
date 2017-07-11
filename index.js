@@ -1397,6 +1397,17 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           if (!result.parser || !result.parser.parse) {
             result.parser = params.normalModuleFactory.getParser(result.parserOptions);
           }
+          result.loaders = result.loaders.map(function(loader) {
+            if (typeof loader === 'object' && loader.ident) {
+              var ruleSet = params.normalModuleFactory.ruleSet;
+              return {
+                loader: loader.loader,
+                ident: loader.ident,
+                options: ruleSet.references[loader.ident],
+              };
+            }
+            return loader;
+          });
           return cb(null, result);
         };
 
