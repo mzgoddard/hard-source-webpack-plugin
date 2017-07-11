@@ -1,6 +1,6 @@
 {
   "name": "hard-source-webpack-plugin",
-  "version": "0.5.0-rc.0",
+  "version": "0.4.9",
   "description": "Hard cache the source of modules in webpack.",
   "keywords": [
     "webpack",
