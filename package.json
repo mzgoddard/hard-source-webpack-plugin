@@ -24,7 +24,7 @@
   "author": "Michael \"Z\" Goddard <mzgoddard@gmail.com>",
   "license": "ISC",
   "devDependencies": {
-    "chai": "^3.5.0",
+    "chai": "^4.1.0",
     "css-loader": "^0.27.0",
     "extract-text-webpack-plugin": "^2.0.0 || ^1.0.1",
     "file-loader": "^0.11.0 || ^0.10.1",
