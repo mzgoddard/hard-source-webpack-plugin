@@ -161,6 +161,10 @@ Here are the options as documented in `env-hash`.
 
 You can disable the environment hash check by setting `environmentHash: false`. Take care with using this value as you'll need to provide a work around to dump the cache in cases like updating loaders or libraries loaders use.
 
+### Running multiple processes at the same time
+
+If you run multiple processes at the same time, make sure that you also use separate cache directories for each process.
+
 ## Please contribute!
 
 This plugin is pretty young and we don't know what it has trouble with yet. Trying the plugin in a project and its creating errors or doesn't notice changes to original source, let us know your loaders and plugins or other build process details in an issue. Have a fix for something you've encountered, send us a fix.
