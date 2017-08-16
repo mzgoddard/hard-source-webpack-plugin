@@ -723,22 +723,22 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
       if (Object.keys(moduleCache).length) {return Promise.resolve();}
 
+      function copyWithDeser(dest, source) {
+        Object.keys(source).forEach(function(key) {
+          var item = source[key];
+          dest[key] = typeof item === 'string' ? JSON.parse(item) : item;
+        });
+      }
+
       return Promise.all([
         assetCacheSerializer.read()
         .then(function(_assetCache) {assetCache = _assetCache;}),
 
         moduleCacheSerializer.read()
-        .then(function(_moduleCache) {moduleCache = _moduleCache;}),
+        .then(copyWithDeser.bind(null, moduleCache)),
 
         dataCacheSerializer.read()
-        .then(function(_dataCache) {dataCache = _dataCache;})
-        .then(function() {
-          Object.keys(dataCache).forEach(function(key) {
-            if (typeof dataCache[key] === 'string') {
-              dataCache[key] = JSON.parse(dataCache[key]);
-            }
-          });
-        }),
+        .then(copyWithDeser.bind(null, dataCache)),
 
         md5CacheSerializer.read()
         .then(function(_md5Cache) {md5Cache = _md5Cache;})
@@ -754,16 +754,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }),
 
         moduleResolveCacheSerializer.read()
-        .then(function(_moduleResolveCache) {
-          moduleResolveCache = _moduleResolveCache;
-        })
-        .then(function() {
-          Object.keys(moduleResolveCache).forEach(function(key) {
-            if (typeof moduleResolveCache[key] === 'string') {
-              moduleResolveCache[key] = JSON.parse(moduleResolveCache[key]);
-            }
-          });
-        }),
+        .then(copyWithDeser.bind(null, moduleResolveCache)),
 
         missingCacheSerializer.read()
         .then(function(_missingCache) {
