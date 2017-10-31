@@ -142,7 +142,6 @@ exports.compile = function(fixturePath, options) {
       return carry;
     }, {})
     .then(function(carry) {
-      // console.log(stats.toJson());
       if (options && options.exportStats) {
         var statsJson = stats.toJson({
           errors: true,
@@ -399,7 +398,6 @@ exports.itCompilesHardModules = function(fixturePath, filesA, filesB, expectHand
       return expectHandle(out, hardModules);
     }
     else {
-      // console.log(hardModules);
       expectHandle.forEach(function(handle) {
         if (handle instanceof RegExp) {
           expect(hardModules).to.satisfy(function(modules) {
