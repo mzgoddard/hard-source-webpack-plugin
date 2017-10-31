@@ -19,6 +19,7 @@ As an important example of the utility of the plugin interface modules that are 
 
 ## 0.4.X Patches
 
+- `0.4.10` Bump webpack version to help with nested dependency issues (@rowan)
 - `0.4.9` Fetch loader options for rule based options in webpack > 2
 - `0.4.8` Fix error in loader rule optimization use during watch mode
 - `0.4.7` Support webpack 3's loader rules optimization
