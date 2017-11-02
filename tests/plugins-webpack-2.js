@@ -25,9 +25,23 @@ describeWP2('plugin webpack 2 use - builds changes', function() {
     var run2Module = run2Ids[1];
     var run2Require = run2Ids[2];
     expect(main1).to.contain(run1Module + '.a');
-    expect(main1).to.not.match(new RegExp(run1Require + '\\.i\\(' + run1Module + '\\.a\\)\\(|' + run1Module + '\\.a\\('));
+    expect(main1).to.not.match(new RegExp(
+      // webpack 2.x
+      run1Require + '\\.i\\(' + run1Module + '\\.a\\)\\(|' +
+      // webpack <3.?
+      run1Module + '\\.a\\(|' +
+      // webpack 3.?
+      'Object\\(' + run1Module + '\\.a\\)\\('
+    ));
     expect(main1).to.not.match(/(\w\.a)=function/);
-    expect(main2).to.match(new RegExp(run2Require + '\\.i\\(' + run2Module + '\\.a\\)\\(|' + run2Module + '\\.a\\('));
+    expect(main2).to.match(new RegExp(
+      // webpack 2.x
+      run2Require + '\\.i\\(' + run2Module + '\\.a\\)\\(|' +
+      // webpack <3.?
+      run2Module + '\\.a\\(|' +
+      // webpack 3.?
+      'Object\\(' + run2Module + '\\.a\\)\\('
+    ));
     expect(main2).to.match(/(\w\.a)=function/);
   });
 
