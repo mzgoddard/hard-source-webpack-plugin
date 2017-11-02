@@ -9,6 +9,7 @@
 
 ## 0.4.X Patches
 
+- `0.4.11` Fix ContextDependency non-regexp use and fix child compiler cache prefix search
 - `0.4.10` Bump webpack version to help with nested dependency issues (@rowan)
 - `0.4.9` Fetch loader options for rule based options in webpack > 2
 - `0.4.8` Fix error in loader rule optimization use during watch mode
