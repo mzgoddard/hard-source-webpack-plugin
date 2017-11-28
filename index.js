@@ -128,11 +128,24 @@ function serializeDependencies(deps, parent, compilation) {
         };
       }
       else if (dep instanceof HarmonyExportImportedSpecifierDependency) {
+        var activeExports = dep.activeExports;
+        if (!!Set && activeExports instanceof Set) {
+          activeExports = Array.from(dep.activeExports);
+        }
+
+        var otherStarExports = dep.otherStarExports;
+        if (Array.isArray(otherStarExports)) {
+          otherStarExports = otherStarExports.map(dep => serializeDependencies([dep], parent, compilation));
+        }
+
         cacheDep = {
           harmonyRequest: dep.importDependency.request,
           harmonyExportImportedSpecifier: true,
+          importedVar: dep.importedVar,
           harmonyId: dep.id,
           harmonyName: dep.name,
+          harmonyActiveExports: activeExports,
+          harmonyOtherStarExports: otherStarExports
         };
       }
       else if (dep instanceof HarmonyImportSpecifierDependency) {
