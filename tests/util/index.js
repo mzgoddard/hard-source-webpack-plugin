@@ -5,7 +5,8 @@ var vm = require('vm');
 var expect = require('chai').expect;
 var MemoryFS = require('memory-fs');
 
-var LevelDbSerializer = require('../../lib/cache-serializers').LevelDbSerializer;
+var LevelDbSerializer = require('../../lib/hard-source-append-serializer');
+// var LevelDbSerializer = require('../../lib/cache-serializers').LevelDbSerializer;
 var mkdirp = require('mkdirp');
 var Promise = require('bluebird');
 var rimraf = require('rimraf');
