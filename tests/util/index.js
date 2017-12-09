@@ -299,7 +299,7 @@ exports.itCompiles = function(name, fixturePath, fns, expectHandle) {
       return doRun();
     })
     .then(function() {
-      expectHandle({
+      return expectHandle({
         run1: runs[0],
         run2: runs[1],
         runs: runs,
