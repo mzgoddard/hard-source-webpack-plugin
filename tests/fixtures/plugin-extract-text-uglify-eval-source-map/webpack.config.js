@@ -7,8 +7,8 @@ var HardSourceWebpackPlugin = require('../../..');
 var extractOptions;
 if (Number(ExtractTextVersion[0]) > 1) {
   extractOptions = [{
-    fallbackLoader: 'style-loader',
-    loader: 'css-loader',
+    fallback: 'style-loader',
+    use: 'css-loader',
   }];
 }
 else {
