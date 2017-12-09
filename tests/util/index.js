@@ -5,8 +5,8 @@ var vm = require('vm');
 var expect = require('chai').expect;
 var MemoryFS = require('memory-fs');
 
-var LevelDbSerializer = require('../../lib/hard-source-append-serializer');
-// var LevelDbSerializer = require('../../lib/cache-serializers').LevelDbSerializer;
+var dataSerializer = require('../../lib/cache-serializer-factory').dataSerializer;
+
 var mkdirp = require('mkdirp');
 var Promise = require('bluebird');
 var rimraf = require('rimraf');
@@ -331,8 +331,9 @@ exports.itCompilesWithCache = function(name, fixturePath, fnA, fnB, expectHandle
       // return new Promise(function(resolve) {setTimeout(resolve, 1000);});
     })
     .then(function() {
-      var serializer = new LevelDbSerializer({
-        cacheDirPath: path.join(__dirname, '../', 'fixtures', fixturePath, 'tmp/cache/md5')
+      var serializer = dataSerializer.createSerializer({
+        name: 'md5',
+        cacheDirPath: path.join(__dirname, '../', 'fixtures', fixturePath, 'tmp/cache')
       });
       return serializer.read().then(function(_cache) { cache1 = _cache; });
     })
@@ -346,8 +347,9 @@ exports.itCompilesWithCache = function(name, fixturePath, fnA, fnB, expectHandle
       // return new Promise(function(resolve) {setTimeout(resolve, 1000);});
     })
     .then(function() {
-      var serializer = new LevelDbSerializer({
-        cacheDirPath: path.join(__dirname, '../', 'fixtures', fixturePath, 'tmp/cache/md5')
+      var serializer = dataSerializer.createSerializer({
+        name: 'md5',
+        cacheDirPath: path.join(__dirname, '../', 'fixtures', fixturePath, 'tmp/cache')
       });
       return serializer.read().then(function(_cache) { cache2 = _cache; });
     })
