@@ -29,6 +29,7 @@
     "extract-text-webpack-plugin": "^2.0.0 || ^1.0.1",
     "file-loader": "^0.11.0 || ^0.10.1",
     "html-webpack-plugin": "^2.22.0",
+    "level": "^1.4.0",
     "memory-fs": "^0.4.1",
     "mocha": "^3.0.2",
     "style-loader": "^0.14.0",
@@ -40,7 +41,6 @@
   },
   "dependencies": {
     "bluebird": "^3.0.0",
-    "level": "^1.4.0",
     "lodash": "^4.15.0",
     "mkdirp": "^0.5.1",
     "node-object-hash": "^1.2.0",

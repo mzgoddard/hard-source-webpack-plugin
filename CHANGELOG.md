@@ -1,5 +1,6 @@
 # 0.5.0
 
+- Use AppendSerializer by default
 - Internal plugins for freezing and thawing modules, dependencies, and assets
 
 ## Release Features
