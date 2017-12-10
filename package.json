@@ -11,6 +11,7 @@
     "plugin"
   ],
   "main": "index.js",
+  "files": ["index.js", "lib"],
   "repository": {
     "type": "git",
     "url": "https://github.com/mzgoddard/hard-source-webpack-plugin"
