@@ -19,6 +19,7 @@ As an important example of the utility of the plugin interface modules that are 
 
 ## 0.4.X Patches
 
+- `0.4.13` Add AppendSerializer
 - `0.4.12` Fix harmony module export * from ... (@filipesilva)
 - `0.4.11` Fix ContextDependency non-regexp use and fix child compiler cache prefix search
 - `0.4.10` Bump webpack version to help with nested dependency issues (@rowan)
