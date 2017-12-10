@@ -20,6 +20,7 @@ As an important example of the utility of the plugin interface modules that are 
 
 ## 0.4.X Patches
 
+- `0.4.15` Deserialize objects from their caches before use (@ettavolt)
 - `0.4.14` Publish index.js and lib, omitting tests
 - `0.4.13` Add AppendSerializer
 - `0.4.12` Fix harmony module export * from ... (@filipesilva)
