@@ -1,6 +1,6 @@
 {
   "name": "hard-source-webpack-plugin",
-  "version": "0.4.13",
+  "version": "0.4.14",
   "description": "Hard cache the source of modules in webpack.",
   "keywords": [
     "webpack",
@@ -11,7 +11,10 @@
     "plugin"
   ],
   "main": "index.js",
-  "files": ["index.js", "lib"],
+  "files": [
+    "index.js",
+    "lib"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/mzgoddard/hard-source-webpack-plugin"
