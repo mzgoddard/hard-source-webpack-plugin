@@ -10,28 +10,13 @@ var Promise = require('bluebird');
 var nodeObjectHash = require('node-object-hash');
 
 var envHash = require('./lib/env-hash');
-// try {
-//   envHash = require('env-hash');
-//   envHash = envHash.default || envHash;
-// }
-// catch (_) {
-//   envHash = function() {
-//     return Promise.resolve('');
-//   };
-// }
 
-var AMDDefineDependency = require('webpack/lib/dependencies/AMDDefineDependency');
 var AMDRequireContextDependency = require('webpack/lib/dependencies/AMDRequireContextDependency');
-var AsyncDependenciesBlock = require('webpack/lib/AsyncDependenciesBlock');
 var CommonJsRequireContextDependency = require('webpack/lib/dependencies/CommonJsRequireContextDependency');
-var ConstDependency = require('webpack/lib/dependencies/ConstDependency');
 var ContextDependency = require('webpack/lib/dependencies/ContextDependency');
 var RequireContextDependency = require('webpack/lib/dependencies/RequireContextDependency');
 var RequireResolveContextDependency = require('webpack/lib/dependencies/RequireResolveContextDependency');
-var SingleEntryDependency = require('webpack/lib/dependencies/SingleEntryDependency');
 
-var ContextModule = require('webpack/lib/ContextModule');
-var NormalModule = require('webpack/lib/NormalModule');
 try{
   var NullDependencyTemplate = require('webpack/lib/dependencies/NullDependencyTemplate');
 } catch(ex) {
@@ -81,13 +66,15 @@ var HardModule = require('./lib/hard-module');
 
 var LoggerFactory = require('./lib/logger-factory');
 
-var makeDevtoolOptions = require('./lib/devtool-options');
 var cachePrefix = require('./lib/util').cachePrefix;
-var deserializeDependencies = require('./lib/deserialize-dependencies');
 
 var CacheSerializerFactory = require('./lib/cache-serializer-factory');
 var HardSourceJsonSerializerPlugin =
   require('./lib/hard-source-json-serializer-plugin');
+var HardSourceAppendSerializerPlugin =
+  require('./lib/hard-source-append-serializer-plugin');
+var HardSourceLevelDbSerializerPlugin =
+  require('./lib/hard-source-leveldb-serializer-plugin');
 
 var hardSourceVersion = require('./package.json').version;
 
@@ -102,164 +89,9 @@ rimraf.sync = _rimraf.sync.bind(_rimraf);
 var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
 var fsWriteFile = Promise.promisify(fs.writeFile, {context: fs});
 
-var NS, extractTextNS;
+var NS;
 
 NS = fs.realpathSync(__dirname);
-
-try {
-  extractTextNS = path.dirname(require.resolve('extract-text-webpack-plugin'));
-}
-catch (_) {}
-
-function flattenPrototype(obj) {
-  if (typeof obj === 'string') {
-    return obj;
-  }
-  var copy = {};
-  for (var key in obj) {
-    copy[key] = obj[key];
-  }
-  return copy;
-}
-
-function serializeDependencies(deps, parent, compilation) {
-  return deps
-  .map(function(dep) {
-    var cacheDep;
-    if (typeof HarmonyImportDependency !== 'undefined') {
-      if (dep instanceof HarmonyImportDependency) {
-        cacheDep = {
-          harmonyImport: true,
-          request: dep.request,
-          importedVar: dep.importedVar,
-          range: dep.range,
-        };
-      }
-      else if (dep instanceof HarmonyExportImportedSpecifierDependency) {
-        cacheDep = {
-          harmonyRequest: dep.importDependency.request,
-          harmonyImportedVar: dep.importDependency.importedVar,
-          harmonyRange: dep.importDependency.range,
-          harmonyExportImportedSpecifier: true,
-          harmonyId: dep.id,
-          harmonyName: dep.name,
-        };
-      }
-      else if (dep instanceof HarmonyImportSpecifierDependency) {
-        cacheDep = {
-          harmonyRequest: dep.importDependency.request,
-          harmonyImportedVar: dep.importDependency.importedVar,
-          harmonyRange: dep.importDependency.range,
-          harmonyImportSpecifier: true,
-          harmonyId: dep.id,
-          harmonyName: dep.name,
-          loc: flattenPrototype(dep.loc),
-        };
-      }
-      else if (dep instanceof HarmonyCompatibilityDependency) {
-        cacheDep = {
-          harmonyCompatibility: true,
-        };
-      }
-    }
-    if (!cacheDep && dep.originModule && dep.describeHarmonyExport) {
-      cacheDep = {
-        harmonyExport: true,
-        harmonyId: dep.id,
-        harmonyName: dep.describeHarmonyExport().exportedName,
-        harmonyPrecedence: dep.describeHarmonyExport().precedence,
-      };
-    }
-    if (!cacheDep) {
-      cacheDep = {
-        contextDependency: dep instanceof ContextDependency,
-        contextCritical: dep.critical,
-        constDependency: (
-          dep instanceof ConstDependency ||
-          dep instanceof AMDDefineDependency
-        ),
-        request: dep.request,
-        recursive: dep.recursive,
-        regExp: dep.regExp ? dep.regExp.source : null,
-        async: dep.async,
-        optional: dep.optional,
-        loc: flattenPrototype(dep.loc),
-      };
-    }
-
-    var identifierPrefix = cachePrefix(compilation);
-    if (identifierPrefix !== null) {
-      // The identifier this dependency should resolve to.
-      var _resolvedModuleIdentifier =
-        dep.module && dep.__hardSource_resolvedModuleIdentifier;
-      // An identifier to dereference a dependency under a module to some per
-      // dependency value
-      var _inContextDependencyIdentifier = parent && JSON.stringify([parent.context, cacheDep]);
-      // An identifier from the dependency to the cached resolution information
-      // for building a module.
-      var _moduleResolveCacheId = parent && cacheDep.request && JSON.stringify([identifierPrefix, parent.context, cacheDep.request]);
-      cacheDep._resolvedModuleIdentifier = _resolvedModuleIdentifier;
-      cacheDep._inContextDependencyIdentifier = _inContextDependencyIdentifier;
-      cacheDep._moduleResolveCacheId = _moduleResolveCacheId;
-    }
-
-    return cacheDep;
-  })
-  .filter(function(req) {
-    return req.request ||
-      req.constDependency ||
-      req.harmonyExport ||
-      req.harmonyImportSpecifier ||
-      req.harmonyExportImportedSpecifier ||
-      req.harmonyCompatibility;
-  });
-}
-function serializeVariables(vars, parent, compilation) {
-  return vars.map(function(variable) {
-    return {
-      name: variable.name,
-      expression: variable.expression,
-      dependencies: serializeDependencies(variable.dependencies, parent, compilation),
-    }
-  });
-}
-function serializeBlocks(blocks, parent, compilation) {
-  return blocks.map(function(block) {
-    return {
-      async: block instanceof AsyncDependenciesBlock,
-      name: block.chunkName,
-      dependencies: serializeDependencies(block.dependencies, parent, compilation),
-      variables: serializeVariables(block.variables, parent, compilation),
-      blocks: serializeBlocks(block.blocks, parent, compilation),
-    };
-  });
-}
-function serializeHashContent(module) {
-  var content = [];
-  module.updateHash({
-    update: function(str) {
-      content.push(str);
-    },
-  });
-  return content.join('');
-}
-
-// function AssetCache() {
-//
-// }
-//
-// function ModuleCache() {
-//   this.cache = {};
-//   this.serializer = null;
-// }
-//
-// ModuleCache.prototype.get = function(identifier) {
-//
-// };
-//
-// ModuleCache.prototype.save = function(modules) {
-//
-// };
 
 function HardSourceWebpackPlugin(options) {
   this.options = options || {};
@@ -1036,7 +868,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           ) {
             var dependencyIdentifier = cacheDependency._inContextDependencyIdentifier;
             if (!checkedDependencies[dependencyIdentifier]) {
-              // var dependency = deserializeDependencies.dependencies.call(state, [cacheDependency], null)[0];
               var dependency = thaw('dependency', null, cacheDependency, {
                 state: state.state,
                 compilation: compilation,
@@ -1796,8 +1627,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     var startCacheTime = Date.now();
 
-    // var devtoolOptions = makeDevtoolOptions(compiler.options);
-
     // fs.writeFileSync(
     //   path.join(cacheDirPath, 'file-dependencies.json'),
     //   JSON.stringify({fileDependencies: compilation.fileDependencies}),
@@ -1997,20 +1826,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       });
     }
 
-    function serializeError(error, parent) {
-      var serialized = {
-        message: error.message,
-        details: error.details,
-      };
-      if (error.origin) {
-        serialized.origin = serializeDependencies([error.origin], parent, compilation)[0];
-      }
-      if (error.dependencies) {
-        serialized.dependencies = serializeDependencies(error.dependencies, parent, compilation);
-      }
-      return serialized;
-    }
-
     var identifierPrefix = cachePrefix(compilation);
     if (identifierPrefix !== null) {
       freeze('compilation', null, compilation);
@@ -2064,3 +1879,5 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 module.exports = HardSourceWebpackPlugin;
 
 HardSourceWebpackPlugin.HardSourceJsonSerializerPlugin = HardSourceJsonSerializerPlugin;
+HardSourceWebpackPlugin.HardSourceAppendSerializerPlugin = HardSourceAppendSerializerPlugin;
+HardSourceWebpackPlugin.HardSourceLevelDbSerializerPlugin = HardSourceLevelDbSerializerPlugin;
