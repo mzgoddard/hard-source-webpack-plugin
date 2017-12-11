@@ -328,40 +328,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   }
 
   var environmentHasher = null;
-  if (typeof options.environmentPaths !== 'undefined') {
-    loggerCore.error(
-      {
-        id: 'environment-paths-deprecated'
-      },
-      'environmentPaths is deprecated, please use environmentHash. ' +
-      'environmentHash accepts the same options.'
-    );
-    if (options.environmentPaths === false) {
-      environmentHasher = function() {
-        return Promise.resolve('');
-      };
-    }
-    else if (typeof options.environmentPaths === 'string') {
-      environmentHasher = function() {
-        return Promise.resolve(options.environmentPaths);
-      };
-    }
-    else {
-      environmentHasher = function() {
-        return envHash(options.environmentPaths);
-      };
-    }
-  }
   if (typeof options.environmentHash !== 'undefined') {
-    if (environmentHasher) {
-      loggerCore.warn(
-        {
-          id: 'environment-paths-and-hash-defined'
-        },
-        'environmentHash is a new option replacing environmentPaths. Please ' +
-        'use only environmentHash.'
-      );
-    }
     if (options.environmentHash === false) {
       environmentHasher = function() {
         return Promise.resolve('');

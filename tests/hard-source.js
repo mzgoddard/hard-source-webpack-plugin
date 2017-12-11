@@ -143,20 +143,6 @@ describe('hard-source features', function() {
     });
   }
 
-  itCompilesEnvironmentHashDisabled('paths-false', [
-    '{',
-    '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
-    '  environmentPaths: false,',
-    '}',
-  ], [
-    '{',
-    '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
-    '  environmentPaths: false,',
-    '}',
-  ]);
-
   itCompilesEnvironmentHashDisabled('false', [
     '{',
     '  cacheDirectory: "cache",',
@@ -168,30 +154,6 @@ describe('hard-source features', function() {
     '  cacheDirectory: "cache",',
     '  recordsPath: "cache/records.json",',
     '  environmentHash: false,',
-    '}',
-  ]);
-
-  itCompilesEnvironmentHash('paths-envhash', [
-    '{',
-    '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
-    '  environmentPaths: {',
-    '    root: __dirname,',
-    '    directories: ["vendor"],',
-    '    files: [],',
-    '  },',
-    '}',
-  ]);
-
-  itCompilesEnvironmentHash('paths-envhash-files', [
-    '{',
-    '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
-    '  environmentPaths: {',
-    '    root: __dirname,',
-    '    directories: ["vendor"],',
-    '    files: ["env-hash"],',
-    '  },',
     '}',
   ]);
 
@@ -257,5 +219,65 @@ describe('hard-source features', function() {
     '  },',
     '}',
   ]);
+
+  var _packageYarnLockHashConfig = [
+    '{',
+    '  cacheDirectory: "cache",',
+    '  recordsPath: "cache/records.json",',
+    '  environmentHash: {',
+    '    root: __dirname,',
+    '  },',
+    '}',
+  ];
+
+  function itCompilesPackageYarnLockHash(key, files1, files2) {
+    itCompiles('compiles hard-source-packageyarnlock-hash ' + key + ' with fresh cache', 'hard-source-packageyarnlock-hash', function() {
+      return writeFiles('hard-source-packageyarnlock-hash', Object.assign({
+        'hard-source-config.js': _packageYarnLockHashConfig.join('\n'),
+      }, files1));
+    }, function() {
+      return writeFiles('hard-source-packageyarnlock-hash', Object.assign({
+        'hard-source-config.js': _packageYarnLockHashConfig.join('\n'),
+      }, files2))
+      .then(function() {
+        return fs.readFileSync(__dirname + '/fixtures/hard-source-packageyarnlock-hash/tmp/cache/stamp', 'utf8');
+      });
+    }, function(output) {
+      var stamp = fs.readFileSync(__dirname + '/fixtures/hard-source-packageyarnlock-hash/tmp/cache/stamp', 'utf8');
+      expect(stamp).to.not.equal(output.setup2);
+    });
+  }
+
+  itCompilesPackageYarnLockHash('package-lock', {
+    'package-lock.json': 'a',
+    'yarn.lock': null,
+  }, {
+    'package-lock.json': 'b',
+    'yarn.lock': null,
+  });
+
+  itCompilesPackageYarnLockHash('yarn-lock', {
+    'package-lock.json': null,
+    'yarn.lock': 'a',
+  }, {
+    'package-lock.json': null,
+    'yarn.lock': 'b',
+  });
+
+  itCompilesPackageYarnLockHash('package-yarn-lock', {
+    'package-lock.json': 'a',
+    'yarn.lock': 'b',
+  }, {
+    'package-lock.json': 'a',
+    'yarn.lock': 'c',
+  });
+
+  itCompilesPackageYarnLockHash('package-yarn-lock-2', {
+    'package-lock.json': 'a',
+    'yarn.lock': 'b',
+  }, {
+    'package-lock.json': 'c',
+    'yarn.lock': 'b',
+  });
 
 });
