@@ -1,11 +1,13 @@
 # 0.5.0
 
-- Use AppendSerializer by default
 - Internal plugins for freezing and thawing modules, dependencies, and assets
+- Use AppendSerializer by default
+- Improved ES2015 support
+- Environment hash defaults to package-lock.json and yarn.lock if they exist
 
 ## Release Features
 
-The first step to providing meaningful third party hard-source plugins for deeper integration with advanced webpack plugins, this version adds internally used plugins for freezing and thawing modules, etc. These plugins are accessible externally but are prefixed with `--` to help indicate that you should avoid using them in the meantime. You are welcome to make plugins that use these hooks but the interface is likely to change and third-party users of the current state of these interfaces will not be a reason to keep the hooks from changing to what may be needed to support a wider variety of plugins.
+The first step to providing meaningful third party hard-source plugins for deeper integration with advanced webpack plugins, this version adds internally used plugins for freezing and thawing modules, etc. These plugins are accessible externally but are prefixed with `--` to help indicate that you should avoid using them in the meantime. You are welcome to make plugins that use these hooks but the interface may change. Internal and external plugin interface changes will only occur during minor version releases before version 1.
 
 As an important example of the utility of the plugin interface modules that are put into a ConcatenatedModule are now cached, helping decreasing build times using that plugin.
 
