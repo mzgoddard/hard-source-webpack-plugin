@@ -10,28 +10,13 @@ var Promise = require('bluebird');
 var nodeObjectHash = require('node-object-hash');
 
 var envHash = require('./lib/env-hash');
-// try {
-//   envHash = require('env-hash');
-//   envHash = envHash.default || envHash;
-// }
-// catch (_) {
-//   envHash = function() {
-//     return Promise.resolve('');
-//   };
-// }
 
-var AMDDefineDependency = require('webpack/lib/dependencies/AMDDefineDependency');
 var AMDRequireContextDependency = require('webpack/lib/dependencies/AMDRequireContextDependency');
-var AsyncDependenciesBlock = require('webpack/lib/AsyncDependenciesBlock');
 var CommonJsRequireContextDependency = require('webpack/lib/dependencies/CommonJsRequireContextDependency');
-var ConstDependency = require('webpack/lib/dependencies/ConstDependency');
 var ContextDependency = require('webpack/lib/dependencies/ContextDependency');
 var RequireContextDependency = require('webpack/lib/dependencies/RequireContextDependency');
 var RequireResolveContextDependency = require('webpack/lib/dependencies/RequireResolveContextDependency');
-var SingleEntryDependency = require('webpack/lib/dependencies/SingleEntryDependency');
 
-var ContextModule = require('webpack/lib/ContextModule');
-var NormalModule = require('webpack/lib/NormalModule');
 try{
   var NullDependencyTemplate = require('webpack/lib/dependencies/NullDependencyTemplate');
 } catch(ex) {
