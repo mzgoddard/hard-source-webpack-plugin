@@ -71,6 +71,10 @@ var cachePrefix = require('./lib/util').cachePrefix;
 var CacheSerializerFactory = require('./lib/cache-serializer-factory');
 var HardSourceJsonSerializerPlugin =
   require('./lib/hard-source-json-serializer-plugin');
+var HardSourceAppendSerializerPlugin =
+  require('./lib/hard-source-append-serializer-plugin');
+var HardSourceLevelDbSerializerPlugin =
+  require('./lib/hard-source-leveldb-serializer-plugin');
 
 var hardSourceVersion = require('./package.json').version;
 
@@ -1875,3 +1879,5 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 module.exports = HardSourceWebpackPlugin;
 
 HardSourceWebpackPlugin.HardSourceJsonSerializerPlugin = HardSourceJsonSerializerPlugin;
+HardSourceWebpackPlugin.HardSourceAppendSerializerPlugin = HardSourceAppendSerializerPlugin;
+HardSourceWebpackPlugin.HardSourceLevelDbSerializerPlugin = HardSourceLevelDbSerializerPlugin;
