@@ -9,14 +9,23 @@ var describeWP2 = require('./util').describeWP2;
 describeWP2('basic webpack 2 use - compiles identically', function() {
 
   itCompilesTwice('base-es2015-module');
+  itCompilesTwice('base-es2015-module', {exportStats: true});
   itCompilesTwice('base-es2015-module-compatibility');
+  itCompilesTwice('base-es2015-module-compatibility', {exportStats: true});
   itCompilesTwice('base-es2015-module-export-before-import');
+  itCompilesTwice('base-es2015-module-export-before-import', {exportStats: true});
   itCompilesTwice('base-es2015-module-use-before-import');
+  itCompilesTwice('base-es2015-module-use-before-import', {exportStats: true});
   itCompilesTwice('base-es2015-rename-module');
+  itCompilesTwice('base-es2015-rename-module', {exportStats: true});
   itCompilesTwice('base-es2015-system-context');
+  itCompilesTwice('base-es2015-system-context', {exportStats: true});
   itCompilesTwice('base-es2015-system-module');
+  itCompilesTwice('base-es2015-system-module', {exportStats: true});
   itCompilesTwice('base-warning-context');
+  itCompilesTwice('base-warning-context', {exportStats: true});
   itCompilesTwice('base-warning-es2015');
+  itCompilesTwice('base-warning-es2015', {exportStats: true});
 
   itCompilesHardModules('base-es2015-module', ['./index.js', './obj.js', './fib.js']);
   itCompilesHardModules('base-es2015-module-compatibility', ['./index.js', './obj.js', './fib.js']);
