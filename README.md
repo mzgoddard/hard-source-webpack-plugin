@@ -127,6 +127,10 @@ This is can be due to module context dependencies. `require.context` or loaders 
 
 Make sure you don't have a `require.context` or context loader on the root of your project. Such a context module means webpack is watching the hard source cache and when the cache is written after a build, webpack will start a new build for that module. This normally does not happen with `webpack-dev-server` because it writes the built files into memory instead of the disk. `hard-source` cannot do that since that would defeat its purpose as a disk caching plugin.
 
+### Running multiple processes at the same time
+
+If you run multiple processes at the same time, make sure that you also use separate cache directories for each process.
+
 ## Please contribute!
 
 If you encounter any issues or have an idea for hard-source-webpack-plugin could be better, please let us know.
