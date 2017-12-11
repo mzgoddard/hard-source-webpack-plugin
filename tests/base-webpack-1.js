@@ -14,6 +14,7 @@ describe('basic webpack use - compiles identically', function() {
   itCompilesTwice('base-code-split');
   itCompilesTwice('base-code-split-process');
   itCompilesTwice('base-code-split-nest');
+  itCompilesTwice('base-code-split-nest', {exportStats: true});
   itCompilesTwice('base-devtool-eval');
   itCompilesTwice('base-devtool-eval-source-map');
   itCompilesTwice('base-devtool-source-map');
