@@ -4,7 +4,8 @@ var path = require('path');
 
 var level = require('level');
 var lodash = require('lodash');
-var mkdirp = require('mkdirp');
+var _mkdirp = require('mkdirp');
+var _rimraf = require('rimraf');
 
 var Promise = require('bluebird');
 var nodeObjectHash = require('node-object-hash');
@@ -95,6 +96,10 @@ function requestHash(request) {
   return crypto.createHash('sha1').update(request).digest().hexSlice();
 }
 
+var mkdirp = Promise.promisify(_mkdirp, {context: _mkdirp});
+mkdirp.sync = _mkdirp.sync.bind(_mkdirp);
+var rimraf = Promise.promisify(_rimraf);
+rimraf.sync = _rimraf.sync.bind(_rimraf);
 var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
 var fsWriteFile = Promise.promisify(fs.writeFile, {context: fs});
 
@@ -680,7 +685,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         resolverCache = {normal: {},loader: {},context: {}};
         fileTimestamps = {};
         contextTimestamps = {};
-        return;
+
+        return rimraf(cacheDirPath);
       }
 
       if (Object.keys(moduleCache).length) {return Promise.resolve();}
@@ -2022,8 +2028,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     });
 
     Promise.all([
-      fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
-      fsWriteFile(path.join(cacheDirPath, 'version'), hardSourceVersion, 'utf8'),
+      mkdirp(cacheDirPath)
+      .then(function() {
+        return Promise.all([
+          fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
+          fsWriteFile(path.join(cacheDirPath, 'version'), hardSourceVersion, 'utf8'),
+        ]);
+      }),
       moduleResolveCacheSerializer.write(moduleResolveOps),
       assetCacheSerializer.write(assetOps),
       moduleCacheSerializer.write(moduleOps),
