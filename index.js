@@ -607,7 +607,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     catch (_) {
       mkdirp.sync(cacheAssetDirPath);
       if (configHashInDirectory) {
-        loggerCore.log(
+        loggerCore.warn(
           {
             id: 'new-config-hash',
             cacheDirPath: cacheDirPath
@@ -1105,7 +1105,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                   }
                   cacheItem.invalid = true;
                   reject(new Error('dependency has a new identifier'));
-                  loggerCore.info(
+                  loggerCore.debug(
                     {
                       id: 'invalid-module--must-update-dependency',
                       moduleIdentifier: cacheItem.identifier,
