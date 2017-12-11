@@ -143,20 +143,6 @@ describe('hard-source features', function() {
     });
   }
 
-  itCompilesEnvironmentHashDisabled('paths-false', [
-    '{',
-    '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
-    '  environmentPaths: false,',
-    '}',
-  ], [
-    '{',
-    '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
-    '  environmentPaths: false,',
-    '}',
-  ]);
-
   itCompilesEnvironmentHashDisabled('false', [
     '{',
     '  cacheDirectory: "cache",',
@@ -168,30 +154,6 @@ describe('hard-source features', function() {
     '  cacheDirectory: "cache",',
     '  recordsPath: "cache/records.json",',
     '  environmentHash: false,',
-    '}',
-  ]);
-
-  itCompilesEnvironmentHash('paths-envhash', [
-    '{',
-    '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
-    '  environmentPaths: {',
-    '    root: __dirname,',
-    '    directories: ["vendor"],',
-    '    files: [],',
-    '  },',
-    '}',
-  ]);
-
-  itCompilesEnvironmentHash('paths-envhash-files', [
-    '{',
-    '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
-    '  environmentPaths: {',
-    '    root: __dirname,',
-    '    directories: ["vendor"],',
-    '    files: ["env-hash"],',
-    '  },',
     '}',
   ]);
 
