@@ -5,6 +5,10 @@
 - Improved ES2015 support
 - Environment hash defaults to package-lock.json and yarn.lock if they exist
 
+## 0.5.X Patches
+
+- `0.5.2` Fix nested AsyncDependenciesBlock origins for Stats support
+
 ## Release Features
 
 The first step to providing meaningful third party hard-source plugins for deeper integration with advanced webpack plugins, this version adds internally used plugins for freezing and thawing modules, etc. These plugins are accessible externally but are prefixed with `--` to help indicate that you should avoid using them in the meantime. You are welcome to make plugins that use these hooks but the interface may change. Internal and external plugin interface changes will only occur during minor version releases before version 1.
