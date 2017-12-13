@@ -964,6 +964,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             }
             else if (resolveItem && resolveItem.invalid) {
               cacheItem.invalid = true;
+              cacheItem.invalidReason = 'resolveItem';
               return;
             }
           }
@@ -1003,6 +1004,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                   }
                   if (err) {
                     cacheItem.invalid = true;
+                    cacheItem.invalidReason = 'dependencyIdentifier';
                     return reject(err);
                   }
                   // IgnorePlugin and other plugins can call this callback
@@ -1220,6 +1222,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         )) {
           // Bust this module, the keys exported or their order has changed.
           cacheItem.invalid = true;
+          cacheItem.invalidReason = 'used or usedExports';
           // moduleCache[identifier] = null;
 
           // Bust all dependents, they likely need to use new keys for this
