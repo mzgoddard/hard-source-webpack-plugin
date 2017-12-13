@@ -1283,13 +1283,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         });
       };
     });
-
-    params.normalModuleFactory.plugin('module', function(module) {
-      // module.isUsed = function(exportName) {
-      //   return exportName ? exportName : false;
-      // };
-      return module;
-    });
   });
 
   function preload(prefix, memoryCache) {
