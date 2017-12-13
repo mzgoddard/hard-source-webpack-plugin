@@ -2,7 +2,20 @@ var fs = require('fs');
 var join = require('path').join;
 
 var expect = require('chai').expect;
-var Promise = require('bluebird');
+
+function promisify(f, o) {
+  var ctx = o && o.context || null;
+  return function() {
+    var args = Array.from(arguments);
+    return new Promise(function(resolve, reject) {
+      args.push(function(err, value) {
+        if (err) {return reject(err);}
+        return resolve(value);
+      });
+      f.apply(ctx, args);
+    });
+  };
+}
 
 var AppendSerializerPlugin = require('../lib/hard-source-append-serializer-plugin');
 
@@ -39,7 +52,7 @@ describe('hard source serializers - serializer abilities', function() {
 
     var cachePath = join(__dirname, 'fixtures/serializer-append-base-1dep-compact/tmp/cache');
 
-    var stat = Promise.promisify(fs.stat);
+    var stat = promisify(fs.stat);
     var oldSize;
 
     return Promise.resolve()
