@@ -9,6 +9,8 @@ var _rimraf = require('rimraf');
 var nodeObjectHash = require('node-object-hash');
 
 var envHash = require('./lib/env-hash');
+var promisify = require('./lib/util/promisify');
+var values = require('./lib/util/Object.values');
 
 var AMDRequireContextDependency = require('webpack/lib/dependencies/AMDRequireContextDependency');
 var CommonJsRequireContextDependency = require('webpack/lib/dependencies/CommonJsRequireContextDependency');
@@ -79,20 +81,6 @@ var hardSourceVersion = require('./package.json').version;
 
 function requestHash(request) {
   return crypto.createHash('sha1').update(request).digest().hexSlice();
-}
-
-function promisify(f, o) {
-  var ctx = o && o.context || null;
-  return function() {
-    var args = Array.from(arguments);
-    return new Promise(function(resolve, reject) {
-      args.push(function(err, value) {
-        if (err) {return reject(err);}
-        return resolve(value);
-      });
-      f.apply(ctx, args);
-    });
-  };
 }
 
 var mkdirp = promisify(_mkdirp, {context: _mkdirp});
@@ -737,7 +725,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         compiler.contextTimestamps = compiler.contextTimestamps || {};
         var contextTs = contextTimestamps = {};
         const contexts = contextStamps(dataCache.contextDependencies, stats);
-        return Promise.all(Object.values(contexts))
+        return Promise.all(values(contexts))
         .then(function() {
           for (var contextPath in contexts) {
             var context = contexts[contextPath];
