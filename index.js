@@ -950,7 +950,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           return Promise.all(promise)
           .then(function() {
             if (!cacheItem || cacheItem.invalid) {
-              return Promise.reject();
+              throw new Error('invalid cacheItem');
             }
             checkedModules[result.request] = cacheItem;
             return cacheItem;
@@ -958,7 +958,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           .catch(function(e) {
             cacheItem.invalid = true;
             moduleCache[identifier] = null;
-            return Promise.reject();
+            throw new Error('invalid cacheItem');
           });
         }
         else {
