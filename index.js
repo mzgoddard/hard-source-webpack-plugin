@@ -106,6 +106,34 @@ var NS;
 
 NS = fs.realpathSync(__dirname);
 
+var bulkFsTask = function(array, each) {
+  return new Promise(function(resolve, reject) {
+    var ops = 0;
+    var out = [];
+    array.forEach(function(item, i) {
+      out[i] = each(item, function(back, callback) {
+        ops++;
+        return function(err, value) {
+          try {
+            out[i] = back(err, value, out[i]);
+          }
+          catch (e) {
+            return reject(e);
+          }
+
+          ops--;
+          if (ops === 0) {
+            resolve(out);
+          }
+        };
+      });
+    });
+    if (ops === 0) {
+      resolve(out);
+    }
+  });
+};
+
 function HardSourceWebpackPlugin(options) {
   this.options = options || {};
 }
@@ -292,7 +320,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var _this = this;
 
-  var stat, readdir, mtime, md5, contextStamps;
+  var stat, readdir, readFile, mtime, md5, fileStamp, contextStamps;
 
   compiler.plugin('after-plugins', function() {
     if (
@@ -320,6 +348,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       {context: compiler.inputFileSystem}
     );
 
+    readFile = promisify(
+      compiler.inputFileSystem.readFile,
+      {context: compiler.inputFileSystem}
+    );
+
     mtime = function(file) {
       return stat(file)
       .then(function(stat) {return +stat.mtime;})
@@ -327,36 +360,43 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     };
 
     md5 = function(file) {
-      return Promise.resolve({
-        then: function(resolve, reject) {
-          compiler.inputFileSystem.readFile(file, function(err, contents) {
-            if (err) { return reject(err); }
-            return resolve(crypto.createHash('md5').update(contents, 'utf8').digest('hex'));
-          });
-        }
+      return readFile(file)
+      .then(function(contents) {
+        return crypto.createHash('md5').update(contents, 'utf8').digest('hex');
       })
       .catch(function() {return '';});
     };
 
-    contextStamps = function(contextDependencies, fileDependencies, stats) {
-      stats = stats || {};
-      var contexts = {};
-      contextDependencies.forEach(function(context) {
-        contexts[context] = {files: [], mtime: 0, hash: ''};
-      });
-
-      fileDependencies.forEach(function(file) {
-        contextDependencies.forEach(function(context) {
-          if (file.substring(0, context.length + 1) === context + path.sep) {
-            contexts[context].files.push(file.substring(context.length + 1));
-          }
+    fileStamp = function(file, stats) {
+      if (compiler.fileTimestamps[file]) {
+        return compiler.fileTimestamps[file];
+      }
+      else {
+        if (!stats[file]) {stats[file] = stat(file);}
+        return stats[file]
+        .then(function(stat) {
+          var mtime = +stat.mtime;
+          compiler.fileTimestamps[file] = mtime;
+          return mtime;
         });
-      });
+      }
+    };
 
-      return Promise.all(contextDependencies.map(function(contextPath) {
-        var context = contexts[contextPath];
+    contextStamp = function(dir, stats) {
+      var context = {};
+
+      if (
+        compiler.contextTimestamps[dir] &&
+        md5Cache[dir] &&
+        compiler.contextTimestamps[dir] < md5Cache[dir].mtime
+      ) {
+        const _md5Item = md5Cache[dir];
+        context.mtime = _md5Item.mtime;
+        context.hash = _md5Item.hash;
+      }
+      else {
         var selfTime = 0;
-        var selfHash = crypto.createHash('md5');
+
         function walk(dir) {
           return readdir(dir)
           .then(function(items) {
@@ -390,19 +430,44 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             .filter(Boolean);
           });
         }
-        return walk(contextPath)
+
+        return walk(dir)
         .then(function(items) {
           items.sort();
+          var selfHash = crypto.createHash('md5');
           items.forEach(function(item) {
             selfHash.update(item);
           });
           context.mtime = selfTime;
           context.hash = selfHash.digest('hex');
+          return context;
         });
-      }))
-      .then(function() {
-        return contexts;
+      }
+    };
+
+    contextStamps = function(contextDependencies, stats) {
+      stats = stats || {};
+      var contexts = {};
+      contextDependencies.forEach(function(context) {
+        contexts[context] = {files: [], mtime: 0, hash: ''};
       });
+
+      var compilerContextTs = compiler.contextTimestamps;
+
+      contextDependencies.forEach(function(contextPath) {
+        const _context = contextStamp(contextPath, stats);
+        if (!_context.then) {
+          contexts[contextPath] = _context;
+        }
+        else {
+          contexts[contextPath] = _context
+          .then(function(context) {
+            contexts[contextPath] = context;
+            return context;
+          });
+        }
+      });
+      return contexts;
     };
   }
 
@@ -559,7 +624,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           Object.keys(md5Cache).forEach(function(key) {
             if (typeof md5Cache[key] === 'string') {
               md5Cache[key] = JSON.parse(md5Cache[key]);
-              // md5Cache[key].mtime = md5Cache[key].mtime;
             }
 
             cachedMd5s[key] = md5Cache[key].hash;
@@ -606,92 +670,132 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     .then(cb, cb);
   });
 
-  compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
+  compiler.plugin(['watch-run', 'run'], function(_compiler, cb) {
     if (!active) {return cb();}
 
-    if(!dataCache.fileDependencies) return cb();
-    // var fs = compiler.inputFileSystem;
-    var fileTs = compiler.fileTimestamps = fileTimestamps = {};
-
-    function setKey(store, key, _default) {
-      return function(value) {
-        store[key] = value || _default;
-      };
-    }
-
-    function setKeyError(store, key, _default) {
-      return function(err) {
-        store[key] = _default;
-
-        if (err.code === "ENOENT") {return;}
-        throw err;
-      };
-    }
+    // No previous build to verify.
+    if (!dataCache.fileDependencies) return cb();
 
     var stats = {};
     return Promise.all([
-      Promise.all(dataCache.fileDependencies.map(function(file) {
-        if (!stats[file]) {stats[file] = stat(file);}
-        return stats[file]
-        .then(function(stat) {return +stat.mtime;})
-        .then(setKey(fileTs, file, 0), setKeyError(fileTs, file, 0))
-        .then(function() {
-          var setter = setKey(fileMd5s, file, '');
-          if (
-            md5Cache[file] && fileTs[file] >= md5Cache[file].mtime ||
-            !md5Cache[file] ||
-            !fileTs[file]
-          ) {
-            return md5(file)
-            .then(setter, setKeyError(fileMd5s, file, ''));
+      (function() {
+        var compilerFileTs = compiler.fileTimestamps = {};
+        var fileTs = fileTimestamps = {};
+
+        return bulkFsTask(dataCache.fileDependencies, function(file, task) {
+          if (compiler.fileTimestamps[file]) {
+            return compiler.fileTimestamps[file];
           }
           else {
-            setter(md5Cache[file].hash);
+            compiler.inputFileSystem.stat(file, task(function(err, value) {
+              if (err) {
+                return 0;
+              }
+
+              var mtime = +value.mtime;
+              compiler.fileTimestamps[file] = mtime;
+              return mtime;
+            }));
           }
+        })
+        .then(function(mtimes) {
+          const bulk = lodash.zip(dataCache.fileDependencies, mtimes);
+          return bulkFsTask(bulk, function(item, task) {
+            var file = item[0];
+            var mtime = item[1];
+
+            fileTs[file] = mtime || 0;
+            if (!compiler.fileTimestamps[file]) {
+              compiler.fileTimestamps[file] = mtime;
+            }
+
+            if (
+              fileTs[file] &&
+              md5Cache[file] &&
+              fileTs[file] < md5Cache[file].mtime
+            ) {
+              fileTs[file] = md5Cache[file].mtime;
+              fileMd5s[file] = md5Cache[file].hash;
+            }
+            else {
+              compiler.inputFileSystem.readFile(file, task(function(err, body) {
+                if (err) {
+                  fileMd5s[file] = '';
+                  return;
+                }
+
+                const hash = crypto.createHash('md5')
+                .update(body, 'utf8').digest('hex');
+
+                fileMd5s[file] = hash;
+              }));
+            }
+          });
         });
-      })),
-      new Promise(function(resolve, reject) {
-        var contextTs = compiler.contextTimestamps = contextTimestamps = {};
-        return contextStamps(dataCache.contextDependencies, dataCache.fileDependencies, stats)
-        .then(function(contexts) {
+      })(),
+      (function() {
+        compiler.contextTimestamps = compiler.contextTimestamps || {};
+        var contextTs = contextTimestamps = {};
+        const contexts = contextStamps(dataCache.contextDependencies, stats);
+        return Promise.all(Object.values(contexts))
+        .then(function() {
           for (var contextPath in contexts) {
             var context = contexts[contextPath];
 
-            // fileTimestamps[contextPath] = context.mtime;
+            if (!compiler.contextTimestamps[contextPath]) {
+              compiler.contextTimestamps[contextTimestamps] = context.mtime;
+            }
             contextTimestamps[contextPath] = context.mtime;
             fileMd5s[contextPath] = context.hash;
           }
-        })
-        .then(resolve, reject);
-      }),
+        });
+      })(),
       (function() {
-        var handles = [];
-        Object.keys(missingCache).map(function(group) {
-          Object.keys(missingCache[group]).map(function(key) {
+        var bulk = lodash.flatten(Object.keys(missingCache)
+        .map(function(group) {
+          return lodash.flatten(Object.keys(missingCache[group])
+          .map(function(key) {
             var missingItem = missingCache[group][key];
             if (!missingItem) {return;}
-            missingItem.map(function(missed, index) {
-              var missedPath = missed.split('?')[0];
-              if (index === missingItem.length - 1) {
-                if (!stats[missed]) {stats[missed] = stat(missed);}
-                return handles.push(stats[missed]
-                .catch(function() {missingItem.invalid = true;}));
-              }
-              if (!stats[missed]) {stats[missed] = stat(missed);}
-              return handles.push(stats[missed]
-              .then(function(stat) {
-                if (stat.isDirectory()) {
-                  if (group === 'context') {missingItem.invalid = true;}
-                }
-                if (stat.isFile()) {
-                  if (group === 'loader' || group === 'normal') {missingItem.invalid = true;}
-                }
-              })
-              .catch(function() {}));
+            return missingItem.map(function(missed, index) {
+              return [group, key, missed, index];
             });
-          });
+          })
+          .filter(Boolean));
+        }));
+
+        return bulkFsTask(bulk, function(item, task) {
+          var group = item[0];
+          var key = item[1];
+          var missingItem = missingCache[group][key];
+          var missed = item[2];
+          var missedPath = missed.split('?')[0];
+          var missedIndex = item[3];
+
+          // The missed index is the resolved item. Invalidate if it does not
+          // exist.
+          if (missedIndex === missingItem.length - 1) {
+            compiler.inputFileSystem.stat(missed, task(function(err, stat) {
+              if (err) {
+                missingItem.invalid = true;
+              }
+            }));
+          }
+          else {
+            compiler.inputFileSystem.stat(missed, task(function(err, stat) {
+              if (err) {return;}
+
+              if (stat.isDirectory()) {
+                if (group === 'context') {missingItem.invalid = true;}
+              }
+              if (stat.isFile()) {
+                if (group === 'loader' || group === 'normal') {
+                  missingItem.invalid = true;
+                }
+              }
+            }));
+          }
         });
-        return handles;
       })(),
     ])
     .then(function() {
@@ -1673,12 +1777,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
       function buildMd5Ops(dependencies) {
         dependencies.forEach(function(file) {
-          buildingMd5s[file] = buildingMd5s[file]
-          .then(function(value) {
+          function updateMd5CacheItem(value) {
             if (
               !md5Cache[file] ||
-              (!value.mtime && md5Cache[file] && md5Cache[file].mtime !== value.mtime) ||
-              (md5Cache[file] && md5Cache[file].hash !== value.hash)
+              (
+                md5Cache[file] &&
+                md5Cache[file].hash !== value.hash
+              )
             ) {
               md5Cache[file] = value;
               cachedMd5s[file] = value.hash;
@@ -1688,16 +1793,32 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                 value: JSON.stringify(value),
               });
             }
-          });
+            else if (
+              !value.mtime &&
+              md5Cache[file] &&
+              md5Cache[file].mtime !== value.mtime
+            ) {
+              md5Cache[file] = value;
+              cachedMd5s[file] = value.hash;
+            }
+          }
+
+          const building = buildingMd5s[file];
+          if (!building.then) {
+            updateMd5CacheItem(building);
+          }
+          else {
+            buildingMd5s[file] = building.then(updateMd5CacheItem);
+          }
         });
       }
 
       if (!lodash.isEqual(compilation.fileDependencies, dataCache.fileDependencies)) {
         lodash.difference(dataCache.fileDependencies, compilation.fileDependencies).forEach(function(file) {
-          buildingMd5s[file] = Promise.resolve({
+          buildingMd5s[file] = {
             mtime: 0,
             hash: '',
-          });
+          };
         });
 
         dataCache.fileDependencies = compilation.fileDependencies;
@@ -1707,6 +1828,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           value: JSON.stringify(dataCache.fileDependencies),
         });
       }
+
+      var MD5_TIME_PRECISION_BUFFER = 2000;
 
       dataCache.fileDependencies.forEach(function(file) {
         if (buildingMd5s[file]) {return;}
@@ -1720,20 +1843,33 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           }
         }
 
-        buildingMd5s[file] = Promise.props({
-          mtime: getValue(fileTimestamps, file, mtime),
-          hash: getValue(fileMd5s, file, md5),
-        });
+        if (fileMd5s[file]) {
+          buildingMd5s[file] = {
+            // Subtract a small buffer from now for file systems that record
+            // lower precision mtimes.
+            mtime: Date.now() - MD5_TIME_PRECISION_BUFFER,
+            hash: fileMd5s[file],
+          };
+        }
+        else {
+          buildingMd5s[file] = md5(file)
+          .then(function(hash) {
+            return {
+              mtime: Date.now() - MD5_TIME_PRECISION_BUFFER,
+              hash: hash,
+            };
+          });
+        }
       });
 
       buildMd5Ops(dataCache.fileDependencies);
 
       if (!lodash.isEqual(compilation.contextDependencies, dataCache.contextDependencies)) {
         lodash.difference(dataCache.contextDependencies, compilation.contextDependencies).forEach(function(file) {
-          buildingMd5s[file] = Promise.resolve({
+          buildingMd5s[file] = {
             mtime: 0,
             hash: '',
-          });
+          };
         });
 
         dataCache.contextDependencies = compilation.contextDependencies;
@@ -1744,22 +1880,24 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         });
       }
 
-      var contexts = Promise.all(
-        Object.keys(buildingMd5s).map(function(key) {return buildingMd5s[key];})
-      )
-      .then(function() {
-        return contextStamps(dataCache.contextDependencies, dataCache.fileDependencies);
-      });
+      const contexts = contextStamps(dataCache.contextDependencies);
       dataCache.contextDependencies.forEach(function(file) {
         if (buildingMd5s[file]) {return;}
 
-        buildingMd5s[file] = contexts
-        .then(function(contexts) {
-          return Promise.props({
-            mtime: contexts[file].mtime,
-            hash: contexts[file].hash,
+        var context = contexts[file];
+        if (!context.then) {
+          // Subtract a small buffer from now for file systems that record lower
+          // precision mtimes.
+          context.mtime = Date.now() - MD5_TIME_PRECISION_BUFFER;
+        }
+        else {
+          context = context
+          .then(function(context) {
+            context.mtime = Date.now() - MD5_TIME_PRECISION_BUFFER;
+            return context;
           });
-        });
+        }
+        buildingMd5s[file] = context;
       });
 
       buildMd5Ops(dataCache.contextDependencies);
@@ -1861,10 +1999,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     var writeMd5Ops = Promise.all(Object.keys(buildingMd5s).map(function(key) {
       return buildingMd5s[key];
-    }))
-    .then(function() {
-      return md5CacheSerializer.write(md5Ops);
-    });
+    }));
 
     Promise.all([
       mkdirp(cacheDirPath)
@@ -1878,7 +2013,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       assetCacheSerializer.write(assetOps),
       moduleCacheSerializer.write(moduleOps),
       dataCacheSerializer.write(dataOps),
-      writeMd5Ops,
+      writeMd5Ops.then(function() {
+        return md5CacheSerializer.write(md5Ops);
+      }),
       missingCacheSerializer.write(missingOps),
       resolverCacheSerializer.write(resolverOps),
     ])
