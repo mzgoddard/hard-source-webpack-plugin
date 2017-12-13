@@ -842,7 +842,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         walkDependencyBlock(cacheItem.dependencyBlock, function(cacheDependency) {
           if (
             cacheDependency &&
-            !cacheDependency.contextDependency &&
+            cacheDependency.type !== 'ContextDependency' &&
             typeof cacheDependency.request !== 'undefined'
           ) {
             var resolveId = cacheDependency._moduleResolveCacheId;
