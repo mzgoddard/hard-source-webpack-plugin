@@ -7,6 +7,7 @@
 
 ## 0.5.X Patches
 
+- `0.5.4` Improve cache read and write performance related to promises, fix AppendSerializer compacting
 - `0.5.3` Improve AppendSerializer performance
 - `0.5.2` Fix nested AsyncDependenciesBlock origins for Stats support
 
