@@ -44,7 +44,6 @@
     "webpack": "*"
   },
   "dependencies": {
-    "bluebird": "^3.0.0",
     "lodash": "^4.15.0",
     "mkdirp": "^0.5.1",
     "node-object-hash": "^1.2.0",

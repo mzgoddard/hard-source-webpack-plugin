@@ -8,10 +8,23 @@ var MemoryFS = require('memory-fs');
 var dataSerializer = require('../../lib/cache-serializer-factory').dataSerializer;
 
 var mkdirp = require('mkdirp');
-var Promise = require('bluebird');
 var rimraf = require('rimraf');
 var webpack = require('webpack');
 var mkdirp = require('mkdirp');
+
+function promisify(f, o) {
+  var ctx = o && o.context || null;
+  return function() {
+    var args = Array.from(arguments);
+    return new Promise(function(resolve, reject) {
+      args.push(function(err, value) {
+        if (err) {return reject(err);}
+        return resolve(value);
+      });
+      f.apply(ctx, args);
+    });
+  };
+}
 
 function wrapModule(code) {
   return '(function(exports, require, module, __filename, __dirname) {' +
@@ -41,13 +54,13 @@ exports.compile = function(fixturePath, options) {
   compiler.inputFileSystem.purge();
   var outputfs = compiler.outputFileSystem = new MemoryFS();
 
-  var readdir = Promise.promisify(outputfs.readdir, {context: outputfs});
-  var readFile = Promise.promisify(outputfs.readFile, {context: outputfs});
-  var stat = Promise.promisify(outputfs.stat, {context: outputfs});
-  var fsReaddir = Promise.promisify(fs.readdir, {context: fs});
-  var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
-  var fsStat = Promise.promisify(fs.stat, {context: fs});
-  var run = Promise.promisify(compiler.run, {context: compiler});
+  var readdir = promisify(outputfs.readdir, {context: outputfs});
+  var readFile = promisify(outputfs.readFile, {context: outputfs});
+  var stat = promisify(outputfs.stat, {context: outputfs});
+  var fsReaddir = promisify(fs.readdir, {context: fs});
+  var fsReadFile = promisify(fs.readFile, {context: fs});
+  var fsStat = promisify(fs.stat, {context: fs});
+  var run = promisify(compiler.run, {context: compiler});
   var watching = options && options.watching;
   var _watch = function() {
     return new Promise(function(resolve, reject) {
@@ -110,38 +123,49 @@ exports.compile = function(fixturePath, options) {
     return Promise.all([
       readdir(compiler.options.output.path)
       .catch(function() {return [];})
-      .map(function(name) {
-        var fullname = path.join(compiler.options.output.path, name);
-        return stat(fullname)
-        .then(function(stat) {
-          if (stat.isFile()) {
-            return readFile(fullname, fullname.endsWith('.js') ? 'utf8' : '')
-            .then(function(file) {return [name, file];});
-          }
-        });
+      .then(function(value) {
+        return Promise.all(value.map(function(name) {
+          var fullname = path.join(compiler.options.output.path, name);
+          return stat(fullname)
+          .then(function(stat) {
+            if (stat.isFile()) {
+              return readFile(fullname, fullname.endsWith('.js') ? 'utf8' : '')
+              .then(function(file) {return [name, file];});
+            }
+          });
+        }));
       }),
       fsReaddir(compiler.options.output.path)
       .catch(function() {return [];})
-      .map(function(name) {
-        var fullname = path.join(compiler.options.output.path, name);
-        return fsStat(fullname)
-        .then(function(stat) {
-          if (stat.isFile()) {
-            return fsReadFile(fullname, fullname.endsWith('.js') ? 'utf8' : '')
-            .then(function(file) {return [name, file];});
-          }
-        });
+      .then(function(value) {
+        return Promise.all(value.map(function(name) {
+          var fullname = path.join(compiler.options.output.path, name);
+          return fsStat(fullname)
+          .then(function(stat) {
+            if (stat.isFile()) {
+              return fsReadFile(fullname, fullname.endsWith('.js') ? 'utf8' : '')
+              .then(function(file) {return [name, file];});
+            }
+          });
+        }))
       }),
     ])
     .then(function(files) {
       return files[0].concat(files[1]);
     })
-    .reduce(function(carry, values) {
-      if (values) {
-        carry[values[0]] = values[1];
-      }
-      return carry;
-    }, {})
+    .then(function(_value) {
+      var promise = Promise.resolve({});
+      _value.forEach(function(values) {
+        promise = promise
+        .then(function(carry) {
+          if (values) {
+            carry[values[0]] = values[1];
+          }
+          return carry;
+        });
+      });
+      return promise;
+    })
     .then(function(carry) {
       if (options && options.exportStats) {
         var statsJson = stats.toJson({
@@ -201,16 +225,16 @@ exports.itCompilesTwice = function(fixturePath, compileOptions) {
 exports.writeFiles = function(fixturePath, files) {
   var configPath = path.join(__dirname, '..', 'fixtures', fixturePath);
 
-  fsUnlink = Promise.promisify(fs.unlink, {context: fs});
-  _fsWriteFile = Promise.promisify(fs.writeFile, {context: fs});
-  fsMkdirp = Promise.promisify(mkdirp);
+  fsUnlink = promisify(fs.unlink, {context: fs});
+  _fsWriteFile = promisify(fs.writeFile, {context: fs});
+  fsMkdirp = promisify(mkdirp);
   fsWriteFile = function(file, content, encode) {
     return fsMkdirp(path.dirname(file))
     .then(function() {
       return _fsWriteFile(file, content, encode);
     });
   };
-  fsRimraf = Promise.promisify(rimraf);
+  fsRimraf = promisify(rimraf);
 
   return Promise.all(Object.keys(files).map(function(key) {
     if (files[key] === null) {
@@ -223,28 +247,37 @@ exports.writeFiles = function(fixturePath, files) {
 exports.readFiles = function(outputPath) {
   outputPath = path.join(__dirname, '..', 'fixtures', outputPath);
 
-  var fsReaddir = Promise.promisify(fs.readdir, {context: fs});
-  var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
-  var fsStat = Promise.promisify(fs.stat, {context: fs});
+  var fsReaddir = promisify(fs.readdir, {context: fs});
+  var fsReadFile = promisify(fs.readFile, {context: fs});
+  var fsStat = promisify(fs.stat, {context: fs});
 
   return fsReaddir(outputPath)
   .catch(function() {return [];})
-  .map(function(name) {
-    var fullname = path.join(outputPath, name);
-    return fsStat(fullname)
-    .then(function(stat) {
-      if (stat.isFile()) {
-        return fsReadFile(fullname)
-        .then(function(file) {return [name, file];});
-      }
-    });
+  .then(function(value) {
+    return Promise.all(value.map(function(name) {
+      var fullname = path.join(outputPath, name);
+      return fsStat(fullname)
+      .then(function(stat) {
+        if (stat.isFile()) {
+          return fsReadFile(fullname)
+          .then(function(file) {return [name, file];});
+        }
+      });
+    }));
   })
-  .reduce(function(carry, values) {
-    if (values) {
-      carry[values[0]] = values[1];
-    }
-    return carry;
-  }, {});
+  .then(function(_value) {
+    var promise = Promise.resolve({});
+    _value.forEach(function(values) {
+      promise = promise
+      .then(function(carry) {
+        if (values) {
+          carry[values[0]] = values[1];
+        }
+        return carry;
+      });
+    });
+    return promise;
+  });
 };
 
 exports.itCompiles = function(name, fixturePath, fns, expectHandle) {
@@ -422,9 +455,9 @@ exports.itCompilesHardModules = function(fixturePath, filesA, filesB, expectHand
 
 exports.clean = function(fixturePath) {
   var tmpPath = path.join(__dirname, '..', 'fixtures', fixturePath, 'tmp');
-  return Promise.promisify(rimraf)(tmpPath)
+  return promisify(rimraf)(tmpPath)
   .then(function() {
-    return Promise.promisify(mkdirp)(tmpPath);
+    return promisify(mkdirp)(tmpPath);
   });
 };
 
