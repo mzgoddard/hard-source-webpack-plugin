@@ -6,7 +6,6 @@ var lodash = require('lodash');
 var _mkdirp = require('mkdirp');
 var _rimraf = require('rimraf');
 
-var Promise = require('bluebird');
 var nodeObjectHash = require('node-object-hash');
 
 var envHash = require('./lib/env-hash');
@@ -82,12 +81,26 @@ function requestHash(request) {
   return crypto.createHash('sha1').update(request).digest().hexSlice();
 }
 
-var mkdirp = Promise.promisify(_mkdirp, {context: _mkdirp});
+function promisify(f, o) {
+  var ctx = o && o.context || null;
+  return function() {
+    var args = Array.from(arguments);
+    return new Promise(function(resolve, reject) {
+      args.push(function(err, value) {
+        if (err) {return reject(err);}
+        return resolve(value);
+      });
+      f.apply(ctx, args);
+    });
+  };
+}
+
+var mkdirp = promisify(_mkdirp, {context: _mkdirp});
 mkdirp.sync = _mkdirp.sync.bind(_mkdirp);
-var rimraf = Promise.promisify(_rimraf);
+var rimraf = promisify(_rimraf);
 rimraf.sync = _rimraf.sync.bind(_rimraf);
-var fsReadFile = Promise.promisify(fs.readFile, {context: fs});
-var fsWriteFile = Promise.promisify(fs.writeFile, {context: fs});
+var fsReadFile = promisify(fs.readFile, {context: fs});
+var fsWriteFile = promisify(fs.writeFile, {context: fs});
 
 var NS;
 
@@ -296,12 +309,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   });
 
   function bindFS() {
-    stat = Promise.promisify(
+    stat = promisify(
       compiler.inputFileSystem.stat,
       {context: compiler.inputFileSystem}
     );
+    // stat = promisify(fs.stat, {context: fs});
 
-    readdir = Promise.promisify(
+    readdir = promisify(
       compiler.inputFileSystem.readdir,
       {context: compiler.inputFileSystem}
     );
