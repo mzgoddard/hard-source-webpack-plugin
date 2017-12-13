@@ -381,6 +381,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         const _md5Item = md5Cache[dir];
         context.mtime = _md5Item.mtime;
         context.hash = _md5Item.hash;
+        return context;
       }
       else {
         var selfTime = 0;
