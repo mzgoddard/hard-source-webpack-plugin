@@ -1639,7 +1639,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       if (item) {
         var frozen = cache.get(id);
         var newFrozen = freeze(archetype, frozen, item, extra);
-        if (frozen && newFrozen && newFrozen !== frozen || !frozen && newFrozen) {
+        if (
+          (frozen && newFrozen && newFrozen !== frozen) ||
+          (!frozen && newFrozen)
+        ) {
           cache.set(id, newFrozen);
           return newFrozen;
         }
