@@ -848,6 +848,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         compilation: compilation,
         factory: contextFactory,
         resolveCache: moduleResolveCache,
+        resolveCacheChange: moduleResolveCacheChange,
         moduleCache: moduleCache,
         fileTimestamps: fileTimestamps,
         fileMd5s: fileMd5s,
