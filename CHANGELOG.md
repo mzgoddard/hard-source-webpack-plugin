@@ -7,6 +7,7 @@
 
 ## 0.5.X Patches
 
+- `0.5.7` Fix a large memory usage related to HarmonyExportImportedSpecifierDependency (#205)
 - `0.5.6` Add module freeze error logging
 - `0.5.5` Fix contextStampm, return context object in synchronous branch
 - `0.5.4` Improve cache read and write performance related to promises, fix AppendSerializer compacting
