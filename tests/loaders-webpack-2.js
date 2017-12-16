@@ -8,6 +8,7 @@ var itCompilesTwice = util.itCompilesTwice;
 describeWP2('loader webpack 2 use', function() {
 
   itCompilesTwice('loader-custom-function-option');
+  itCompilesTwice('loader-custom-function-option', {exportStats: true});
 
 });
 
