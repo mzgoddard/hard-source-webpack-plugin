@@ -1458,41 +1458,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var preloadCacheByPrefix = {};
 
-  compiler.plugin('compilation', function(compilation, params) {
-    if (compilation.cache) {
-      var prefix = cachePrefix(compilation);
-      if (prefix === null) {return;}
-      if (preloadCacheByPrefix[prefix]) {return;}
-      preloadCacheByPrefix[prefix] = true;
-
-      var preloadMemoryCache = false;
-      params.normalModuleFactory.plugin('before-resolve', function(data, cb) {
-        if (preloadMemoryCache) {return cb(null, data);}
-        preloadMemoryCache = true;
-
-        preload(prefix, compilation.cache);
-
-        return cb(null, data);
-      });
-    }
-    else {
-      var preloadMemoryCache = false;
-      params.normalModuleFactory.plugin('before-resolve', function(data, cb) {
-        if (preloadMemoryCache) {return cb(null, data);}
-        preloadMemoryCache = true;
-        if (compilation.cache) {
-          var prefix = cachePrefix(compilation);
-          if (prefix === null) {return cb(null, data);}
-          if (preloadCacheByPrefix[prefix]) {return cb(null, data);}
-          preloadCacheByPrefix[prefix] = true;
-
-          preload(prefix, compilation.cache);
-        }
-        return cb(null, data);
-      });
-    }
-  });
-
   compiler.plugin('make', function(compilation, cb) {
     if (compilation.cache) {
       var prefix = cachePrefix(compilation);
