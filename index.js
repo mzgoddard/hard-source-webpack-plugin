@@ -1176,6 +1176,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     compilation.fileTimestamps = fileTimestamps;
     compilation.contextTimestamps = contextTimestamps;
 
+    compilation.__hardSourceFileMd5s = fileMd5s;
+    compilation.__hardSourceCachedMd5s = cachedMd5s;
+
     compilation.dependencyFactories.set(HardModuleDependency, params.normalModuleFactory);
     compilation.dependencyTemplates.set(HardModuleDependency, new NullDependencyTemplate);
 
@@ -1357,7 +1360,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                 return;
               }
               var identifier = identifierPrefix + result.request;
-              var module = fetch('module', identifier);
+              var module = fetch('module', identifier, {
+                compilation: compilation,
+              });
               // var module = new HardModule(cacheItem);
               cb(null, module);
             })
@@ -1371,7 +1376,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               return;
             }
             var identifier = identifierPrefix + result.request;
-            var module = fetch('module', identifier);
+            var module = fetch('module', identifier, {
+              compilation: compilation,
+            });
             // var module = new HardModule(p);
             return cb(null, module);
           }
@@ -1406,7 +1413,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           //   }, {});
           // }
           // var module = memoryCache[memCacheId] = new HardModule(cacheItem);
-          var module = memCacheId[memCacheId] = fetch('module', key);
+          var module = memoryCache[memCacheId] = fetch('module', key, {
+            compilation: {
+              __hardSourceFileMd5s: fileMd5s,
+              __hardSourceCachedMd5s: cachedMd5s,
+            },
+          });
           module.build(null, {__hardSourceMethods: {thaw: thaw, mapThaw: mapThaw}}, null, null, function() {});
           return module;
         }
@@ -1419,7 +1431,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         var memCacheId = 'm' + cacheItem.identifier;
         if (!memoryCache[memCacheId]) {
           // var module = memoryCache[memCacheId] = new HardContextModule(cacheItem);
-          var module = memoryCache[memCacheId] = fetch('module', key);
+          var module = memoryCache[memCacheId] = fetch('module', key, {
+            compilation: {
+              __hardSourceFileMd5s: fileMd5s,
+              __hardSourceCachedMd5s: cachedMd5s,
+            },
+          });
           module.build(null, {__hardSourceMethods: {thaw: thaw, mapThaw: mapThaw}}, null, null, function() {});
           return module;
         }
