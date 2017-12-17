@@ -1356,6 +1356,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           if (p && p.then) {
             return p
             .then(function(cacheItem) {
+              if (
+                compilation.cache &&
+                compilation.cache['m' + result.request] &&
+                compilation.cache['m' + result.request] instanceof HardModule &&
+                !compilation.cache['m' + result.request].cacheItem.invalid
+              ) {
+                return cb(null, compilation.cache['m' + result.request]);
+              }
+
               var identifierPrefix = cachePrefix(compilation);
               if (identifierPrefix === null) {
                 return;
@@ -1372,6 +1381,20 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             });
           }
           else if (p) {
+            try {
+            if (
+              compilation.cache &&
+              compilation.cache['m' + result.request] &&
+              compilation.cache['m' + result.request] instanceof HardModule &&
+              !compilation.cache['m' + result.request].cacheItem.invalid
+            ) {
+              return cb(null, compilation.cache['m' + result.request]);
+            }
+            }
+            catch(e) {
+              return cb(e);
+            }
+
             var identifierPrefix = cachePrefix(compilation);
             if (identifierPrefix === null) {
               return;
