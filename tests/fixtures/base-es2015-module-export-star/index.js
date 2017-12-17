@@ -1,3 +1,3 @@
-import {fib} from './export';
+import {fib, fab} from './export';
 
-console.log(fib(3));
+console.log(fib(3), fab(4));
