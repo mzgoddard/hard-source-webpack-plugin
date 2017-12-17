@@ -501,6 +501,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           name: 'module',
           type: 'data',
           cacheDirPath: cacheDirPath,
+          autoParse: true,
         });
         dataCacheSerializer = cacheSerializerFactory.create({
           name: 'data',
@@ -1538,10 +1539,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     set: function(id, item) {
       moduleCache[id] = item;
       if (item) {
-        this._ops.push({
-          key: id,
-          value: JSON.stringify(item),
-        });
+        this._ops.push(id);
       }
       else if (moduleCache[id]) {
         if (typeof moduleCache[id] === 'string') {
@@ -1549,15 +1547,18 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }
         moduleCache[id].invalid = true;
 
-        this._ops.push({
-          key: id,
-          value: null,
-        });
+        this._ops.push(id);
       }
     },
 
     operations: function() {
-      var ops = this._ops.slice();
+      var _this = this;
+      var ops = this._ops.map(function(id) {
+        return {
+          key: id,
+          value: _this.get(id) || null,
+        };
+      });
       this._ops.length = 0;
       return ops;
     },
