@@ -3,9 +3,9 @@ var expect = require('chai').expect;
 var itCompilesTwice = require('./util').itCompilesTwice;
 var itCompilesChange = require('./util').itCompilesChange;
 var itCompilesHardModules = require('./util').itCompilesHardModules;
-var describeWP2 = require('./util').describeWP2;
+var describeWP = require('./util').describeWP;
 
-describeWP2('basic webpack 3 use - compiles identically', function() {
+describeWP(3)('basic webpack 3 use - compiles identically', function() {
 
   itCompilesTwice('base-es2015-module-export-star');
   itCompilesTwice('base-es2015-module-export-star', {exportStats: true});
@@ -19,7 +19,7 @@ describeWP2('basic webpack 3 use - compiles identically', function() {
 
 });
 
-describeWP2('basic webpack 2 use - builds changes', function() {
+describeWP(3)('basic webpack 3 use - builds changes', function() {
 
   itCompilesChange('base-es2015-module-export-star-some', {
     'index.js': [
