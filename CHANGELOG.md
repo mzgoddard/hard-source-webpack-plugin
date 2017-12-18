@@ -7,6 +7,7 @@
 
 ## 0.5.X Patches
 
+- `0.5.10` Fix contextTimstamp typo and hash regression, fix bad compilerContext when logging freezing errors (#230)
 - `0.5.9` Fix context dependency validation (#182) and worker-loader cache prefix search (#201)
 - `0.5.8`
   - Fix memory usage related to HarmonyExportImportedSpecifierDependency
