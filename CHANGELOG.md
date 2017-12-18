@@ -7,6 +7,7 @@
 
 ## 0.5.X Patches
 
+- `0.5.9` Fix context dependency validation (#182) and worker-loader cache prefix search (#201)
 - `0.5.8`
   - Fix memory usage related to HarmonyExportImportedSpecifierDependency
   - Reduce memory usage in frozen modules and source maps
