@@ -212,13 +212,20 @@ exports.compileTwiceEqual = function(fixturePath, compileOptions) {
 };
 
 exports.itCompilesTwice = function(fixturePath, compileOptions) {
-  before(function() {
-    return exports.clean(fixturePath);
-  });
+  // before(function() {
+  //   return exports.clean(fixturePath);
+  // });
 
-  it('builds identical ' + fixturePath + ' fixture', function() {
+  var exportSuffix = '';
+  if (compileOptions && compileOptions.exportStats) {
+    exportSuffix = ' [exportStats]';
+  }
+  it('builds identical ' + fixturePath + ' fixture' + exportSuffix, function() {
     this.timeout(10000);
-    return exports.compileTwiceEqual(fixturePath, compileOptions);
+    return exports.clean(fixturePath)
+    .then(function() {
+      return exports.compileTwiceEqual(fixturePath, compileOptions);
+    });
   });
 };
 
