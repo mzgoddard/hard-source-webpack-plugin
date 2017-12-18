@@ -1254,7 +1254,12 @@ HardSourceWebpackPlugin.prototype.apply = function hswp_apply(compiler) {
       needAdditionalPass = compilation.modules.reduce(function(carry, module) {
         if (
           module.isHard && module.isHard() &&
-          HardModule.needRebuild(module.cacheItem, module.fileDependencies, module.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)
+          HardModule.needRebuild(
+            module.cacheItem,
+            module.fileDependencies, module.contextDependencies,
+            fileTimestamps, contextTimestamps,
+            fileMd5s, cachedMd5s
+          )
         ) {
           module.reasons.forEach(function(reason) {
             if (reason.dependency.__NormalModuleFactoryCache) {
