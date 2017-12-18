@@ -501,6 +501,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           name: 'module',
           type: 'data',
           cacheDirPath: cacheDirPath,
+          autoParse: true,
         });
         dataCacheSerializer = cacheSerializerFactory.create({
           name: 'data',
@@ -1176,6 +1177,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     compilation.fileTimestamps = fileTimestamps;
     compilation.contextTimestamps = contextTimestamps;
 
+    compilation.__hardSourceFileMd5s = fileMd5s;
+    compilation.__hardSourceCachedMd5s = cachedMd5s;
+
     compilation.dependencyFactories.set(HardModuleDependency, params.normalModuleFactory);
     compilation.dependencyTemplates.set(HardModuleDependency, new NullDependencyTemplate);
 
@@ -1352,12 +1356,23 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           if (p && p.then) {
             return p
             .then(function(cacheItem) {
+              if (
+                compilation.cache &&
+                compilation.cache['m' + result.request] &&
+                compilation.cache['m' + result.request] instanceof HardModule &&
+                !compilation.cache['m' + result.request].cacheItem.invalid
+              ) {
+                return cb(null, compilation.cache['m' + result.request]);
+              }
+
               var identifierPrefix = cachePrefix(compilation);
               if (identifierPrefix === null) {
                 return;
               }
               var identifier = identifierPrefix + result.request;
-              var module = fetch('module', identifier);
+              var module = fetch('module', identifier, {
+                compilation: compilation,
+              });
               // var module = new HardModule(cacheItem);
               cb(null, module);
             })
@@ -1366,12 +1381,28 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             });
           }
           else if (p) {
+            try {
+            if (
+              compilation.cache &&
+              compilation.cache['m' + result.request] &&
+              compilation.cache['m' + result.request] instanceof HardModule &&
+              !compilation.cache['m' + result.request].cacheItem.invalid
+            ) {
+              return cb(null, compilation.cache['m' + result.request]);
+            }
+            }
+            catch(e) {
+              return cb(e);
+            }
+
             var identifierPrefix = cachePrefix(compilation);
             if (identifierPrefix === null) {
               return;
             }
             var identifier = identifierPrefix + result.request;
-            var module = fetch('module', identifier);
+            var module = fetch('module', identifier, {
+              compilation: compilation,
+            });
             // var module = new HardModule(p);
             return cb(null, module);
           }
@@ -1406,7 +1437,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           //   }, {});
           // }
           // var module = memoryCache[memCacheId] = new HardModule(cacheItem);
-          var module = memCacheId[memCacheId] = fetch('module', key);
+          var module = memoryCache[memCacheId] = fetch('module', key, {
+            compilation: {
+              __hardSourceFileMd5s: fileMd5s,
+              __hardSourceCachedMd5s: cachedMd5s,
+            },
+          });
           module.build(null, {__hardSourceMethods: {thaw: thaw, mapThaw: mapThaw}}, null, null, function() {});
           return module;
         }
@@ -1419,7 +1455,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         var memCacheId = 'm' + cacheItem.identifier;
         if (!memoryCache[memCacheId]) {
           // var module = memoryCache[memCacheId] = new HardContextModule(cacheItem);
-          var module = memoryCache[memCacheId] = fetch('module', key);
+          var module = memoryCache[memCacheId] = fetch('module', key, {
+            compilation: {
+              __hardSourceFileMd5s: fileMd5s,
+              __hardSourceCachedMd5s: cachedMd5s,
+            },
+          });
           module.build(null, {__hardSourceMethods: {thaw: thaw, mapThaw: mapThaw}}, null, null, function() {});
           return module;
         }
@@ -1440,41 +1481,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   }
 
   var preloadCacheByPrefix = {};
-
-  compiler.plugin('compilation', function(compilation, params) {
-    if (compilation.cache) {
-      var prefix = cachePrefix(compilation);
-      if (prefix === null) {return;}
-      if (preloadCacheByPrefix[prefix]) {return;}
-      preloadCacheByPrefix[prefix] = true;
-
-      var preloadMemoryCache = false;
-      params.normalModuleFactory.plugin('before-resolve', function(data, cb) {
-        if (preloadMemoryCache) {return cb(null, data);}
-        preloadMemoryCache = true;
-
-        preload(prefix, compilation.cache);
-
-        return cb(null, data);
-      });
-    }
-    else {
-      var preloadMemoryCache = false;
-      params.normalModuleFactory.plugin('before-resolve', function(data, cb) {
-        if (preloadMemoryCache) {return cb(null, data);}
-        preloadMemoryCache = true;
-        if (compilation.cache) {
-          var prefix = cachePrefix(compilation);
-          if (prefix === null) {return cb(null, data);}
-          if (preloadCacheByPrefix[prefix]) {return cb(null, data);}
-          preloadCacheByPrefix[prefix] = true;
-
-          preload(prefix, compilation.cache);
-        }
-        return cb(null, data);
-      });
-    }
-  });
 
   compiler.plugin('make', function(compilation, cb) {
     if (compilation.cache) {
@@ -1556,10 +1562,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     set: function(id, item) {
       moduleCache[id] = item;
       if (item) {
-        this._ops.push({
-          key: id,
-          value: JSON.stringify(item),
-        });
+        this._ops.push(id);
       }
       else if (moduleCache[id]) {
         if (typeof moduleCache[id] === 'string') {
@@ -1567,15 +1570,18 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }
         moduleCache[id].invalid = true;
 
-        this._ops.push({
-          key: id,
-          value: null,
-        });
+        this._ops.push(id);
       }
     },
 
     operations: function() {
-      var ops = this._ops.slice();
+      var _this = this;
+      var ops = this._ops.map(function(id) {
+        return {
+          key: id,
+          value: _this.get(id) || null,
+        };
+      });
       this._ops.length = 0;
       return ops;
     },
