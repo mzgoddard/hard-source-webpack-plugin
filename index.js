@@ -1327,51 +1327,12 @@ HardSourceWebpackPlugin.prototype.apply = function hswp_apply(compiler) {
       return result;
     };
 
-    params.normalModuleFactory.plugin('resolver', function(fn) {
+    params.normalModuleFactory.plugin('resolver', function hswp_NMFResolveLookup(fn) {
       return function(request, cb) {
         var identifierPrefix = cachePrefix(compilation);
         if (identifierPrefix === null) {return fn.call(null, request, cb);}
 
         var cacheId = JSON.stringify([identifierPrefix, request.context, request.request]);
-
-        // var next = function() {
-        //   var originalRequest = request;
-        //   return fn.call(null, request, function(err, request) {
-        //     if (err) {
-        //       return cb(err);
-        //     }
-        //     if (!request.source) {
-        //       moduleResolveCacheChange.push(cacheId);
-        //       moduleResolveCache[cacheId] = Object.assign({}, request, {
-        //         parser: null,
-        //         parserOptions: request.parser[NS + '/parser-options'],
-        //         dependencies: null,
-        //       });
-        //     }
-        //     cb.apply(null, arguments);
-        //   });
-        // };
-
-        // var fromCache = function() {
-        //   var result = Object.assign({}, moduleResolveCache[cacheId]);
-        //   result.dependencies = request.dependencies;
-        //   result.parser = compilation.compiler.parser;
-        //   if (!result.parser || !result.parser.parse) {
-        //     result.parser = params.normalModuleFactory.getParser(result.parserOptions);
-        //   }
-        //   result.loaders = result.loaders.map(function(loader) {
-        //     if (typeof loader === 'object' && loader.ident) {
-        //       var ruleSet = params.normalModuleFactory.ruleSet;
-        //       return {
-        //         loader: loader.loader,
-        //         ident: loader.ident,
-        //         options: ruleSet.references[loader.ident],
-        //       };
-        //     }
-        //     return loader;
-        //   });
-        //   return cb(null, result);
-        // };
 
         if (
           moduleResolveCache[cacheId] &&
