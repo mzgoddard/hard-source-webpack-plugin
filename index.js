@@ -94,7 +94,7 @@ var NS;
 
 NS = fs.realpathSync(__dirname);
 
-var bulkFsTask = function(array, each) {
+var bulkFsTask = function hswp_bulkFsTask(array, each) {
   return new Promise(function(resolve, reject) {
     var ops = 0;
     var out = [];
@@ -144,7 +144,7 @@ HardSourceWebpackPlugin.prototype.getCachePath = function(suffix) {
   return this.getPath(this.options.cacheDirectory, suffix);
 };
 
-HardSourceWebpackPlugin.prototype.apply = function(compiler) {
+HardSourceWebpackPlugin.prototype.apply = function hswp_apply(compiler) {
   var options = this.options;
   var active = true;
 
@@ -310,7 +310,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var stat, readdir, readFile, mtime, md5, fileStamp, contextStamps;
 
-  compiler.plugin('after-plugins', function() {
+  compiler.plugin('after-plugins', function hswp_afterPlugins() {
     if (
       !compiler.recordsInputPath || !compiler.recordsOutputPath
     ) {
@@ -341,13 +341,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       {context: compiler.inputFileSystem}
     );
 
-    mtime = function(file) {
+    mtime = function hswp_mtime(file) {
       return stat(file)
       .then(function(stat) {return +stat.mtime;})
       .catch(function() {return 0;});
     };
 
-    md5 = function(file) {
+    md5 = function hswp_md5(file) {
       return readFile(file)
       .then(function(contents) {
         return crypto.createHash('md5').update(contents, 'utf8').digest('hex');
@@ -355,7 +355,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       .catch(function() {return '';});
     };
 
-    fileStamp = function(file, stats) {
+    fileStamp = function hswp_fileStamp(file, stats) {
       if (compiler.fileTimestamps[file]) {
         return compiler.fileTimestamps[file];
       }
@@ -370,7 +370,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
     };
 
-    contextStamp = function(dir, stats) {
+    contextStamp = function hswp_contextStamp(dir, stats) {
       var context = {};
 
       if (
@@ -434,7 +434,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
     };
 
-    contextStamps = function(contextDependencies, stats) {
+    contextStamps = function hswp_contextStamps(contextDependencies, stats) {
       stats = stats || {};
       var contexts = {};
       contextDependencies.forEach(function(context) {
@@ -467,7 +467,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     compiler.plugin('after-environment', bindFS);
   }
 
-  compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
+  compiler.plugin(['watch-run', 'run'], function hswp_runStamps(compiler, cb) {
     logger.unlock();
 
     if (!active) {return cb();}
@@ -542,7 +542,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       fsReadFile(path.join(cacheDirPath, 'version'), 'utf8')
       .catch(function() {return '';}),
     ])
-    .then(function(stamps) {
+    .then(function hswp_compareStamps(stamps) {
       var stamp = stamps[0];
       var hash = stamps[1];
       var versionStamp = stamps[2];
@@ -659,7 +659,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     .then(cb, cb);
   });
 
-  compiler.plugin(['watch-run', 'run'], function(_compiler, cb) {
+  compiler.plugin(['watch-run', 'run'], function hswp_runFileStamps(_compiler, cb) {
     if (!active) {return cb();}
 
     // No previous build to verify.
@@ -667,7 +667,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     var stats = {};
     return Promise.all([
-      (function() {
+      (function hswp_buildFileStamps() {
         var compilerFileTs = compiler.fileTimestamps = {};
         var fileTs = fileTimestamps = {};
 
@@ -722,7 +722,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           });
         });
       })(),
-      (function() {
+      (function hswp_buildContextStamps() {
         compiler.contextTimestamps = compiler.contextTimestamps || {};
         var contextTs = contextTimestamps = {};
         const contexts = contextStamps(dataCache.contextDependencies, stats);
@@ -739,7 +739,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           }
         });
       })(),
-      (function() {
+      (function hswp_buildMissingStamps() {
         var bulk = lodash.flatten(Object.keys(missingCache)
         .map(function(group) {
           return lodash.flatten(Object.keys(missingCache[group])
@@ -787,7 +787,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         });
       })(),
     ])
-    .then(function() {
+    .then(function hswp_validateResolveCache() {
       // Invalidate resolve cache items.
       Object.keys(moduleResolveCache).forEach(function(key) {
         var resolveKey = JSON.parse(key);
@@ -840,7 +840,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   });
 
   compiler.plugin('after-plugins', function() {
-    compiler.plugin('compilation', function(compilation) {
+    compiler.plugin('compilation', function hswp_compilationReplaceContextFactory(compilation) {
       var factories = compilation.dependencyFactories;
       var contextFactory = factories.get(RequireContextDependency);
 
@@ -1077,7 +1077,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       // resolverCache[key] = resolverCache[key] || {};
 
       var _resolve = resolver.resolve;
-      resolver.resolve = function(info, context, request, cb) {
+      resolver.resolve = function hswp_recordResolved(info, context, request, cb) {
         var numArgs = 4;
         if (!cb) {
           numArgs = 3;
@@ -1162,7 +1162,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     configureMissing('context', compiler.resolvers.context);
   }
 
-  compiler.plugin('after-plugins', function() {
+  compiler.plugin('after-plugins', function hswp_afterPluginsBindResolvers() {
     if (compiler.resolvers.normal) {
       bindResolvers();
     }
@@ -1171,7 +1171,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     }
   });
 
-  compiler.plugin('compilation', function(compilation, params) {
+  compiler.plugin('compilation', function hswp_compilationMain(compilation, params) {
     if (!active) {return;}
 
     compilation.fileTimestamps = fileTimestamps;
@@ -1209,7 +1209,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     var needAdditionalPass;
 
-    compilation.plugin('after-seal', function(cb) {
+    compilation.plugin('after-seal', function hswp_afterSealAdditionalPassCheck(cb) {
       needAdditionalPass = compilation.modules.reduce(function(carry, module) {
         var identifierPrefix = cachePrefix(compilation);
         if (identifierPrefix === null) {
@@ -1379,7 +1379,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       };
     });
 
-    params.normalModuleFactory.plugin('resolver', function(fn) {
+    params.normalModuleFactory.plugin('resolver', function hswp_NMFModuleFetch(fn) {
       return function(request, cb) {
         fn.call(null, request, function(err, result) {
           if (err) {return cb(err);}
@@ -1480,7 +1480,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var preloadCacheByPrefix = {};
 
-  compiler.plugin('compilation', function(compilation, params) {
+  compiler.plugin('compilation', function hswp_compilationPreloadMemoryCache(compilation, params) {
     if (compilation.cache) {
       var prefix = cachePrefix(compilation);
       if (prefix === null) {return;}
@@ -1515,7 +1515,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     }
   });
 
-  compiler.plugin('make', function(compilation, cb) {
+  compiler.plugin('make', function hswp_bustWebpack2UnsafeFactoryCache(compilation, cb) {
     if (compilation.cache) {
       var prefix = cachePrefix(compilation);
       if (prefix !== null && !preloadCacheByPrefix[prefix]) {
@@ -1627,7 +1627,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var freeze, thaw, mapFreeze, mapThaw, store, fetch;
 
-  compiler.plugin(['watch-run', 'run'], function(_compiler, cb) {
+  compiler.plugin(['watch-run', 'run'], function hswp_emitHardSourceMethods(_compiler, cb) {
     var compiler = _compiler;
     if (_compiler.compiler) {
       compiler = _compiler.compiler;
@@ -1785,7 +1785,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     compiler.__hardSource_topCompilation = compilation;
   });
 
-  compiler.plugin('after-compile', function(compilation, cb) {
+  compiler.plugin('after-compile', function hswp_freezeCompile(compilation, cb) {
     if (!active) {return cb();}
 
     var startCacheTime = Date.now();
