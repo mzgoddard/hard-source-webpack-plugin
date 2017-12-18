@@ -15,6 +15,7 @@ describe('plugin webpack use', function() {
   itCompilesTwice('plugin-html-lodash');
   itCompilesTwice('plugin-extract-text');
   itCompilesTwice('plugin-extract-text-loader-file');
+  itCompilesTwice('plugin-extract-text-throw-on-freeze');
   itCompilesTwice('plugin-uglify-1dep');
   itCompilesTwice('plugin-extract-text-uglify');
   itCompilesTwice('plugin-extract-text-uglify-source-map');
