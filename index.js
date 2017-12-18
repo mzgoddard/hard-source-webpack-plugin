@@ -1053,8 +1053,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           })
           .catch(function(e) {
             cacheItem.invalid = true;
+            cacheItem.invalidReason = 'error while validating dependencies';
             moduleCache[identifier] = null;
-            throw new Error('invalid cacheItem');
+            throw new Error(
+              'invalid cacheItem: ' + e.message + '\n' +
+              (e.stack && e.stack.split('\n')[1])
+            );
           });
         }
         else {

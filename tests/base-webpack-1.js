@@ -70,7 +70,7 @@ describe('basic webpack use - compiles identically', function() {
 describe('basic webpack use - compiles hard modules', function() {
 
   itCompilesHardModules('base-1dep', ['./fib.js', './index.js']);
-  itCompilesHardModules('base-context', ['./a nonrecursive \\d']);
+  itCompilesHardModules('base-context', ['./a nonrecursive \\d', './a/index.js']);
   itCompilesHardModules('base-deep-context', ['./a \\d']);
   itCompilesHardModules('base-code-split', ['./fib.js', './index.js']);
   itCompilesHardModules('base-query-request', ['./fib.js?argument']);
