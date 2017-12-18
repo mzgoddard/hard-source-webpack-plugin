@@ -373,65 +373,53 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     contextStamp = function(dir, stats) {
       var context = {};
 
-      if (
-        compiler.contextTimestamps[dir] &&
-        md5Cache[dir] &&
-        compiler.contextTimestamps[dir] < md5Cache[dir].mtime
-      ) {
-        const _md5Item = md5Cache[dir];
-        context.mtime = _md5Item.mtime;
-        context.hash = _md5Item.hash;
-        return context;
-      }
-      else {
-        var selfTime = 0;
+      var selfTime = 0;
 
-        function walk(dir) {
-          return readdir(dir)
-          .then(function(items) {
-            return Promise.all(items.map(function(item) {
-              var file = path.join(dir, item);
-              if (!stats[file]) {stats[file] = stat(file);}
-              return stats[file]
-              .then(function(stat) {
-                if (stat.isDirectory()) {
-                  return walk(path.join(dir, item))
-                  .then(function(items2) {
-                    return items2.map(function(item2) {
-                      return path.join(item, item2);
-                    });
-                  });
-                }
-                if (+stat.mtime > selfTime) {
-                  selfTime = +stat.mtime;
-                }
-                return item;
-              }, function() {
-                return;
-              });
-            }));
-          })
-          .catch(() => [])
-          .then(function(items) {
-            return items.reduce(function(carry, item) {
-              return carry.concat(item);
-            }, [])
-            .filter(Boolean);
-          });
-        }
-
-        return walk(dir)
+      function walk(dir) {
+        return readdir(dir)
         .then(function(items) {
-          items.sort();
-          var selfHash = crypto.createHash('md5');
-          items.forEach(function(item) {
-            selfHash.update(item);
-          });
-          context.mtime = selfTime;
-          context.hash = selfHash.digest('hex');
-          return context;
+          return Promise.all(items.map(function(item) {
+            var file = path.join(dir, item);
+            if (!stats[file]) {stats[file] = stat(file);}
+            return stats[file]
+            .then(function(stat) {
+              if (stat.isDirectory()) {
+                return walk(path.join(dir, item))
+                .then(function(items2) {
+                  return items2.map(function(item2) {
+                    return path.join(item, item2);
+                  });
+                });
+              }
+              if (+stat.mtime > selfTime) {
+                selfTime = +stat.mtime;
+              }
+              return item;
+            }, function() {
+              return;
+            });
+          }));
+        })
+        .catch(() => [])
+        .then(function(items) {
+          return items.reduce(function(carry, item) {
+            return carry.concat(item);
+          }, [])
+          .filter(Boolean);
         });
       }
+
+      return walk(dir)
+      .then(function(items) {
+        items.sort();
+        var selfHash = crypto.createHash('md5');
+        items.forEach(function(item) {
+          selfHash.update(item);
+        });
+        context.mtime = selfTime;
+        context.hash = selfHash.digest('hex');
+        return context;
+      });
     };
 
     contextStamps = function(contextDependencies, stats) {
@@ -733,7 +721,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             var context = contexts[contextPath];
 
             if (!compiler.contextTimestamps[contextPath]) {
-              compiler.contextTimestamps[contextTimestamps] = context.mtime;
+              compiler.contextTimestamps[contextPath] = context.mtime;
             }
             contextTimestamps[contextPath] = context.mtime;
             fileMd5s[contextPath] = context.hash;
