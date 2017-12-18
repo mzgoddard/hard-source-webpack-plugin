@@ -196,7 +196,8 @@ describe('loader webpack use - builds changes', function() {
       });
     },
     function(run1) {
-      return new Promise(function(resolve) {setTimeout(resolve, 1000);})
+      // return new Promise(function(resolve) {setTimeout(resolve, 1000);})
+      return Promise.resolve()
       .then(function() {
         return writeFiles('loader-file-move', {
           'index.js': '// require(\'./image.png\');\n',
@@ -210,7 +211,8 @@ describe('loader webpack use - builds changes', function() {
       });
     },
     function(run2) {
-      return new Promise(function(resolve) {setTimeout(resolve, 1000);})
+      // return new Promise(function(resolve) {setTimeout(resolve, 1000);})
+      return Promise.resolve()
       .then(function() {
         return writeFiles('loader-file-move', {
           'index.js': 'require(\'./image.png\');\n',
