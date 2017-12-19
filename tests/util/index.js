@@ -306,9 +306,9 @@ exports.itCompiles = function(name, fixturePath, fns, expectHandle) {
     expectHandle = arguments[arguments.length - 1];
   }
 
-  before(function() {
-    return exports.clean(fixturePath);
-  });
+  // before(function() {
+  //   return exports.clean(fixturePath);
+  // });
 
   it(name, function() {
     this.timeout(20000);
@@ -334,7 +334,7 @@ exports.itCompiles = function(name, fixturePath, fns, expectHandle) {
         }
       });
     }
-    return Promise.resolve()
+    return exports.clean(fixturePath)
     .then(function() {
       return doRun();
     })
