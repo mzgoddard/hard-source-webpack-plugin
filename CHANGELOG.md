@@ -7,6 +7,7 @@
 
 ## 0.5.X Patches
 
+- `0.5.13` Improve AppendSerializer performance on lots of writes
 - `0.5.12` Fix sourcesContext is undefined (@piecyk)
 - `0.5.11` Fix relative context module's identifier and id assignment
 - `0.5.10` Fix contextTimstamp typo and hash regression, fix bad compilerContext when logging freezing errors (#230)
