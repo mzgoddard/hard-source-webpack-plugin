@@ -48,8 +48,16 @@ const main = async () => {
     await write(size, superIpsum);
     console.log('write', size, Date.now() - start);
     start = Date.now();
-    await read();
+    const map = await read();
     console.log('read', size, Date.now() - start);
+
+    // validate
+    if (Object.values(map).length !== size) {
+      throw new Error('missing entries');
+    }
+    for (const value of Object.values(map)) {
+      if (value !== superIpsum) {throw new Error('bad write or read');}
+    }
   }
 };
 
