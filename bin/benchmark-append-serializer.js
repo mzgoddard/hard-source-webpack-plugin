@@ -12,6 +12,7 @@ const lorem =
   consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
   cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non
   proident, sunt in culpa qui officia deserunt mollit anim id est laborum.`;
+const superIpsum = Array.from(new Array(100), () => lorem).join('\n\n');
 
 const diskFile = `${__dirname}/../tmp/append`;
 
@@ -30,7 +31,7 @@ const read = () => {
   return s.read();
 };
 
-const write = size => {
+const write = (size, lorem) => {
   const s = serializer();
   const ops = Array.from(new Array(size), (_, i) => ({
     key: `lorem${i}`,
@@ -44,7 +45,7 @@ const main = async () => {
   for (const size of sizes) {
     await clean();
     let start = Date.now();
-    await write(size);
+    await write(size, superIpsum);
     console.log('write', size, Date.now() - start);
     start = Date.now();
     await read();
