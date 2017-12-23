@@ -829,9 +829,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   });
 
   compiler.plugin('after-plugins', function() {
-    compiler.plugin('compilation', function(compilation) {
+    compiler.plugin('compilation', function(compilation, params) {
       var factories = compilation.dependencyFactories;
-      var contextFactory = factories.get(RequireContextDependency);
+      var contextFactory = factories.get(RequireContextDependency) ||
+        params.contextModuleFactory;
 
       var hardContextFactory = new HardContextModuleFactory({
         compilation: compilation,
