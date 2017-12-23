@@ -462,7 +462,8 @@ exports.itCompilesHardModules = function(fixturePath, filesA, filesB, expectHand
 
 exports.clean = function(fixturePath) {
   var tmpPath = path.join(__dirname, '..', 'fixtures', fixturePath, 'tmp');
-  return promisify(rimraf)(tmpPath)
+  var nmPath = path.join(__dirname, '..', 'fixtures', fixturePath, 'node_modules');
+  return Promise.all([promisify(rimraf)(tmpPath), promisify(rimraf)(nmPath)])
   .then(function() {
     return promisify(mkdirp)(tmpPath);
   });
