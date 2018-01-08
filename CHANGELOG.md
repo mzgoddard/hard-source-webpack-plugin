@@ -7,6 +7,7 @@
 
 ## 0.5.X Patches
 
+- `0.5.15` Safety check that `sourceMap.map` is in cache before use (@abogaart)
 - `0.5.14` Improve AppendSerializer performance reading and writing
 - `0.5.13` Improve AppendSerializer performance on lots of writes
 - `0.5.12` Fix sourcesContext is undefined (@piecyk)
