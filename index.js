@@ -953,11 +953,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                 return;
               }
             }
-            else if (resolveItem && resolveItem.invalid) {
-              cacheItem.invalid = true;
-              cacheItem.invalidReason = 'resolveItem';
-              return;
-            }
+            // else if (resolveItem && resolveItem.invalid) {
+            //   cacheItem.invalid = true;
+            //   cacheItem.invalidReason = 'resolveItem';
+            //   console.log(cacheItem.invalidReason);
+            //   return;
+            // }
           }
 
           if (
@@ -1002,6 +1003,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
                   // without an error or module.
                   if (!depModule) {return resolve();}
 
+                  return resolve();
                   if (cacheDependency._resolvedModuleIdentifier === depModule.identifier()) {
                     return resolve();
                   }
