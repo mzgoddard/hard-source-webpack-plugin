@@ -33,6 +33,8 @@ describe('plugin webpack use', function() {
   itCompilesTwice('plugin-logger-child-no-memory');
   itCompilesTwice('plugin-serializer-json-base-1dep');
   itCompilesTwice('plugin-source-map-1dep');
+  itCompilesTwice('plugin-uglify-devtool-source-map');
+  itCompilesTwice('plugin-uglify-devtool-source-map', {exportStats: true});
 
   itCompilesHardModules('plugin-dll', ['./fib.js']);
   itCompilesHardModules('plugin-dll-reference', ['./index.js']);
