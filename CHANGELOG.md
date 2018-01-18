@@ -7,6 +7,7 @@
 
 ## 0.5.X Patches
 
+- `0.5.16` Fix baseMap redundancy logic (#246), fix options passing for cheap-eval devtool (#241)
 - `0.5.15` Safety check that `sourceMap.map` is in cache before use (@abogaart)
 - `0.5.14` Improve AppendSerializer performance reading and writing
 - `0.5.13` Improve AppendSerializer performance on lots of writes
