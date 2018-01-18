@@ -45,6 +45,9 @@
     "webpack": "*"
   },
   "dependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.2",
+    "babel-preset-env": "^1.6.1",
     "lodash": "^4.15.0",
     "mkdirp": "^0.5.1",
     "node-object-hash": "^1.2.0",

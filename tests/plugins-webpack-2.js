@@ -1,7 +1,15 @@
 var expect = require('chai').expect;
 
+var itCompilesTwice = require('./util').itCompilesTwice;
 var itCompilesChange = require('./util').itCompilesChange;
 var describeWP2 = require('./util').describeWP2;
+
+describeWP2('plugin webpack 2 use', function() {
+
+  itCompilesTwice('plugin-uglify-babel-devtool-source-map');
+  itCompilesTwice('plugin-uglify-babel-devtool-source-map', {exportStats: true});
+
+});
 
 describeWP2('plugin webpack 2 use - builds changes', function() {
 
