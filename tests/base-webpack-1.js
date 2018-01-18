@@ -40,6 +40,8 @@ describe('basic webpack use - compiles identically', function() {
   itCompilesTwice('base-deep-context', {exportStats: true});
   itCompilesTwice('base-deep-context-devtool-source-map');
   itCompilesTwice('base-deep-context-devtool-source-map', {exportStats: true});
+  itCompilesTwice('base-devtool-cheap-eval-source-map');
+  itCompilesTwice('base-devtool-cheap-eval-source-map', {exportStats: true});
   itCompilesTwice('base-devtool-cheap-source-map');
   itCompilesTwice('base-devtool-cheap-source-map', {exportStats: true});
   itCompilesTwice('base-devtool-eval');
