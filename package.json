@@ -53,7 +53,7 @@
     "node-object-hash": "^1.2.0",
     "rimraf": "^2.6.2",
     "source-list-map": "^0.1.6",
-    "source-map": "^0.5.6",
+    "source-map": "^0.7.0",
     "webpack-core": "~0.6.0",
     "webpack-sources": "^1.0.1",
     "write-json-file": "^2.3.0"
