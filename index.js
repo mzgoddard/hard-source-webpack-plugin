@@ -1217,8 +1217,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         var cacheItem = moduleCache[identifier];
         if (cacheItem && (
-          !lodash.isEqual(cacheItem.used, module.used) ||
-          !lodash.isEqual(cacheItem.usedExports, module.usedExports)
+          false
+          // !lodash.isEqual(cacheItem.used, module.used) ||
+          // !lodash.isEqual(cacheItem.usedExports, module.usedExports)
         )) {
           // Bust this module, the keys exported or their order has changed.
           cacheItem.invalid = true;
@@ -1717,6 +1718,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   if (webpackFeatures.harmonyDependencies) {
     HardHarmonyDependencyPlugin = require('./lib/hard-harmony-dependency-plugin');
   }
+  var HardSourceSourcePlugin = require('./lib/hard-source-source-plugin');
   var HardSourceMapPlugin = require('./lib/hard-source-map-plugin');
 
   new HardCompilationPlugin().apply(compiler);
@@ -1737,9 +1739,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   new HardDependencyBlockPlugin().apply(compiler);
 
   new HardBasicDependencyPlugin().apply(compiler);
-  if (HardHarmonyDependencyPlugin) {
-    new HardHarmonyDependencyPlugin().apply(compiler);
-  }
+  // if (HardHarmonyDependencyPlugin) {
+  //   new HardHarmonyDependencyPlugin().apply(compiler);
+  // }
+
+  new HardSourceSourcePlugin().apply(compiler);
 
   new HardSourceMapPlugin().apply(compiler);
 
