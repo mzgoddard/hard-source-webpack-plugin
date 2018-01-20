@@ -1046,6 +1046,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             cacheItem.invalid = true;
             cacheItem.invalidReason = 'error while validating dependencies';
             moduleCache[identifier] = null;
+            // console.log('invalid', cacheItem.invalidReason);
             throw new Error(
               'invalid cacheItem: ' + e.message + '\n' +
               (e.stack && e.stack.split('\n')[1])
@@ -1054,6 +1055,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }
         else {
           if (!cacheItem || cacheItem.invalid) {
+            // cacheItem && console.log('invalid', cacheItem.invalidReason);
             if (cacheItem) {
               cacheItem = null;
             }
@@ -1963,6 +1965,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       Object.keys(moduleCache).forEach(function(key) {
         var cacheItem = moduleCache[key];
         if (cacheItem && cacheItem.invalid) {
+          // console.log('invalid', cacheItem.invalidReason);
           moduleCache[key] = null;
           moduleOps.push({
             key: key,
