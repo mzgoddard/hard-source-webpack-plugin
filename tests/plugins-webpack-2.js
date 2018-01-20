@@ -62,7 +62,7 @@ describeWP2('plugin webpack 2 use - builds changes', function() {
     expect(output.run2['main.js'].toString()).to.match(/\/* fib/);
     expect(Object.keys(output.run2).filter(function(key) {
       return /\.hot-update\.json/.test(key);
-    })).to.length.of(2);
+    })).to.length.of(1);
   });
 
 });
