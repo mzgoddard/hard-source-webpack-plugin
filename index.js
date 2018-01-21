@@ -18,48 +18,12 @@ var ContextDependency = require('webpack/lib/dependencies/ContextDependency');
 var RequireContextDependency = require('webpack/lib/dependencies/RequireContextDependency');
 var RequireResolveContextDependency = require('webpack/lib/dependencies/RequireResolveContextDependency');
 
-try{
-  var NullDependencyTemplate = require('webpack/lib/dependencies/NullDependencyTemplate');
-} catch(ex) {
-  var NullDependencyTemplate = require('webpack/lib/dependencies/NullDependency').Template;
-}
-var NullFactory = require('webpack/lib/NullFactory');
-
-var HarmonyCompatibilityDependency;
-var HarmonyExportImportedSpecifierDependency;
-var HarmonyImportDependency;
-var HarmonyImportSpecifierDependency;
 var ImportContextDependency;
 
 try {
-  HarmonyExportImportedSpecifierDependency = require('webpack/lib/dependencies/HarmonyExportImportedSpecifierDependency');
-  HarmonyImportDependency = require('webpack/lib/dependencies/HarmonyImportDependency');
-  HarmonyImportSpecifierDependency = require('webpack/lib/dependencies/HarmonyImportSpecifierDependency');
   ImportContextDependency = require('webpack/lib/dependencies/ImportContextDependency');
-
-  try {
-    HarmonyCompatibilityDependency = require('webpack/lib/dependencies/HarmonyCompatibilityDependency');
-  }
-  catch (_) {
-    HarmonyCompatibilityDependency = require('webpack/lib/dependencies/HarmonyCompatiblilityDependency');
-  }
 }
-catch (_) {
-  HarmonyCompatibilityDependency = function() {};
-}
-
-var HardModuleDependency = require('./lib/dependencies').HardModuleDependency;
-var HardContextDependency = require('./lib/dependencies').HardContextDependency;
-var HardNullDependency = require('./lib/dependencies').HardNullDependency;
-var HardHarmonyExportExpressionDependency = require('./lib/dependencies').HardHarmonyExportExpressionDependency;
-var HardHarmonyExportHeaderDependency = require('./lib/dependencies').HardHarmonyExportHeaderDependency;
-var HardHarmonyExportSpecifierDependency = require('./lib/dependencies').HardHarmonyExportSpecifierDependency;
-var HardHarmonyImportDependency =
-require('./lib/dependencies').HardHarmonyImportDependency;
-var HardHarmonyImportSpecifierDependency =
-require('./lib/dependencies').HardHarmonyImportSpecifierDependency;
-var HardHarmonyExportImportedSpecifierDependency = require('./lib/dependencies').HardHarmonyExportImportedSpecifierDependency;
-var HardHarmonyCompatibilityDependency = require('./lib/dependencies').HardHarmonyCompatibilityDependency;
+catch (_) {}
 
 var HardContextModule = require('./lib/hard-context-module');
 var HardContextModuleFactory = require('./lib/hard-context-module-factory');
@@ -852,8 +816,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       if (ImportContextDependency) {
         factories.set(ImportContextDependency, hardContextFactory);
       }
-
-      factories.set(HardContextDependency, hardContextFactory);
     });
   });
 
@@ -1179,36 +1141,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     compilation.__hardSourceFileMd5s = fileMd5s;
     compilation.__hardSourceCachedMd5s = cachedMd5s;
-
-    compilation.dependencyFactories.set(HardModuleDependency, params.normalModuleFactory);
-    compilation.dependencyTemplates.set(HardModuleDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardContextDependency, params.contextModuleFactory);
-    compilation.dependencyTemplates.set(HardContextDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardNullDependency, new NullFactory());
-    compilation.dependencyTemplates.set(HardNullDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardHarmonyExportExpressionDependency, new NullFactory());
-    compilation.dependencyTemplates.set(HardHarmonyExportExpressionDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardHarmonyExportHeaderDependency, new NullFactory());
-    compilation.dependencyTemplates.set(HardHarmonyExportHeaderDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardHarmonyExportSpecifierDependency, new NullFactory());
-    compilation.dependencyTemplates.set(HardHarmonyExportSpecifierDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardHarmonyImportDependency, params.normalModuleFactory);
-    compilation.dependencyTemplates.set(HardHarmonyImportDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardHarmonyImportSpecifierDependency, new NullFactory());
-    compilation.dependencyTemplates.set(HardHarmonyImportSpecifierDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardHarmonyCompatibilityDependency, new NullFactory());
-    compilation.dependencyTemplates.set(HardHarmonyCompatibilityDependency, new NullDependencyTemplate);
-
-    compilation.dependencyFactories.set(HardHarmonyExportImportedSpecifierDependency, new NullFactory());
-    compilation.dependencyTemplates.set(HardHarmonyExportImportedSpecifierDependency, new NullDependencyTemplate);
 
     var needAdditionalPass;
 
@@ -1703,7 +1635,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var webpackFeatures = {
     concatenatedModule: detectModule('webpack/lib/optimize/ConcatenatedModule'),
-    harmonyDependencies: detectModule('webpack/lib/dependencies/HarmonyImportDependency'),
   };
 
   var HardCompilationPlugin = require('./lib/hard-compilation-plugin');
@@ -1720,11 +1651,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var HardDependencyBlockPlugin = require('./lib/hard-dependency-block-plugin');
   var HardBasicDependencyPlugin = require('./lib/hard-basic-dependency-plugin');
   var HardHarmonyDependencyPlugin;
-  if (webpackFeatures.harmonyDependencies) {
-    HardHarmonyDependencyPlugin = require('./lib/hard-harmony-dependency-plugin');
-  }
   var HardSourceSourcePlugin = require('./lib/hard-source-source-plugin');
-  var HardSourceMapPlugin = require('./lib/hard-source-map-plugin');
 
   new HardCompilationPlugin().apply(compiler);
 
@@ -1744,13 +1671,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   new HardDependencyBlockPlugin().apply(compiler);
 
   new HardBasicDependencyPlugin().apply(compiler);
-  // if (HardHarmonyDependencyPlugin) {
-  //   new HardHarmonyDependencyPlugin().apply(compiler);
-  // }
 
   new HardSourceSourcePlugin().apply(compiler);
-
-  new HardSourceMapPlugin().apply(compiler);
 
   compiler.plugin('this-compilation', function(compilation) {
     compiler.__hardSource_topCompilation = compilation;
