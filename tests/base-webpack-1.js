@@ -123,6 +123,30 @@ describe('basic webpack use - builds changes', function() {
     .to.not.contain('__webpack_require__(' + oldId + ')');
   });
 
+  itCompilesChange('base-change-context', {
+    'a/1.js': 'module.exports = 1;\n',
+    'a/11.js': null,
+  }, {
+    'a/1.js': null,
+    'a/11.js': 'module.exports = 11;\n',
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/ = 1;/);
+    expect(output.run1['main.js'].toString()).to.not.match(/ = 11;/);
+    expect(output.run2['main.js'].toString()).to.match(/ = 11;/);
+    expect(output.run2['main.js'].toString()).to.not.match(/ = 1;/);
+  });
+
+  itCompilesChange('base-move-context', {
+    'a/1/index.js': null,
+    'a/1.js': 'module.exports = 1;\n',
+  }, {
+    'a/1/index.js': 'module.exports = 1;\n',
+    'a/1.js': null,
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/1\.js/);
+    expect(output.run2['main.js'].toString()).to.match(/1\/index\.js/);
+  });
+
   itCompilesChange('base-move-10deps-1nest', {
     'b/6.js': [
       'module.exports = 6;',
