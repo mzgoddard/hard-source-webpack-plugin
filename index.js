@@ -901,9 +901,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         fileMd5s,
         cachedMd5s
       )) {
+        return cacheItem;
+
         var promise = null;
 
         var walkDependencyBlock = function(block, callback) {
+          return;
           var addPromise = function(item) {
             var p = callback(item);
             if (p && p.then) {
