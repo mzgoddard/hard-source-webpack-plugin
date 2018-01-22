@@ -111,14 +111,14 @@ describe('basic webpack use - builds changes', function() {
     'fib.js': null,
     'fib/index.js': [
       'module.exports = function(n) {',
-      '  return n + (n > 0 ? n - 1 : 0);',
+      '  return n + (n > 0 ? n - 2 : 0);',
       '};',
     ].join('\n'),
   }, function(output) {
-    var oldId = /var fib = __webpack_require__\((\d+)\)/
-    .exec(output.run1['main.js'].toString())[1];
-    expect(output.run2['main.js'].toString())
-    .to.not.contain('__webpack_require__(' + oldId + ')');
+    expect(output.run1['main.js'].toString()).to.match(/n - 1/);
+    expect(output.run1['main.js'].toString()).to.not.match(/n - 2/);
+    expect(output.run2['main.js'].toString()).to.match(/n - 2/);
+    expect(output.run2['main.js'].toString()).to.not.match(/n - 1/);
   });
 
   itCompilesChange('base-change-context', {
@@ -159,17 +159,17 @@ describe('basic webpack use - builds changes', function() {
   }, {
     'b/6.js': null,
     'b/6/index.js': [
-      'module.exports = 6;',
+      'module.exports = 60;',
     ].join('\n'),
     'b/7.js': null,
     'b/7/index.js': [
-      'module.exports = 7;',
+      'module.exports = 70;',
     ].join('\n'),
   }, function(output) {
-    var oldId = /var b = module.exports =\n\s+__webpack_require__\((\d+)\)/
-    .exec(output.run1['main.js'].toString())[1];
-    expect(output.run2['main.js'].toString())
-    .to.not.contain('__webpack_require__(' + oldId + ')');
+    expect(output.run1['main.js'].toString()).to.match(/ = 6;/);
+    expect(output.run1['main.js'].toString()).to.not.match(/ = 60;/);
+    expect(output.run2['main.js'].toString()).to.match(/ = 60;/);
+    expect(output.run2['main.js'].toString()).to.not.match(/ = 6;/);
   });
 
   itCompilesChange('base-deep-context', {
