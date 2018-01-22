@@ -8,7 +8,6 @@ module.exports = {
     filename: 'main.js',
   },
   devtool: 'source-map',
-  recordsPath: __dirname + '/tmp/cache/records.json',
   plugins: [
     new HardSourceWebpackPlugin({
       cacheDirectory: 'cache',

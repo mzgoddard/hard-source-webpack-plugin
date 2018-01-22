@@ -11,7 +11,6 @@ module.exports = {
     if (request === './fib') {return cb(null, './fib', 'commonjs2');}
     cb();
   },
-  recordsPath: __dirname + '/tmp/cache/records.json',
   plugins: [
     new HardSourceWebpackPlugin({
       cacheDirectory: 'cache',

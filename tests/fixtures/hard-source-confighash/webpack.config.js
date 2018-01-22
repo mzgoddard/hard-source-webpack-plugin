@@ -12,7 +12,6 @@ module.exports = {
   plugins: [
     new HardSourceWebpackPlugin({
       cacheDirectory: 'cache',
-      recordsPath: 'cache/records.json',
       configHash: function(config) {
         return fs.readFileSync(__dirname + '/config-hash', 'utf8');
       },

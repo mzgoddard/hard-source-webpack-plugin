@@ -19,7 +19,6 @@ module.exports = {
     path: __dirname + '/tmp',
     filename: '[name].js',
   },
-  recordsPath: __dirname + '/tmp/cache/records.json',
 
   module: webpackIf.removeEmptyValues({
     loaders: webpackIf.webpack1(loaders),

@@ -15,7 +15,6 @@ module.exports = {
     // Versions after webpack 1 do not allow empty string values.
     extensions: webpackIf.webpack1(['', '.js'], ['.js']),
   },
-  recordsPath: __dirname + '/tmp/cache/records.json',
   plugins: [
     new HardSourceWebpackPlugin({
       cacheDirectory: 'cache',
