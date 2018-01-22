@@ -6,9 +6,8 @@ var lodash = require('lodash');
 var _mkdirp = require('mkdirp');
 var _rimraf = require('rimraf');
 
-var nodeObjectHash = require('node-object-hash');
-
 var envHash = require('./lib/env-hash');
+var defaultConfigHash = require('./lib/default-config-hash');
 var promisify = require('./lib/util/promisify');
 var values = require('./lib/util/Object.values');
 
@@ -165,7 +164,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   this.compilerOutputOptions = compiler.options.output;
   if (!options.configHash) {
-    options.configHash = nodeObjectHash({sort: false}).hash;
+    options.configHash = defaultConfigHash;
   }
   if (options.configHash) {
     if (typeof options.configHash === 'string') {
