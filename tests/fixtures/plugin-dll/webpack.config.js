@@ -11,7 +11,6 @@ module.exports = {
     filename: 'dll.js',
     library: '[name]_[hash]',
   },
-  recordsPath: __dirname + '/tmp/cache/records.json',
   plugins: [
     new HardSourceWebpackPlugin({
       cacheDirectory: 'cache',
