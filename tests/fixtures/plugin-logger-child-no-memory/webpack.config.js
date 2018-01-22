@@ -17,11 +17,9 @@ module.exports = {
     path: __dirname + '/tmp',
     filename: '[name].js',
   },
-  recordsPath: __dirname + '/tmp/cache/records.json',
   plugins: [
     new HardSourceWebpackPlugin({
       cacheDirectory: __dirname + '/tmp/cache',
-      recordsPath: __dirname + '/tmp/cache/records.json',
       environmentHash: {
         root: __dirname + '/../../..',
       },

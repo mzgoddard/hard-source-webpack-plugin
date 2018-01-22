@@ -9,7 +9,6 @@ module.exports = {
     path: __dirname + '/tmp',
     filename: 'main.js',
   },
-  recordsPath: __dirname + '/tmp/cache/records.json',
   module: {
     rules: [
       {

@@ -8,7 +8,6 @@ module.exports = {
     filename: 'main.js',
   },
   cache: true,
-  recordsPath: __dirname + '/tmp/cache/records.json',
   module: {
     loaders: [
       {

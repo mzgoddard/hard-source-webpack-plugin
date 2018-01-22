@@ -146,13 +146,11 @@ describe('hard-source features', function() {
   itCompilesEnvironmentHashDisabled('false', [
     '{',
     '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
     '  environmentHash: false,',
     '}',
   ], [
     '{',
     '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
     '  environmentHash: false,',
     '}',
   ]);
@@ -160,13 +158,11 @@ describe('hard-source features', function() {
   itCompilesEnvironmentHash('string', [
     '{',
     '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
     '  environmentHash: "a",',
     '}',
   ], [
     '{',
     '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
     '  environmentHash: "b",',
     '}',
   ]);
@@ -174,7 +170,6 @@ describe('hard-source features', function() {
   itCompilesEnvironmentHash('envhash', [
     '{',
     '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
     '  environmentHash: {',
     '    root: __dirname,',
     '    directories: ["vendor"],',
@@ -186,7 +181,6 @@ describe('hard-source features', function() {
   itCompilesEnvironmentHash('envhash-files', [
     '{',
     '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
     '  environmentHash: {',
     '    root: __dirname,',
     '    directories: ["vendor"],',
@@ -198,7 +192,6 @@ describe('hard-source features', function() {
   itCompilesEnvironmentHash('function', [
     '{',
     '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
     '  environmentHash: function(config) {',
     '    return fs.readFileSync(__dirname + "/env-hash", "utf8");',
     '  },',
@@ -208,7 +201,6 @@ describe('hard-source features', function() {
   itCompilesEnvironmentHash('function-promise', [
     '{',
     '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
     '  environmentHash: function(config) {',
     '    return new Promise(function(resolve, reject) {',
     '      fs.readFile(__dirname + "/env-hash", "utf8", function(err, src) {',
@@ -223,7 +215,6 @@ describe('hard-source features', function() {
   var _packageYarnLockHashConfig = [
     '{',
     '  cacheDirectory: "cache",',
-    '  recordsPath: "cache/records.json",',
     '  environmentHash: {',
     '    root: __dirname,',
     '  },',
