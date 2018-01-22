@@ -86,12 +86,42 @@ var bulkFsTask = function(array, each) {
   });
 };
 
+function compilerContext(compiler) {
+  return compiler.compiler ? compiler.compiler.context : compiler.context;
+}
+
 function relateNormalPath(compiler, key) {
-  return path.relative(compiler.context, key).replace(/\\/g, '/');
+  return path.relative(compilerContext(compiler), key).replace(/\\/g, '/');
+}
+
+function relateNormalRequest(compiler, key) {
+  return key
+  .split('!')
+  .map(function(subkey) {
+    return relateNormalPath(compiler, subkey);
+  })
+  .join('!');
+}
+
+function relateNormalModuleId(compiler, id) {
+  return id.substring(0, 24) + relateNormalRequest(compiler, id.substring(24));
 }
 
 function contextNormalPath(compiler, key) {
-  return path.join(compiler.context, key).replace(/\//g, path.sep);
+  return path.join(compilerContext(compiler), key).replace(/\//g, path.sep);
+}
+
+function contextNormalRequest(compiler, key) {
+  return key
+  .split('!')
+  .map(function(subkey) {
+    return contextNormalPath(compiler, subkey);
+  })
+  .join('!');
+}
+
+function contextNormalModuleId(compiler, id) {
+  return id.substring(0, 24) + contextNormalRequest(compiler, id.substring(24));
 }
 
 function HardSourceWebpackPlugin(options) {
@@ -481,6 +511,48 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
       if (Object.keys(moduleCache).length) {return Promise.resolve();}
 
+      function contextKeys(compiler, fn) {
+        return function(source) {
+          var dest = {};
+          Object.keys(source).forEach(function(key) {
+            dest[fn(compiler, key)] = source[key];
+          });
+          return dest;
+        }
+      }
+
+      function contextValues(compiler, fn) {
+        return function(source) {
+          var dest = {};
+          Object.keys(source).forEach(function(key) {
+            dest[key] = fn(compiler, source[key]);
+          });
+          return dest;
+        }
+      }
+
+      function contextNormalModuleResolveKey(compiler, key) {
+        var parsed = JSON.parse(key);
+        return JSON.stringify([parsed[0], contextNormalPath(compiler, parsed[1]), parsed[2]]);
+      }
+
+      function contextNormalModuleResolve(compiler, resolved) {
+        if (typeof resolved === 'string') {
+          resolved = JSON.parse(resolved);
+        }
+        return (Object.assign({}, resolved, {
+          context: contextNormalRequest(compiler, resolved.context),
+          request: contextNormalRequest(compiler, resolved.request),
+          userRequest: contextNormalRequest(compiler, resolved.userRequest),
+          resource: contextNormalRequest(compiler, resolved.resource),
+          loaders: resolved.loaders.map(function(loader) {
+            return Object.assign({}, loader, {
+              loader: contextNormalPath(compiler, loader.loader),
+            });
+          }),
+        }));
+      }
+
       function copyWithDeser(dest, source) {
         Object.keys(source).forEach(function(key) {
           var item = source[key];
@@ -493,33 +565,55 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         .then(function(_assetCache) {assetCache = _assetCache;}),
 
         moduleCacheSerializer.read()
+        .then(contextKeys(compiler, contextNormalModuleId))
         .then(copyWithDeser.bind(null, moduleCache)),
 
         dataCacheSerializer.read()
-        .then(copyWithDeser.bind(null, dataCache)),
-
-        md5CacheSerializer.read()
-        .then(function(_md5Cache) {md5Cache = _md5Cache;})
+        .then(copyWithDeser.bind(null, dataCache))
         .then(function() {
-          Object.keys(md5Cache).forEach(function(key) {
-            if (typeof md5Cache[key] === 'string') {
-              md5Cache[key] = JSON.parse(md5Cache[key]);
-            }
-
-            cachedMd5s[key] = md5Cache[key].hash;
+          dataCache.fileDependencies = dataCache.fileDependencies
+          .map(function(dep) {
+            return contextNormalPath(compiler, dep);
+          });
+          dataCache.contextDependencies = dataCache.contextDependencies
+          .map(function(dep) {
+            return contextNormalPath(compiler, dep);
           });
         }),
 
+        md5CacheSerializer.read()
+        .then(contextKeys(compiler, contextNormalPath))
+        .then(function(_md5Cache) {
+          Object.keys(_md5Cache).forEach(function(key) {
+            if (typeof _md5Cache[key] === 'string') {
+              _md5Cache[key] = JSON.parse(_md5Cache[key]);
+            }
+
+            cachedMd5s[key] = _md5Cache[key].hash;
+          });
+          md5Cache = _md5Cache;
+        }),
+
         moduleResolveCacheSerializer.read()
+        .then(contextKeys(compiler, contextNormalModuleResolveKey))
+        .then(contextValues(compiler, contextNormalModuleResolve))
         .then(copyWithDeser.bind(null, moduleResolveCache)),
 
         missingCacheSerializer.read()
         .then(function(_missingCache) {
           missingCache = {normal: {},loader: {}, context: {}};
 
+          function contextNormalMissingKey(compiler, key) {
+            var parsed = JSON.parse(key);
+            return JSON.stringify([
+              contextNormalPath(compiler, parsed[0]),
+              contextNormalPath(compiler, parsed[1])
+            ]);
+          }
+
           function contextNormalMissing(compiler, missing) {
             return missing.map(function(missed) {
-              return contextNormalPath(compiler, missed);
+              return contextNormalRequest(compiler, missed);
             });
           }
 
@@ -530,7 +624,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             }
             var splitIndex = key.indexOf('/');
             var group = key.substring(0, splitIndex);
-            var keyName = contextNormalPath(compiler, key.substring(splitIndex + 1));
+            var keyName = contextNormalMissingKey(compiler, key.substring(splitIndex + 1));
             missingCache[group][keyName] = contextNormalMissing(compiler, item);
           });
         }),
@@ -538,6 +632,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         resolverCacheSerializer.read()
         .then(function(_resolverCache) {
           resolverCache = {normal: {},loader: {}, context: {}};
+
+          function contextNormalResolvedKey(compiler, key) {
+            var parsed = JSON.parse(key);
+            return JSON.stringify([contextNormalPath(compiler, parsed[0]), parsed[1]]);
+          }
 
           function contextNormalResolved(compiler, resolved) {
             return Object.assign({}, resolved, {
@@ -552,7 +651,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             }
             var splitIndex = key.indexOf('/');
             var group = key.substring(0, splitIndex);
-            var keyName = contextNormalPath(compiler, key.substring(splitIndex + 1));
+            var keyName = contextNormalResolvedKey(compiler, key.substring(splitIndex + 1));
             resolverCache[group][keyName] = contextNormalResolved(compiler, item);
           });
         }),
@@ -1463,7 +1562,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       var _this = this;
       var ops = this._ops.map(function(id) {
         return {
-          key: id,
+          key: relateNormalModuleId(compiler, id),
           value: _this.get(id) || null,
         };
       });
@@ -1668,7 +1767,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               cachedMd5s[file] = value.hash;
 
               md5Ops.push({
-                key: file,
+                key: relateNormalPath(compiler, file),
                 value: JSON.stringify(value),
               });
             }
@@ -1704,7 +1803,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         dataOps.push({
           key: 'fileDependencies',
-          value: JSON.stringify(dataCache.fileDependencies),
+          value: JSON.stringify(
+            dataCache.fileDependencies
+            .map(function(dep) {
+              return relateNormalPath(compiler, dep);
+            })
+          ),
         });
       }
 
@@ -1755,7 +1859,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         dataOps.push({
           key: 'contextDependencies',
-          value: JSON.stringify(dataCache.contextDependencies),
+          value: JSON.stringify(
+            dataCache.contextDependencies
+            .map(function(dep) {
+              return relateNormalPath(compiler, dep);
+            })
+          ),
         });
       }
 
@@ -1781,6 +1890,25 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
       buildMd5Ops(dataCache.contextDependencies);
 
+      function relateNormalModuleResolveKey(compiler, key) {
+        var parsed = JSON.parse(key);
+        return JSON.stringify([parsed[0], relateNormalPath(compiler, parsed[1]), parsed[2]]);
+      }
+
+      function relateNormalModuleResolve(compiler, resolved) {
+        return (Object.assign({}, resolved, {
+          context: relateNormalRequest(compiler, resolved.context),
+          request: relateNormalRequest(compiler, resolved.request),
+          userRequest: relateNormalRequest(compiler, resolved.userRequest),
+          resource: relateNormalRequest(compiler, resolved.resource),
+          loaders: resolved.loaders.map(function(loader) {
+            return Object.assign({}, loader, {
+              loader: relateNormalPath(compiler, loader.loader),
+            });
+          }),
+        }));
+      }
+
       moduleResolveCacheChange
       .reduce(function(carry, value) {
         if (carry.indexOf(value) === -1) {
@@ -1789,19 +1917,30 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         return carry;
       }, [])
       .forEach(function(key) {
+        // console.log(key, moduleResolveCache[key]);
+        // moduleResolveCache[key] && console.log(relateNormalModuleResolveKey(compiler, key));
+        // moduleResolveCache[key] && console.log(relateNormalModuleResolve(compiler, moduleResolveCache[key]));
         moduleResolveOps.push({
-          key: key,
+          key: relateNormalModuleResolveKey(compiler, key),
           value: moduleResolveCache[key] ?
-            JSON.stringify(moduleResolveCache[key]) :
+            JSON.stringify(relateNormalModuleResolve(compiler, moduleResolveCache[key])) :
             null,
         });
       });
 
       moduleResolveCacheChange = [];
 
+      function relateNormalMissingKey(compiler, key) {
+        var parsed = JSON.parse(key);
+        return JSON.stringify([
+          relateNormalPath(compiler, parsed[0]),
+          relateNormalPath(compiler, parsed[1])
+        ]);
+      }
+
       function relateNormalMissing(compiler, missing) {
         return missing.map(function(missed) {
-          return relateNormalPath(compiler, missed);
+          return relateNormalRequest(compiler, missed);
         });
       }
 
@@ -1811,19 +1950,24 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           if (missingCache[group][key].new) {
             missingCache[group][key].new = false;
             missingOps.push({
-              key: group + '/' + relateNormalPath(compiler, key),
+              key: group + '/' + relateNormalMissingKey(compiler, key),
               value: JSON.stringify(relateNormalMissing(compiler, missingCache[group][key])),
             });
           }
           else if (missingCache[group][key].invalid) {
             missingCache[group][key] = null;
             missingOps.push({
-              key: group + '/' + relateNormalPath(compiler, key),
+              key: group + '/' + relateNormalMissingKey(compiler, key),
               value: null,
             });
           }
         });
       });
+
+      function relateNormalResolvedKey(compiler, key) {
+        var parsed = JSON.parse(key);
+        return JSON.stringify([relateNormalPath(compiler, parsed[0]), parsed[1]]);
+      }
 
       function relateNormalResolved(compiler, resolved) {
         return Object.assign({}, resolved, {
@@ -1837,14 +1981,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           if (resolverCache[group][key].new) {
             resolverCache[group][key].new = false;
             resolverOps.push({
-              key: group + '/' + relateNormalPath(compiler, key),
+              key: group + '/' + relateNormalResolvedKey(compiler, key),
               value: JSON.stringify(relateNormalResolved(compiler, resolverCache[group][key])),
             });
           }
           else if (resolverCache[group][key].invalid) {
             resolverCache[group][key] = null;
             resolverOps.push({
-              key: group + '/' + relateNormalPath(compiler, key),
+              key: group + '/' + relateNormalResolvedKey(compiler, key),
               value: null,
             });
           }
