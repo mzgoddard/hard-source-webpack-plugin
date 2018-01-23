@@ -10,6 +10,7 @@ var envHash = require('./lib/env-hash');
 var defaultConfigHash = require('./lib/default-config-hash');
 var promisify = require('./lib/util/promisify');
 var values = require('./lib/util/Object.values');
+var relateContext = require('./lib/util/relate-context');
 
 var AMDRequireContextDependency = require('webpack/lib/dependencies/AMDRequireContextDependency');
 var CommonJsRequireContextDependency = require('webpack/lib/dependencies/CommonJsRequireContextDependency');
@@ -85,13 +86,9 @@ var bulkFsTask = function(array, each) {
   });
 };
 
-function compilerContext(compiler) {
-  return compiler.compiler ? compiler.compiler.context : compiler.context;
-}
-
-function relateNormalPath(compiler, key) {
-  return path.relative(compilerContext(compiler), key).replace(/\\/g, '/');
-}
+var compilerContext = relateContext.compilerContext;
+var relateNormalPath = relateContext.relateNormalPath;
+var contextNormalPath = relateContext.contextNormalPath;
 
 function relateNormalRequest(compiler, key) {
   return key
@@ -106,10 +103,6 @@ function relateNormalModuleId(compiler, id) {
   return id.substring(0, 24) + relateNormalRequest(compiler, id.substring(24));
 }
 
-function contextNormalPath(compiler, key) {
-  return path.join(compilerContext(compiler), key).replace(/\//g, path.sep);
-}
-
 function contextNormalRequest(compiler, key) {
   return key
   .split('!')
@@ -121,6 +114,20 @@ function contextNormalRequest(compiler, key) {
 
 function contextNormalModuleId(compiler, id) {
   return id.substring(0, 24) + contextNormalRequest(compiler, id.substring(24));
+}
+
+function contextNormalLoaders(compiler, loaders) {
+  return loaders.map(function(loader) {
+    return Object.assign({}, loader, {
+      loader: contextNormalPath(compiler, loader.loader),
+    });
+  });
+}
+
+function contextNormalPathArray(compiler, paths) {
+  return paths.map(function(subpath) {
+    return contextNormalPath(compiler, subpath);
+  });
 }
 
 function HardSourceWebpackPlugin(options) {
@@ -532,17 +539,31 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
       function contextNormalModuleResolveKey(compiler, key) {
         var parsed = JSON.parse(key);
-        return JSON.stringify([parsed[0], contextNormalPath(compiler, parsed[1]), parsed[2]]);
+        if (Array.isArray(parsed)) {
+          return JSON.stringify([parsed[0], contextNormalPath(compiler, parsed[1]), parsed[2]]);
+        }
+        else {
+          return JSON.stringify(Object.assign({}, parsed, {
+            context: contextNormalPath(compiler, parsed.context),
+          }));
+        }
       }
 
       function contextNormalModuleResolve(compiler, resolved) {
         if (typeof resolved === 'string') {
           resolved = JSON.parse(resolved);
         }
+        if (resolved.type === 'context') {
+          return (Object.assign({}, resolved, {
+            identifier: contextNormalModuleId(compiler, resolved.identifier),
+            resource: contextNormalRequest(compiler, resolved.resource),
+          }));
+        }
         return (Object.assign({}, resolved, {
           context: contextNormalRequest(compiler, resolved.context),
           request: contextNormalRequest(compiler, resolved.request),
           userRequest: contextNormalRequest(compiler, resolved.userRequest),
+          rawRequest: contextNormalRequest(compiler, resolved.rawRequest),
           resource: contextNormalRequest(compiler, resolved.resource),
           loaders: resolved.loaders.map(function(loader) {
             return Object.assign({}, loader, {
@@ -907,8 +928,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
       if (!HardModule.needRebuild(
         cacheItem,
-        cacheItem.fileDependencies,
-        cacheItem.contextDependencies,
+        contextNormalPathArray(compiler, cacheItem.fileDependencies),
+        contextNormalPathArray(compiler, cacheItem.contextDependencies),
         fileTimestamps,
         contextTimestamps,
         fileMd5s,
@@ -1099,7 +1120,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           context = info;
         }
         var resolveId = JSON.stringify([context, request]);
-        var resolve = resolverCache[key][resolveId];
+        var absResolveId = JSON.stringify([context, relateContext.relateAbsolutePath(context, request)]);
+        var resolve = resolverCache[key][resolveId] || resolverCache[key][absResolveId];
         if (resolve && !resolve.invalid) {
           var missingId = JSON.stringify([context, resolve.result]);
           var missing = missingCache[key][missingId];
@@ -1241,7 +1263,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       needAdditionalPass = compilation.modules.reduce(function(carry, module) {
         if (
           module.isHard && module.isHard() &&
-          HardModule.needRebuild(module.cacheItem, module.fileDependencies, module.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)
+          HardModule.needRebuild(
+            module.cacheItem,
+            module.fileDependencies,
+            module.contextDependencies,
+            fileTimestamps,
+            contextTimestamps,
+            fileMd5s,
+            cachedMd5s
+          )
         ) {
           module.reasons.forEach(function(reason) {
             if (reason.dependency.__NormalModuleFactoryCache) {
@@ -1409,7 +1439,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       if (
         cacheItem &&
         cacheItem.fileDependencies &&
-        !HardModule.needRebuild(cacheItem, cacheItem.fileDependencies, cacheItem.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)
+        !HardModule.needRebuild(
+          cacheItem,
+          contextNormalPathArray(compiler, cacheItem.fileDependencies),
+          contextNormalPathArray(compiler, cacheItem.contextDependencies),
+          fileTimestamps,
+          contextTimestamps,
+          fileMd5s,
+          cachedMd5s
+        )
       ) {
         var memCacheId = 'm' + cacheItem.identifier;
         if (!memoryCache[memCacheId]) {
@@ -1423,29 +1461,45 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           // var module = memoryCache[memCacheId] = new HardModule(cacheItem);
           var module = memoryCache[memCacheId] = fetch('module', key, {
             compilation: {
+              compiler: compiler,
               __hardSourceFileMd5s: fileMd5s,
               __hardSourceCachedMd5s: cachedMd5s,
             },
           });
-          module.build(null, {__hardSourceMethods: {thaw: thaw, mapThaw: mapThaw}}, null, null, function() {});
+          module.build(null, {
+            compiler: compiler,
+            __hardSourceMethods: {thaw: thaw, mapThaw: mapThaw}
+          }, null, null, function() {});
           return module;
         }
       }
       else if (
         cacheItem &&
         !cacheItem.fileDependencies &&
-        !HardContextModule.needRebuild(cacheItem, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)
+        !HardContextModule.needRebuild(
+          cacheItem,
+          contextNormalPath(compiler, cacheItem.context),
+          fileTimestamps,
+          contextTimestamps,
+          fileMd5s,
+          cachedMd5s
+        )
       ) {
+        console.log('preload ContextModule');
         var memCacheId = 'm' + cacheItem.identifier;
         if (!memoryCache[memCacheId]) {
           // var module = memoryCache[memCacheId] = new HardContextModule(cacheItem);
           var module = memoryCache[memCacheId] = fetch('module', key, {
             compilation: {
+              compiler: compiler,
               __hardSourceFileMd5s: fileMd5s,
               __hardSourceCachedMd5s: cachedMd5s,
             },
           });
-          module.build(null, {__hardSourceMethods: {thaw: thaw, mapThaw: mapThaw}}, null, null, function() {});
+          module.build(null, {
+            compiler: compiler,
+            __hardSourceMethods: {thaw: thaw, mapThaw: mapThaw},
+          }, null, null, function() {});
           return module;
         }
       }
@@ -1480,7 +1534,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       Object.keys(compilation.cache).forEach(function(key) {
         var module = compilation.cache[key];
         if (module && module.isHard && module.isHard()) {
-          if (HardModule.needRebuild(module.cacheItem, module.fileDependencies, module.contextDependencies, fileTimestamps, contextTimestamps, fileMd5s, cachedMd5s)) {
+          if (HardModule.needRebuild(
+            module.cacheItem,
+            module.fileDependencies,
+            module.contextDependencies,
+            fileTimestamps,
+            contextTimestamps,
+            fileMd5s,
+            cachedMd5s
+          )) {
             module.reasons.forEach(function(reason) {
               if (reason.dependency.__NormalModuleFactoryCache) {
                 reason.dependency.__NormalModuleFactoryCache = null;
@@ -1497,7 +1559,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     _ops: [],
 
     get: function(id) {
-      var hashId = requestHash(id);
+      var hashId = requestHash(relateNormalRequest(compiler, id));
       if (assetCache[hashId]) {
         if (typeof assetCache[hashId] === 'string') {
           assetCache[hashId] = JSON.parse(assetCache[hashId]);
@@ -1507,7 +1569,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     },
 
     set: function(id, item) {
-      var hashId = requestHash(id);
+      var hashId = requestHash(relateNormalRequest(compiler, id));
       if (item) {
         assetCache[hashId] = item;
         this._ops.push({
@@ -1892,14 +1954,29 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
       function relateNormalModuleResolveKey(compiler, key) {
         var parsed = JSON.parse(key);
-        return JSON.stringify([parsed[0], relateNormalPath(compiler, parsed[1]), parsed[2]]);
+        if (Array.isArray(parsed)) {
+          return JSON.stringify([parsed[0], relateNormalPath(compiler, parsed[1]), relateContext.relateAbsoluteRequest(parsed[1], parsed[2])]);
+        }
+        else {
+          return JSON.stringify(Object.assign({}, parsed, {
+            context: relateNormalPath(compiler, parsed.context),
+            request: relateContext.relateAbsoluteRequest(parsed.context, parsed.request),
+          }));
+        }
       }
 
       function relateNormalModuleResolve(compiler, resolved) {
+        if (resolved.type === 'context') {
+          return (Object.assign({}, resolved, {
+            identifier: relateNormalModuleId(compiler, resolved.identifier),
+            resource: relateNormalRequest(compiler, resolved.resource),
+          }));
+        }
         return (Object.assign({}, resolved, {
           context: relateNormalRequest(compiler, resolved.context),
           request: relateNormalRequest(compiler, resolved.request),
           userRequest: relateNormalRequest(compiler, resolved.userRequest),
+          rawRequest: relateNormalRequest(compiler, resolved.rawRequest),
           resource: relateNormalRequest(compiler, resolved.resource),
           loaders: resolved.loaders.map(function(loader) {
             return Object.assign({}, loader, {
@@ -1966,7 +2043,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
       function relateNormalResolvedKey(compiler, key) {
         var parsed = JSON.parse(key);
-        return JSON.stringify([relateNormalPath(compiler, parsed[0]), parsed[1]]);
+        return JSON.stringify([
+          relateNormalPath(compiler, parsed[0]),
+          relateContext.relateAbsolutePath(parsed[0], parsed[1]),
+        ]);
       }
 
       function relateNormalResolved(compiler, resolved) {
@@ -2027,7 +2107,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     var identifierPrefix = cachePrefix(compilation);
     if (identifierPrefix !== null) {
-      freeze('compilation', null, compilation);
+      freeze('compilation', null, compilation, {
+        compilation: compilation,
+      });
     }
 
     assetOps = archetypeCaches.asset.operations();
