@@ -1749,6 +1749,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     concatenatedModule: detectModule('webpack/lib/optimize/ConcatenatedModule'),
   };
 
+  var schemasVersion = 2;
+  if (webpackFeatures.concatenatedModule) {
+    schemasVersion = 3;
+  }
+
   var HardCompilationPlugin = require('./lib/hard-compilation-plugin');
   var HardAssetPlugin = require('./lib/hard-asset-plugin');
   var HardConcatenationModulePlugin;
@@ -1780,11 +1785,17 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   new HardModuleErrorsPlugin().apply(compiler);
   new HardModuleExtractTextPlugin().apply(compiler);
 
-  new HardDependencyBlockPlugin().apply(compiler);
+  new HardDependencyBlockPlugin({
+    schema: schemasVersion,
+  }).apply(compiler);
 
-  new HardBasicDependencyPlugin().apply(compiler);
+  new HardBasicDependencyPlugin({
+    schema: schemasVersion,
+  }).apply(compiler);
 
-  new HardSourceSourcePlugin().apply(compiler);
+  new HardSourceSourcePlugin({
+    schema: schemasVersion,
+  }).apply(compiler);
 
   compiler.plugin('this-compilation', function(compilation) {
     compiler.__hardSource_topCompilation = compilation;
