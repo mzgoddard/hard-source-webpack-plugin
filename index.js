@@ -1485,7 +1485,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           cachedMd5s
         )
       ) {
-        console.log('preload ContextModule');
         var memCacheId = 'm' + cacheItem.identifier;
         if (!memoryCache[memCacheId]) {
           // var module = memoryCache[memCacheId] = new HardContextModule(cacheItem);
