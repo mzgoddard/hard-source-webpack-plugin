@@ -62,8 +62,12 @@ describe('basic webpack use - compiles identically', function() {
   itCompilesTwice('base-error-resolve', {exportStats: true});
   itCompilesTwice('base-external');
   itCompilesTwice('base-external', {exportStats: true});
+  itCompilesTwice('base-path-info');
+  itCompilesTwice('base-path-info', {exportStats: true});
   itCompilesTwice('base-process-env');
   itCompilesTwice('base-process-env', {exportStats: true});
+  itCompilesTwice('base-records-json');
+  itCompilesTwice('base-records-json', {exportStats: true});
   itCompilesTwice('base-target-node-1dep');
   itCompilesTwice('base-target-node-1dep', {exportStats: true});
 
