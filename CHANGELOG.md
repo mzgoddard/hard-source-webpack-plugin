@@ -1,3 +1,33 @@
+# 0.6.0
+
+- Thaw dependency instances to their original type
+- Relate the config hash to the cache directory and frozen items to the compiler context path
+- Write items immediately adjacent to each other in AppendSerializer, without filler
+
+## Release Features
+
+### The original debt, hybrid dependencies
+
+Remove the need to depend on webpack record ids feature and to manually invalidate frozen modules due to module id or used harmony export changes.
+
+From hard-source's beginning it froze dependencies as hybrid or abstract dependencies. Thawed they represented the other modules the a frozen module depended on. They made the frozen module's representation of the output brittle. A change in id, used harmony exports, and some other dependency elements meant the frozen module had to thrown away so a new webpack NormalModule could be built and its source rendered. Fixing this debt, the frozen module can re-render as how NormalModule does when a module id or used harmony exports changed.
+
+This improves rebuild time when used exports of a harmony dependency change or webpack assigns a different id to a built module. As well this improves hard-source relability in relation to webpack as it removes the need for the special case logic in hard-source that would invalidates modules in these cases.
+
+### Relative Cache
+
+Relate cached items to the cache directory and compiler contxt path. A relative cache is a portable cache. The cache built on one computer can be used on another system or in a cloned copy of the project with a different root directory on the same system.
+
+Relate paths in the config hash to the cache directory as the config contains the context path that becomes the compiler context. Two versions of a config may only differ by the context path. Using a different context relative to the root of the project or the cacheDirectory will not be able to use the cached items in the matching config hash's build because the items when their paths are made absolute during the build will be not correct.
+
+Relate frozen items to the compiler context. When thawed the items will have their paths made absolute again so their internal state matches their previous state where paths are absolute during webpack's runtime.
+
+Make resolver request fields relative to the context if they are absolute paths. Most path fields in frozen items can be known ahead of time to be absolute paths. So making the paths relative and absolute while freezing and thawing is straight forward. The request part of resolutions is not straight forward. Sometimes the request path is relative, and sometimes it is absolute. An absolute path cannot be frozen so the absolute path must be made relative. But an original relative request must not be made absolute when thawed. To answer this, make only absolute paths relative and leave the request path as is when thawed. To use these thawed resolutions two checks may be made into the cache. First an unmodified lookup and second a modified lookup with the input made relative as if it was being frozen. This way enhanced-resolve cached items and NormalModule and ContextModule resolver items can be frozen and thawed reliably.
+
+### No wasted space in AppendSerializer
+
+Log new values to byte positions instead of block positions. Removing the filler space in incomplete blocks, this decreases the space AppendSerializer uses and can have a small improvement to write and read performance.
+
 # 0.5.0
 
 - Internal plugins for freezing and thawing modules, dependencies, and assets
