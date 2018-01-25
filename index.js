@@ -1184,7 +1184,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           cachedMd5s
         )
       ) {
-        var memCacheId = 'm' + cacheItem.identifier;
+        var memCacheId = 'm' + relateContext.contextNormalRequest(compiler, cacheItem.identifier);
         if (!memoryCache[memCacheId]) {
           // if (Array.isArray(cacheItem.assets)) {
           //   cacheItem.assets = (cacheItem.assets || [])
@@ -1220,7 +1220,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           cachedMd5s
         )
       ) {
-        var memCacheId = 'm' + cacheItem.identifier;
+        var memCacheId = 'm' + relateContext.contextNormalRequest(compiler, cacheItem.identifier);
         if (!memoryCache[memCacheId]) {
           // var module = memoryCache[memCacheId] = new HardContextModule(cacheItem);
           var module = memoryCache[memCacheId] = fetch('module', key, {
@@ -1240,7 +1240,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     })
     .filter(Boolean)
     .forEach(function(module) {
-      var origin = memoryCache['m' + module.cacheItem.issuer];
+      var issuer = module.cacheItem.issuer ?
+        relateContext.contextNormalRequest(compiler, module.cacheItem.issuer) :
+        module.cacheItem.issuer;
+      var origin = memoryCache['m' + issuer];
       module.issuer = origin;
 
       module.errors.forEach(function(err) {
