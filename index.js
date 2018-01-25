@@ -1039,6 +1039,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         if (identifierPrefix === null) {return fn.call(null, request, cb);}
 
         var cacheId = JSON.stringify([identifierPrefix, request.context, request.request]);
+        var absCacheId = JSON.stringify([identifierPrefix, request.context, relateContext.relateAbsoluteRequest(request.context, request.request)]);
 
         var next = function() {
           var originalRequest = request;
@@ -1059,7 +1060,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         };
 
         var fromCache = function() {
-          var result = Object.assign({}, moduleResolveCache[cacheId]);
+          var result = Object.assign({}, moduleResolveCache[cacheId] || moduleResolveCache[absCacheId]);
           result.dependencies = request.dependencies;
           result.parser = compilation.compiler.parser;
           if (!result.parser || !result.parser.parse) {
@@ -1081,7 +1082,9 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         if (
           moduleResolveCache[cacheId] &&
-          !moduleResolveCache[cacheId].invalid
+          !moduleResolveCache[cacheId].invalid ||
+          moduleResolveCache[absCacheId] &&
+          !moduleResolveCache[absCacheId].invalid
         ) {
           return fromCache();
         }
