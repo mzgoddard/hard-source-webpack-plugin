@@ -4,6 +4,10 @@
 - Relate the config hash to the cache directory and frozen items to the compiler context path
 - Write items immediately adjacent to each other in AppendSerializer, without filler
 
+## 0.6.X Patches
+
+- `0.6.0-alpha.1` Fix missed preload path relation thawing
+
 ## Release Features
 
 ### The original debt, hybrid dependencies
