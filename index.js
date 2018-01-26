@@ -227,6 +227,62 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     environmentHasher = envHash;
   }
 
+  if (options.recordsInputPath || options.recordsPath) {
+    if (compiler.options.recordsInputPath || compiler.options.recordsPath) {
+      loggerCore.error(
+        {
+          id: 'records-input-path-set-in-root-config',
+          webpackRecordsInputPath: compiler.options.recordsInputPath,
+          webpackRecordsPath: compiler.options.recordsPath,
+          hardSourceRecordsInputPath: options.recordsInputPath,
+          hardSourceRecordsPath: options.recordsPath,
+        },
+        'Can not set recordsInputPath when it is already set. Using current ' +
+        'value: ' +
+        (compiler.options.recordsInputPath || compiler.options.recordsPath)
+      );
+    }
+    else {
+      compiler.options.recordsInputPath =
+        this.getPath(options.recordsInputPath || options.recordsPath);
+    }
+  }
+  else if (
+    !compiler.options.recordsInputPath &&
+    !compiler.options.recordsPath
+  ) {
+    options.recordsInputPath = path.join(options.cacheDirectory, 'records.json');
+    compiler.options.recordsInputPath = this.getPath(options.recordsInputPath);
+  }
+  if (options.recordsOutputPath || options.recordsPath) {
+    if (compiler.options.recordsOutputPath || compiler.options.recordsPath) {
+      loggerCore.error(
+        {
+          id: 'records-output-path-set-in-root-config',
+          webpackRecordsOutputPath: compiler.options.recordsInputPath,
+          webpackRecordsPath: compiler.options.recordsPath,
+          hardSourceRecordsOutputPath: options.recordsOutputPath,
+          hardSourceRecordsPath: options.recordsPath,
+        },
+        'Can not set recordsOutputPath when it is already set. Using current ' +
+        'value: ' +
+        (compiler.options.recordsOutputPath || compiler.options.recordsPath)
+      );
+    }
+    else {
+      compiler.options.recordsOutputPath =
+        this.getPath(options.recordsOutputPath || options.recordsPath);
+    }
+  }
+  else if (
+    !compiler.options.recordsOutputPath &&
+    !compiler.options.recordsPath
+  ) {
+    options.recordsOutputPath = path.join(options.cacheDirectory, 'records.json');
+    compiler.options.recordsOutputPath =
+      this.getPath(options.recordsOutputPath);
+  }
+
   var cacheDirPath = this.getCachePath();
   var cacheAssetDirPath = path.join(cacheDirPath, 'assets');
   var resolveCachePath = path.join(cacheDirPath, 'resolve.json');
@@ -261,6 +317,20 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var _this = this;
 
   var stat, readdir, readFile, mtime, md5, fileStamp, contextStamps;
+
+  compiler.plugin('after-plugins', function() {
+    if (
+      !compiler.recordsInputPath || !compiler.recordsOutputPath
+    ) {
+      loggerCore.error(
+        {
+          id: 'no-records-path'
+        },
+        'recordsPath must be set.'
+      );
+      active = false;
+    }
+  });
 
   function bindFS() {
     stat = promisify(
@@ -1889,6 +1959,18 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       // console.log('cache out', Date.now() - startCacheTime);
       cb();
     }, cb);
+  });
+
+  // Ensure records are stored inbetween runs of memory-fs using
+  // webpack-dev-middleware.
+  compiler.plugin('done', function() {
+    if (!active) {return;}
+
+    fs.writeFileSync(
+      path.resolve(compiler.options.context, compiler.recordsOutputPath),
+      JSON.stringify(compiler.records, null, 2),
+      'utf8'
+    );
   });
 };
 
