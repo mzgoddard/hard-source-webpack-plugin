@@ -237,22 +237,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           hardSourceRecordsInputPath: options.recordsInputPath,
           hardSourceRecordsPath: options.recordsPath,
         },
-        'Can not set recordsInputPath when it is already set. Using current ' +
-        'value: ' +
-        (compiler.options.recordsInputPath || compiler.options.recordsPath)
+        'recordsInputPath option to HardSourceWebpackPlugin is deprecated. ' +
+        'You do not need to set it and recordsInputPath in webpack root ' +
+        'configuration.'
       );
     }
     else {
       compiler.options.recordsInputPath =
         this.getPath(options.recordsInputPath || options.recordsPath);
     }
-  }
-  else if (
-    !compiler.options.recordsInputPath &&
-    !compiler.options.recordsPath
-  ) {
-    options.recordsInputPath = path.join(options.cacheDirectory, 'records.json');
-    compiler.options.recordsInputPath = this.getPath(options.recordsInputPath);
   }
   if (options.recordsOutputPath || options.recordsPath) {
     if (compiler.options.recordsOutputPath || compiler.options.recordsPath) {
@@ -264,23 +257,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           hardSourceRecordsOutputPath: options.recordsOutputPath,
           hardSourceRecordsPath: options.recordsPath,
         },
-        'Can not set recordsOutputPath when it is already set. Using current ' +
-        'value: ' +
-        (compiler.options.recordsOutputPath || compiler.options.recordsPath)
+        'recordsOutputPath option to HardSourceWebpackPlugin is deprecated. ' +
+        'You do not need to set it and recordsOutputPath in webpack root ' +
+        'configuration.'
       );
     }
     else {
       compiler.options.recordsOutputPath =
         this.getPath(options.recordsOutputPath || options.recordsPath);
     }
-  }
-  else if (
-    !compiler.options.recordsOutputPath &&
-    !compiler.options.recordsPath
-  ) {
-    options.recordsOutputPath = path.join(options.cacheDirectory, 'records.json');
-    compiler.options.recordsOutputPath =
-      this.getPath(options.recordsOutputPath);
   }
 
   var cacheDirPath = this.getCachePath();
@@ -317,20 +302,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var _this = this;
 
   var stat, readdir, readFile, mtime, md5, fileStamp, contextStamps;
-
-  compiler.plugin('after-plugins', function() {
-    if (
-      !compiler.recordsInputPath || !compiler.recordsOutputPath
-    ) {
-      loggerCore.error(
-        {
-          id: 'no-records-path'
-        },
-        'recordsPath must be set.'
-      );
-      active = false;
-    }
-  });
 
   function bindFS() {
     stat = promisify(
@@ -481,6 +452,23 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           },
           'HardSourceWebpackPlugin is writing to a new confighash path for ' + 
           'the first time: ' + cacheDirPath
+        );
+      }
+      if (options.recordsPath || options.recordsOutputPath || options.recordsInputPath) {
+        loggerCore.warn(
+          {
+            id: 'deprecated-recordsPath',
+            recordsPath: options.recordsPath,
+            recordsOutputPath: options.recordsOutputPath,
+            recordsInputPath: options.recordsInputPath,
+          },
+          [
+            'The `recordsPath` option to HardSourceWebpackPlugin is deprecated',
+            ' in 0.6 and will be removed in 0.7. 0.6 and later do not need ',
+            'recordsPath. If you still need it outside HardSourceWebpackPlugin',
+            ' you can set recordsPath on the root of your webpack ',
+            'configuration.'
+          ].join('')
         );
       }
     }
@@ -1959,18 +1947,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       // console.log('cache out', Date.now() - startCacheTime);
       cb();
     }, cb);
-  });
-
-  // Ensure records are stored inbetween runs of memory-fs using
-  // webpack-dev-middleware.
-  compiler.plugin('done', function() {
-    if (!active) {return;}
-
-    fs.writeFileSync(
-      path.resolve(compiler.options.context, compiler.recordsOutputPath),
-      JSON.stringify(compiler.records, null, 2),
-      'utf8'
-    );
   });
 };
 
