@@ -7,20 +7,22 @@ var itCompilesTwice = require('./util').itCompilesTwice;
 var itCompilesChange = require('./util').itCompilesChange;
 var itCompilesHardModules = require('./util').itCompilesHardModules;
 
+var c = require('./util/features');
+
 describe('plugin webpack use', function() {
 
   itCompilesTwice('plugin-dll');
   itCompilesTwice('plugin-dll-reference');
   itCompilesTwice('plugin-dll-reference-scope');
-  itCompilesTwice('plugin-html-lodash');
-  itCompilesTwice('plugin-extract-text');
-  itCompilesTwice('plugin-extract-text-loader-file');
-  itCompilesTwice('plugin-extract-text-throw-on-freeze');
-  itCompilesTwice('plugin-uglify-1dep');
-  itCompilesTwice('plugin-extract-text-uglify');
-  itCompilesTwice('plugin-extract-text-uglify-source-map');
-  itCompilesTwice('plugin-extract-text-uglify-eval-source-map');
-  itCompilesTwice('plugin-extract-text-html-uglify');
+  itCompilesTwice.skipIf([c.html])('plugin-html-lodash');
+  itCompilesTwice.skipIf([c.extractText])('plugin-extract-text');
+  itCompilesTwice.skipIf([c.extractText])('plugin-extract-text-loader-file');
+  itCompilesTwice.skipIf([c.extractText])('plugin-extract-text-throw-on-freeze');
+  itCompilesTwice.skipIf([c.uglify])('plugin-uglify-1dep');
+  itCompilesTwice.skipIf([c.extractText, c.uglify])('plugin-extract-text-uglify');
+  itCompilesTwice.skipIf([c.extractText, c.uglify])('plugin-extract-text-uglify-source-map');
+  itCompilesTwice.skipIf([c.extractText, c.uglify])('plugin-extract-text-uglify-eval-source-map');
+  itCompilesTwice.skipIf([c.extractText, c.uglify, c.html])('plugin-extract-text-html-uglify');
   itCompilesTwice('plugin-isomorphic-tools');
   itCompilesTwice('plugin-hmr', {exportStats: true});
   itCompilesTwice('plugin-hmr-accept', {exportStats: true});
@@ -33,13 +35,13 @@ describe('plugin webpack use', function() {
   itCompilesTwice('plugin-logger-child-no-memory');
   itCompilesTwice('plugin-serializer-json-base-1dep');
   itCompilesTwice('plugin-source-map-1dep');
-  itCompilesTwice('plugin-uglify-devtool-source-map');
-  itCompilesTwice('plugin-uglify-devtool-source-map', {exportStats: true});
+  itCompilesTwice.skipIf([c.uglify])('plugin-uglify-devtool-source-map');
+  itCompilesTwice.skipIf([c.uglify])('plugin-uglify-devtool-source-map', {exportStats: true});
 
   itCompilesHardModules('plugin-dll', ['./fib.js']);
   itCompilesHardModules('plugin-dll-reference', ['./index.js']);
   itCompilesHardModules('plugin-dll-reference-scope', ['./index.js']);
-  itCompilesHardModules('plugin-html-lodash', [/lodash\/lodash\.js$/, /\!\.\/index\.html$/]);
+  itCompilesHardModules.skipIf([c.html])('plugin-html-lodash', [/lodash\/lodash\.js$/, /\!\.\/index\.html$/]);
   itCompilesHardModules('plugin-serializer-json-base-1dep', ['./fib.js', './index.js']);
 
 });
@@ -72,10 +74,10 @@ describe('plugin webpack use - builds changes', function() {
     'fib.js': [
       'module.exports = function(n) {',
       '  if (process.env.NODE_ENV !== "production") {',
-      '    return n + (n > 0 ? n - 3 : 0);',
+      '    return n + (n > 0 ? n - 4 : 0);',
       '  }',
       '  else {',
-      '    return n + (n > 0 ? n - 2 : 0);',
+      '    return n + (n > 0 ? n - 3 : 0);',
       '  }',
       '};',
     ].join('\n'),
@@ -93,8 +95,8 @@ describe('plugin webpack use - builds changes', function() {
       '};',
     ].join('\n'),
   }, function(output) {
-    expect(output.run1['main.js'].toString()).to.match(/n - 3/);
-    expect(output.run2['main.js'].toString()).to.match(/n - 1/);
+    expect(output.run1['main.js'].toString()).to.match(/n - 4/);
+    expect(output.run2['main.js'].toString()).to.match(/n - 2/);
     expect(Object.keys(output.run2).filter(function(key) {
       return /\.hot-update\.json/.test(key);
     })).to.length.of(1);

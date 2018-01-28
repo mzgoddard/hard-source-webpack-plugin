@@ -1,2 +1,2 @@
 var key = require('./obj').key;
-console.log(key);
+module.exports = key;

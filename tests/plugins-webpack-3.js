@@ -30,7 +30,7 @@ describeWP(3)('plugin webpack 3 use - builds change', function() {
   itCompilesChange('plugin-concatenated-module-change', {
     'index.js': [
       'var fib = require(\'./obj\').fib;',
-      'console.log(fib(3));',
+      'module.exports = fib(3);',
     ].join('\n'),
     'obj.js': [
       'import fib from \'./fib\';',
@@ -40,17 +40,19 @@ describeWP(3)('plugin webpack 3 use - builds change', function() {
   }, {
     'index.js': [
       'var key = require(\'./obj\').key;',
-      'console.log(key);',
+      'module.exports = key;',
     ].join('\n'),
     'obj.js': [
       'let key = \'obj\';',
       'export {key};',
     ].join('\n'),
   }, function(output) {
-    var main1 = output.run1['main.js'].toString();
-    var main2 = output.run2['main.js'].toString();
-    expect(main1).to.contain('fib');
-    expect(main2).to.not.contain('fib');
+    expect(eval(output.run1['main.js'].toString())).to.eql(5);
+    expect(eval(output.run2['main.js'].toString())).to.eql('obj');
+    // var main1 = output.run1['main.js'].toString();
+    // var main2 = output.run2['main.js'].toString();
+    // expect(main1).to.contain('fib');
+    // expect(main2).to.not.contain('fib');
   });
 
 });

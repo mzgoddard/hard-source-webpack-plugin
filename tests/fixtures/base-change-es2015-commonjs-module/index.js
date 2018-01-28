@@ -1,2 +1,2 @@
 var fib = require('./obj').fib;
-console.log(fib(3));
+module.exports = fib(3);
