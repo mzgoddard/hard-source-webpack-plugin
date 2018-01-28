@@ -6,6 +6,7 @@
 
 ## 0.6.X Patches
 
+- `0.6.0-alpha.4` Add webpack 4 beta support
 - `0.6.0-alpha.3` Fix dependency thawing performance regression
 - `0.6.0-alpha.2` Fix missed preload path relation thawing
 
