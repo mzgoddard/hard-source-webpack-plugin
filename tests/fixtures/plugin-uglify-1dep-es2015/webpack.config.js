@@ -18,6 +18,7 @@ module.exports = {
     }),
     new UglifyJsPlugin({
       sourceMap: false,
+      compress: false,
     }),
   ],
 };

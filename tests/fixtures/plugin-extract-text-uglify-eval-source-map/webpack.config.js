@@ -3,6 +3,7 @@ var ExtractTextVersion = require('extract-text-webpack-plugin/package.json').ver
 var UglifyJsPlugin = require('webpack').optimize.UglifyJsPlugin;
 
 var HardSourceWebpackPlugin = require('../../..');
+var webpackVersion = require('webpack/package.json').version;
 
 var extractOptions;
 if (Number(ExtractTextVersion[0]) > 1) {
@@ -15,6 +16,31 @@ else {
   extractOptions = ['style-loader', 'css-loader'];
 }
 
+var moduleOptions;
+
+if (Number(webpackVersion.split('.')[0]) > 1) {
+  moduleOptions = {
+    rules: [
+      {
+        test: /\.css$/,
+        loader: ExtractTextPlugin.extract
+        .apply(ExtractTextPlugin, extractOptions),
+      },
+    ],
+  };
+}
+else {
+  moduleOptions = {
+    loaders: [
+      {
+        test: /\.css$/,
+        loader: ExtractTextPlugin.extract
+        .apply(ExtractTextPlugin, extractOptions),
+      },
+    ],
+  };
+}
+
 module.exports = {
   context: __dirname,
   entry: './index.js',
@@ -23,15 +49,7 @@ module.exports = {
     filename: 'main.js',
   },
   devtool: 'eval-source-map',
-  module: {
-    loaders: [
-      {
-        test: /\.css$/,
-        loader: ExtractTextPlugin.extract
-        .apply(ExtractTextPlugin, extractOptions),
-      },
-    ],
-  },
+  module: moduleOptions,
   plugins: [
     new ExtractTextPlugin('style.css'),
     new UglifyJsPlugin(),

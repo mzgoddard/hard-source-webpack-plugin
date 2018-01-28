@@ -24,17 +24,18 @@ describeWP(3)('basic webpack 3 use - builds changes', function() {
   itCompilesChange('base-es2015-module-export-star-some', {
     'index.js': [
       'import {fib} from \'./export\';',
-      'console.log(fib(3));',
+      'export default fib(3);',
     ].join('\n'),
   }, {
     'index.js': [
       'import {fab} from \'./export\';',
-      'console.log(fab(4));',
+      'export default fab(4);',
     ].join('\n'),
   }, function(output) {
-    expect(output.run1['main.js'].toString()).to.contain('"a" /* fib */');
+    expect(eval(output.run1['main.js'].toString())).to.eql({default: 5});
+    expect(eval(output.run2['main.js'].toString())).to.eql({default: 6});
     // expect(output.run1['main.js'].toString()).to.contain('__webpack_exports__["a"]');
-    expect(output.run2['main.js'].toString()).to.contain('"a" /* fab */');
+    // expect(output.run2['main.js'].toString()).to.contain('"a" /* fab */');
     // expect(output.run2['main.js'].toString()).to.contain('__webpack_require__.d(__webpack_exports__, "a"');
     // expect(output.run2['main.js'].toString()).to.contain('__webpack_exports__["a"]');
   });

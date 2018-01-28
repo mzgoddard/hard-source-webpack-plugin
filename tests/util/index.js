@@ -12,6 +12,8 @@ var rimraf = require('rimraf');
 var webpack = require('webpack');
 var mkdirp = require('mkdirp');
 
+var isWebpack4 = require('webpack/package.json').version[0] >= 4;
+
 function promisify(f, o) {
   var ctx = o && o.context || null;
   return function() {
@@ -46,10 +48,17 @@ function callModule(fn, filename) {
 exports.compile = function(fixturePath, options) {
   var configPath = path.join(__dirname, '..', 'fixtures', fixturePath, 'webpack.config.js');
   var compiler = (options || {}).compiler ||
-    webpack(callModule(vm.runInThisContext(
-      wrapModule(fs.readFileSync(configPath, 'utf8')),
-      {filename: configPath}
-    ), configPath));
+    webpack(Object.assign(
+      isWebpack4 ?
+        {
+          mode: 'development',
+        } :
+        {},
+      callModule(vm.runInThisContext(
+        wrapModule(fs.readFileSync(configPath, 'utf8')),
+        {filename: configPath}
+      ), configPath)
+    ));
 
   compiler.inputFileSystem.purge();
   var outputfs = compiler.outputFileSystem = new MemoryFS();
@@ -227,6 +236,21 @@ exports.itCompilesTwice = function(fixturePath, compileOptions) {
       return exports.compileTwiceEqual(fixturePath, compileOptions);
     });
   });
+};
+
+exports.itCompilesTwice.skipIf = function(features) {
+  return function(fixturePath, compileOptions) {
+    if (features.every(f => f)) {
+      return exports.itCompilesTwice(fixturePath, compileOptions);
+    }
+    else {
+      var exportSuffix = '';
+      if (compileOptions && compileOptions.exportStats) {
+        exportSuffix = ' [exportStats]';
+      }
+      return it.skip('builds identical ' + fixturePath + ' fixture' + exportSuffix);
+    }
+  }
 };
 
 exports.writeFiles = function(fixturePath, files) {
@@ -410,6 +434,17 @@ exports.itCompilesChange = function(fixturePath, filesA, filesB, expectHandle) {
   });
 };
 
+exports.itCompilesChange.skipIf = function(features) {
+  return function(fixturePath, ...args) {
+    if (features.every(f => f)) {
+      return exports.itCompilesChange(fixturePath, ...args);
+    }
+    else {
+      return it.skip('builds changes in ' + fixturePath + ' fixture', fixturePath);
+    }
+  }
+};
+
 exports.itCompilesHardModules = function(fixturePath, filesA, filesB, expectHandle) {
   if (typeof filesA === 'function' || Array.isArray(filesA)) {
     filesB = filesA;
@@ -458,6 +493,17 @@ exports.itCompilesHardModules = function(fixturePath, filesA, filesB, expectHand
   before(function() {
     return exports.clean(fixturePath);
   });
+};
+
+exports.itCompilesHardModules.skipIf = function(features) {
+  return function(fixturePath, ...args) {
+    if (features.every(f => f)) {
+      return exports.itCompilesHardModules(fixturePath, ...args);
+    }
+    else {
+      return it.skip('builds hard modules in ' + fixturePath + ' fixture');
+    }
+  }
 };
 
 exports.clean = function(fixturePath) {

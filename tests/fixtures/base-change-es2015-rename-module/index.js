@@ -1,2 +1,2 @@
 import {rekey as key} from './obj';
-console.log(key);
+export default key;

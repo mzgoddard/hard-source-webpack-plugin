@@ -1,2 +1,2 @@
 import {key} from './obj';
-console.log(key);
+export default key;
