@@ -27,7 +27,6 @@ try {
 }
 catch (_) {}
 
-var HardContextModule = require('./lib/hard-context-module');
 var HardContextModuleFactory = require('./lib/hard-context-module-factory');
 var HardModule = require('./lib/hard-module');
 
