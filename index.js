@@ -164,6 +164,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var loggerCore = logger.from('core');
   logger.lock();
 
+  if (!compiler.options.cache) {
+    compiler.options.cache = true;
+  }
+
   if (!options.cacheDirectory) {
     options.cacheDirectory = path.resolve(
       process.cwd(),
