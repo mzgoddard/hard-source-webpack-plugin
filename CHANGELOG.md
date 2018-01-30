@@ -1,11 +1,13 @@
 # 0.6.0
 
 - Thaw dependency instances to their original type
+- Naturally thaw NormalModule and ContextModule
 - Relate the config hash to the cache directory and frozen items to the compiler context path
 - Write items immediately adjacent to each other in AppendSerializer, without filler
 
 ## 0.6.X Patches
 
+- `0.6.0-alpha.5` Naturally thaw NormalModule and ContextModule
 - `0.6.0-alpha.4` Add webpack 4 beta support
 - `0.6.0-alpha.3` Fix dependency thawing performance regression
 - `0.6.0-alpha.2` Fix missed preload path relation thawing
@@ -19,6 +21,14 @@ Remove the need to depend on webpack record ids feature and to manually invalida
 From hard-source's beginning it froze dependencies as hybrid or abstract dependencies. Thawed they represented the other modules the a frozen module depended on. They made the frozen module's representation of the output brittle. A change in id, used harmony exports, and some other dependency elements meant the frozen module had to thrown away so a new webpack NormalModule could be built and its source rendered. Fixing this debt, the frozen module can re-render as how NormalModule does when a module id or used harmony exports changed.
 
 This improves rebuild time when used exports of a harmony dependency change or webpack assigns a different id to a built module. As well this improves hard-source relability in relation to webpack as it removes the need for the special case logic in hard-source that would invalidates modules in these cases.
+
+### The derived debt, non-core modules
+
+Thaw cached NormalModule and ContextModule data into webpack's NormalModule and ContextModule types.
+
+With hybrid dependencies custom module types were needed to be able to use the hybrid dependencies and custom source type. The hybrid modules let webpack trace dependencies through them but left HardSource to pick a lot of work to make sure the custom modules were not returned from webpack hooks if they were out of date. In many cases with webpack 2 and later, to make this work they'd need an additional build in webpack so they the normal process of creating a module would replace a module HardSource returned incorrectly because it could not check that the module was out of date until a later stage in the build.
+
+With this new thawing HardSource is making iterative webpack builds look internally in its data more like the first build that was cached.
 
 ### Relative Cache
 
