@@ -967,41 +967,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     });
   });
 
-  function getModuleCacheItem(compilation, result) {
-    var identifierPrefix = cachePrefix(compilation);
-    if (identifierPrefix === null) {
-      return;
-    }
-    var identifier = identifierPrefix + result.request;
-    // console.log(identifier);
-
-    if (moduleCache[identifier] && !moduleCache[identifier].invalid) {
-      var cacheItem = moduleCache[identifier];
-
-      // console.log(identifier);
-      if (!HardModule.needRebuild(
-        cacheItem,
-        (cacheItem.buildInfo ? contextNormalPathSet : contextNormalPathArray)(compiler, cacheItem.buildInfo ? cacheItem.buildInfo.fileDependencies : cacheItem.fileDependencies),
-        (cacheItem.buildInfo ? contextNormalPathSet : contextNormalPathArray)(compiler, cacheItem.buildInfo ? cacheItem.buildInfo.contextDependencies : cacheItem.contextDependencies),
-        fileTimestamps,
-        contextTimestamps,
-        fileMd5s,
-        cachedMd5s
-      )) {
-        return cacheItem;
-      }
-    }
-  }
-
   function bindResolvers() {
     function configureMissing(key, resolver) {
       // missingCache[key] = missingCache[key] || {};
       // resolverCache[key] = resolverCache[key] || {};
 
-      // console.log('bindResolvers', key, resolver.constructor.name)
       var _resolve = resolver.resolve;
       resolver.resolve = function(info, context, request, cb, cb2) {
-        // console.log('resolver.resolve', Array.from(arguments))
         var numArgs = 4;
         if (!cb) {
           numArgs = 3;
@@ -1022,7 +994,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           missingCache[key] = missingCache[key] || {};
         }
 
-        // console.log(key, numArgs, context, path, request, resolveContext);
         var resolveId = JSON.stringify([context, request]);
         var absResolveId = JSON.stringify([context, relateContext.relateAbsolutePath(context, request)]);
         var resolve = resolverCache[key][resolveId] || resolverCache[key][absResolveId];
@@ -1104,12 +1075,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
             resolveContext.missing = callback.missing;
           }
         }
-        // console.log(numArgs);
+
         if (numArgs === 3) {
           _resolve.call(this, context, request, callback);
         }
         else if (numArgs === 5) {
-          // console.log(context, path, request, resolveContext);
           _resolve.call(this, info, context, request, resolveContext, callback);
         }
         else {
@@ -1239,78 +1209,37 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       };
     });
 
-    params.normalModuleFactory.plugin('resolver', function(fn) {
-      return function(request, cb) {
-        fn.call(null, request, function(err, result) {
-          if (err) {return cb(err);}
-          // IgnorePlugin and other plugins can call this callback without an
-          // error or module.
-          if (!result) {return cb();}
+    pluginCompat.tap(params.normalModuleFactory, 'createModule', 'HardSourceWebpackPlugin', result => {
+      if (
+        compilation.cache &&
+        compilation.cache['m' + result.request] &&
+        compilation.cache['m' + result.request].cacheItem &&
+        !compilation.cache['m' + result.request].cacheItem.invalid
+      ) {
+        return compilation.cache['m' + result.request];
+      }
 
-          var p = getModuleCacheItem(compilation, result);
-          // console.log('fromCache', !!p);
-          if (p && p.then) {
-            return p
-            .then(function(cacheItem) {
-              if (
-                compilation.cache &&
-                compilation.cache['m' + result.request] &&
-                compilation.cache['m' + result.request] instanceof HardModule &&
-                !compilation.cache['m' + result.request].cacheItem.invalid
-              ) {
-                return cb(null, compilation.cache['m' + result.request]);
-              }
+      var identifierPrefix = cachePrefix(compilation);
+      if (identifierPrefix === null) {
+        return;
+      }
 
-              var identifierPrefix = cachePrefix(compilation);
-              if (identifierPrefix === null) {
-                return;
-              }
-              var identifier = identifierPrefix + result.request;
-              var module = fetch('Module', identifier, {
-                compilation: compilation,
-              });
-              // var module = new HardModule(cacheItem);
-              cb(null, module);
-            })
-            .catch(function() {
-              cb(err, result);
-            });
-          }
-          else if (p) {
-            try {
-            if (
-              compilation.cache &&
-              compilation.cache['m' + result.request] &&
-              compilation.cache['m' + result.request] instanceof HardModule &&
-              !compilation.cache['m' + result.request].cacheItem.invalid
-            ) {
-              // console.log('cached', compilation.cache['m' + result.request].constructor.name);
-              return cb(null, compilation.cache['m' + result.request]);
-            }
-            }
-            catch(e) {
-              return cb(e);
-            }
-            // console.log('not cached');
+      var identifier = identifierPrefix + result.request;
 
-            var identifierPrefix = cachePrefix(compilation);
-            if (identifierPrefix === null) {
-              return;
-            }
-            var identifier = identifierPrefix + result.request;
-            var module = fetch('Module', identifier, {
-              compilation: compilation,
-            });
-            // var module = new HardModule(p);
-            return cb(null, module);
-          }
-          cb(err, result);
-        });
-      };
+      var module = fetch('Module', identifier, {
+        compilation: compilation,
+        normalModuleFactory: params.normalModuleFactory,
+        contextModuleFactory: params.contextModuleFactory,
+      });
+
+      if (module) {
+        return module;
+      }
     });
   });
 
-  function preload(prefix, memoryCache) {
+  function preload(prefix, compilation, params) {
+    const memoryCache = compilation.cache;
     Object.keys(moduleCache)
     .map(function(key) {
       if (key.indexOf(prefix) !== 0) {return;}
@@ -1322,11 +1251,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
       if (
         cacheItem &&
-        (cacheItem.fileDependencies || cacheItem.buildInfo && cacheItem.buildInfo.fileDependencies) &&
+        (
+          cacheItem.fileDependencies ||
+          cacheItem.buildInfo && cacheItem.buildInfo.fileDependencies ||
+          cacheItem.build && cacheItem.build.buildInfo && cacheItem.build.buildInfo.fileDependencies
+        ) &&
         !HardModule.needRebuild(
           cacheItem,
-          (cacheItem.buildInfo ? contextNormalPathSet : contextNormalPathArray)(compiler, cacheItem.buildInfo ? cacheItem.buildInfo.fileDependencies : cacheItem.fileDependencies),
-          (cacheItem.buildInfo ? contextNormalPathSet : contextNormalPathArray)(compiler, cacheItem.buildInfo ? cacheItem.buildInfo.contextDependencies : cacheItem.contextDependencies),
+          (cacheItem.buildInfo ? contextNormalPathSet : contextNormalPathArray)(compiler, cacheItem.build.buildInfo ? cacheItem.build.buildInfo.fileDependencies : cacheItem.fileDependencies),
+          (cacheItem.buildInfo ? contextNormalPathSet : contextNormalPathArray)(compiler, cacheItem.build.buildInfo ? cacheItem.build.buildInfo.contextDependencies : cacheItem.contextDependencies),
           fileTimestamps,
           contextTimestamps,
           fileMd5s,
@@ -1343,24 +1276,30 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           //   }, {});
           // }
           // var module = memoryCache[memCacheId] = new HardModule(cacheItem);
-          var module = memoryCache[memCacheId] = fetch('Module', key, {
-            compilation: {
-              compiler: compiler,
-              __hardSourceMethods: {thaw: thaw, mapThaw: mapThaw},
-              __hardSourceFileMd5s: fileMd5s,
-              __hardSourceCachedMd5s: cachedMd5s,
-            },
-          });
-          module.build(null, {
-            compiler: compiler,
-            __hardSourceMethods: {thaw: thaw, mapThaw: mapThaw}
-          }, null, null, function() {});
+          try {
+            var module = memoryCache[memCacheId] = fetch('Module', key, {
+              compilation,
+              normalModuleFactory: params.normalModuleFactory,
+              contextModuleFactory: params.contextModuleFactory,
+            });
+            // module.build(null, {
+            //   compiler: compiler,
+            //   __hardSourceMethods: {thaw: thaw, mapThaw: mapThaw}
+            // }, null, null, function() {});
+          }
+          catch (e) {
+            console.error(e);
+          }
           return module;
         }
       }
       else if (
         cacheItem &&
-        !(cacheItem.fileDependencies || cacheItem.buildInfo && cacheItem.buildInfo.fileDependencies) &&
+        !(
+          cacheItem.fileDependencies ||
+          cacheItem.buildInfo && cacheItem.buildInfo.fileDependencies ||
+          cacheItem.build && cacheItem.build.buildInfo && cacheItem.build.buildInfo.fileDependencies
+        ) &&
         !HardContextModule.needRebuild(
           cacheItem,
           contextNormalPath(compiler, cacheItem.context),
@@ -1391,11 +1330,20 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     })
     .filter(Boolean)
     .forEach(function(module) {
-      var issuer = module.cacheItem.issuer ?
-        relateContext.contextNormalRequest(compiler, module.cacheItem.issuer) :
-        module.cacheItem.issuer;
-      var origin = memoryCache['m' + issuer];
-      module.issuer = origin;
+      // console.log(typeof module.issuer)
+      // console.log(module.issuer);
+      if (typeof module.issuer === 'string') {
+        var issuer = module.issuer;
+        var origin = memoryCache['m' + issuer];
+        module.issuer = origin;
+
+        module.errors.forEach(function(err) {
+          err.origin = origin;
+        }, this);
+        module.warnings.forEach(function(err) {
+          err.origin = origin;
+        }, this);
+      }
 
       module.errors.forEach(function(err) {
         err.origin = origin;
@@ -1408,20 +1356,26 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var preloadCacheByPrefix = {};
 
+  var compilationParamsMap = new WeakMap();
+
+  let second = false;
+  compiler.plugin('compilation', (compilation, params) => {
+    compilationParamsMap.set(compilation, params);
+  });
   compiler.plugin('make', function(compilation, cb) {
     if (compilation.cache) {
       var prefix = cachePrefix(compilation);
       if (prefix !== null && !preloadCacheByPrefix[prefix]) {
         preloadCacheByPrefix[prefix] = true;
 
-        preload(prefix, compilation.cache);
+        // preload(prefix, compilation, compilationParamsMap.get(compilation));
       }
 
       // Bust dependencies to HardModules in webpack 2's NormalModule
       // unsafeCache to avoid an additional pass that would bust them.
       Object.keys(compilation.cache).forEach(function(key) {
         var module = compilation.cache[key];
-        if (module && module.isHard && module.isHard()) {
+        if (module && module.cacheItem) {
           if (HardModule.needRebuild(
             module.cacheItem,
             module.fileDependencies,
@@ -1688,6 +1642,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var HardBasicDependencyPlugin = require('./lib/hard-basic-dependency-plugin');
   var HardHarmonyDependencyPlugin;
   var HardSourceSourcePlugin = require('./lib/hard-source-source-plugin');
+  var HardParserPlugin = require('./lib/hard-parser-plugin');
   var HardGeneratorPlugin;
   if (webpackFeatures.generator) {
     HardGeneratorPlugin = require('./lib/hard-generator-plugin');
@@ -1697,8 +1652,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   new HardAssetPlugin().apply(compiler);
 
-  new HardContextModulePlugin().apply(compiler);
-  new HardNormalModulePlugin().apply(compiler);
+  new HardContextModulePlugin({
+    schema: schemasVersion,
+  }).apply(compiler);
+  new HardNormalModulePlugin({
+    schema: schemasVersion,
+  }).apply(compiler);
 
   if (HardConcatenationModulePlugin) {
     new HardConcatenationModulePlugin().apply(compiler);
@@ -1717,6 +1676,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   }).apply(compiler);
 
   new HardSourceSourcePlugin({
+    schema: schemasVersion,
+  }).apply(compiler);
+
+  new HardParserPlugin({
     schema: schemasVersion,
   }).apply(compiler);
 
