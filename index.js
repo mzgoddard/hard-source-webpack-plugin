@@ -789,15 +789,15 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
               compiler.__hardSource_fileTimestamps[file] = mtime;
             }
 
-            if (
-              fileTs[file] &&
-              md5Cache[file] &&
-              fileTs[file] < md5Cache[file].mtime
-            ) {
-              fileTs[file] = md5Cache[file].mtime;
-              fileMd5s[file] = md5Cache[file].hash;
-            }
-            else {
+            // if (
+            //   fileTs[file] &&
+            //   md5Cache[file] &&
+            //   fileTs[file] < md5Cache[file].mtime
+            // ) {
+            //   fileTs[file] = md5Cache[file].mtime;
+            //   fileMd5s[file] = md5Cache[file].hash;
+            // }
+            // else {
               compiler.inputFileSystem.readFile(file, task(function(err, body) {
                 if (err) {
                   fileMd5s[file] = '';
@@ -809,7 +809,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
                 fileMd5s[file] = hash;
               }));
-            }
+            // }
           });
         });
       })(),
