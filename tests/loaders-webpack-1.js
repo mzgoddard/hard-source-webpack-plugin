@@ -14,6 +14,7 @@ describe('loader webpack use', function() {
   itCompilesTwice('loader-css');
   itCompilesTwice('loader-file');
   itCompilesTwice('loader-file-context');
+  itCompilesTwice('loader-file-options');
   itCompilesTwice('loader-file-use');
   itCompilesTwice('loader-custom-missing-dep');
   itCompilesTwice('loader-custom-no-dep');

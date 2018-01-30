@@ -16,8 +16,7 @@ describeWP(3)('plugin webpack 3 use', function() {
       if (module.modules) {
         expect(module.modules.length).to.equal(2);
         module.modules.forEach(function(usedModule) {
-          expect(usedModule.isHard).to.be.ok;
-          expect(usedModule.isHard()).to.equal(true);
+          expect(usedModule.cacheItem).to.be.ok;
         });
       }
     });
