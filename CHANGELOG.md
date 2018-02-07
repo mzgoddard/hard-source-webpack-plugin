@@ -7,6 +7,7 @@
 
 ## 0.6.X Patches
 
+- `0.6.0-alpha.8` Protect append serializer from rename and unlink errors on Windows
 - `0.6.0-alpha.7` Move babel dependencies to development
 - `0.6.0-alpha.6` Fix unneeded rebuilding performance regressions
 - `0.6.0-alpha.5` Naturally thaw NormalModule and ContextModule
