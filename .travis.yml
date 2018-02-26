@@ -12,7 +12,7 @@ matrix:
     - node_js: 8
       env: WEBPACK_VERSION=3 EXTRACT_TEXT_VERSION=3 BABEL_LOADER=7 FILE_LOADER=0.11
     - node_js: 8
-      env: WEBPACK_VERSION=4.0.0-beta.0 EXTRACT_TEXT_VERSION=3 BABEL_LOADER=7 FILE_LOADER=1
+      env: WEBPACK_VERSION=4 EXTRACT_TEXT_VERSION=3 BABEL_LOADER=7 FILE_LOADER=1
 
 before_script:
   - npm install webpack@$WEBPACK_VERSION extract-text-webpack-plugin@$EXTRACT_TEXT_VERSION babel-loader@$BABEL_LOADER file-loader@$FILE_LOADER
