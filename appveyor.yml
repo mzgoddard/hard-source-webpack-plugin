@@ -11,6 +11,11 @@ environment:
       extract_text_version: "3"
       babel_loader_version: "7"
       file_loader_version: "0.11"
+    - nodejs_version: "9"
+      webpack_version: "4"
+      extract_text_version: "3"
+      babel_loader_version: "7"
+      file_loader_version: "0.11"
 
 # Install scripts. (runs after repo cloning)
 install:

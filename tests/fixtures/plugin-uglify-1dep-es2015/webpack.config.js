@@ -1,13 +1,29 @@
-var UglifyJsPlugin = require('webpack').optimize.UglifyJsPlugin;
-
 var HardSourceWebpackPlugin = require('../../..');
+var webpackIf = require('../../util/webpack-if');
 
-module.exports = {
+var plugins = webpackIf.webpackGte4([], function() {
+  var UglifyJsPlugin = require('webpack').optimize.UglifyJsPlugin;
+  return [
+    new UglifyJsPlugin({
+      sourceMap: false,
+      compress: false,
+    }),
+  ];
+});
+
+var extendedOptions = webpackIf.webpackGte4({
+  optimization: {
+    minimize: true,
+  },
+});
+
+module.exports = Object.assign({
   context: __dirname,
   entry: './index.js',
   output: {
     path: __dirname + '/tmp',
     filename: 'main.js',
+    libraryTarget: 'commonjs2',
   },
   plugins: [
     new HardSourceWebpackPlugin({
@@ -16,9 +32,5 @@ module.exports = {
         root: __dirname + '/../../..',
       },
     }),
-    new UglifyJsPlugin({
-      sourceMap: false,
-      compress: false,
-    }),
-  ],
-};
+  ].concat(plugins),
+}, extendedOptions);
