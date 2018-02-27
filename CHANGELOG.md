@@ -7,7 +7,7 @@
 
 ## 0.6.X Patches
 
-- `0.6.0-alpha.9` Additional protection against source path being locked when copied
+- `0.6.0` Additional protection against source path being locked when copied
 - `0.6.0-alpha.8` Protect append serializer from rename and unlink errors on Windows
 - `0.6.0-alpha.7` Move babel dependencies to development
 - `0.6.0-alpha.6` Fix unneeded rebuilding performance regressions
