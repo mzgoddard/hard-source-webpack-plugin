@@ -7,6 +7,7 @@
 
 ## 0.6.X Patches
 
+- `0.6.1` Fix freezing sourceless modules (#270), fix freezing json and wasm parsers and generators (#276)
 - `0.6.0` Additional protection against source path being locked when copied
 - `0.6.0-alpha.8` Protect append serializer from rename and unlink errors on Windows
 - `0.6.0-alpha.7` Move babel dependencies to development
