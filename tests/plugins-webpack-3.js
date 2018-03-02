@@ -14,7 +14,7 @@ describeWP(3)('plugin webpack 3 use', function() {
   itCompilesHardModules('plugin-concatenated-module', function(out) {
     out.run2.compilation.modules.forEach(function(module) {
       if (module.modules) {
-        expect(module.modules.length).to.equal(2);
+        expect(module.modules.length).to.equal(4);
         module.modules.forEach(function(usedModule) {
           expect(usedModule.cacheItem).to.be.ok;
         });
