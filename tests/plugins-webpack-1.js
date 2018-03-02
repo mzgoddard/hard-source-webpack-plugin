@@ -37,12 +37,15 @@ describe('plugin webpack use', function() {
   itCompilesTwice('plugin-source-map-1dep');
   itCompilesTwice.skipIf([c.uglify])('plugin-uglify-devtool-source-map');
   itCompilesTwice.skipIf([c.uglify])('plugin-uglify-devtool-source-map', {exportStats: true});
+  itCompilesTwice('plugin-prefetch-es2015');
+  itCompilesTwice('plugin-prefetch-es2015', {exportStats: true});
 
   itCompilesHardModules('plugin-dll', ['./fib.js']);
   itCompilesHardModules('plugin-dll-reference', ['./index.js']);
   itCompilesHardModules('plugin-dll-reference-scope', ['./index.js']);
   itCompilesHardModules.skipIf([c.html])('plugin-html-lodash', [/lodash\/lodash\.js$/, /\!\.\/index\.html$/]);
   itCompilesHardModules('plugin-serializer-json-base-1dep', ['./fib.js', './index.js']);
+  itCompilesHardModules('plugin-prefetch-es2015', ['./unused.js']);
 
 });
 
