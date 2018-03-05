@@ -7,6 +7,7 @@
 
 ## 0.6.X Patches
 
+- `0.6.3` Add safety net to module dependency freezing
 - `0.6.2` Rebuild activeExports when thawing instead of serializing it
 - `0.6.1` Fix freezing sourceless modules (#270), fix freezing json and wasm parsers and generators (#276)
 - `0.6.0` Additional protection against source path being locked when copied
