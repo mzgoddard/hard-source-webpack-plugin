@@ -913,7 +913,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           }
           resolveItem.loaders.forEach(function(loader) {
             if (typeof loader === 'object') {
-              loader = loader.loader;
+              if (loader.loader != null) {
+                loader = loader.loader;
+              } else {
+                // Convert { "0": "b", "1": "a", "2": "r" } into "bar"
+                loader = Object.assign([], loader).join('');
+              }
             }
             // Loaders specified in a dependency are searched for from the
             // context of the module containing that dependency.
