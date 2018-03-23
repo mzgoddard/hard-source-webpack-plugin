@@ -84,7 +84,7 @@ configHash: function() {
 
 ### `environmentHash`
 
-When loaders, plugins, other build time scripts, or other dynamic dependencies change, `hard-source` needs to replace the cache to make sure the otuput is correct. The `environmentHash` is used to determine this. If the hash is different than a previous build, a fresh cache will be used.
+When loaders, plugins, other build time scripts, or other dynamic dependencies change, `hard-source` needs to replace the cache to make sure the output is correct. The `environmentHash` is used to determine this. If the hash is different than a previous build, a fresh cache will be used.
 
 The default object
 
