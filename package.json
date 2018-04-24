@@ -50,7 +50,7 @@
     "webpack": "*"
   },
   "dependencies": {
-    "lodash": "^4.15.0",
+    "lodash": "^4.17.9",
     "mkdirp": "^0.5.1",
     "node-object-hash": "^1.2.0",
     "rimraf": "^2.6.2",
