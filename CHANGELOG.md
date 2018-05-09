@@ -7,6 +7,7 @@
 
 ## 0.6.X Patches
 
+- `0.6.5` Fix dynamic import (@faceyspacey, @matthewborden) (#300), fix .split issue (@toriningen) (#289), fix README typo (@Zakjholt, @koningskristof)
 - `0.6.4` Use general dependency -> block cycle test to avoid max call stack (#283)
 - `0.6.3` Add safety net to module dependency freezing
 - `0.6.2` Rebuild activeExports when thawing instead of serializing it
