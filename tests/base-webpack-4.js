@@ -11,7 +11,9 @@ describeWP(4)('basic webpack 4 use - compiles identically', function() {
   itCompilesTwice('base-es2015-json', {exportStats: true});
   itCompilesTwice('base-wasm');
   itCompilesTwice('base-wasm', {exportStats: true});
-
+  itCompilesTwice('base-es2015-dynamic-import');
+  itCompilesTwice('base-es2015-dynamic-import', {exportStats: true});
+  
   itCompilesHardModules('base-es2015-json', ['./b.json']);
   itCompilesHardModules('base-wasm', ['./wasm.wasm']);
 
