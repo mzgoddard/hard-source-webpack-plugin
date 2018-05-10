@@ -16,6 +16,8 @@ describe('basic webpack use - compiles identically', function() {
   itCompilesTwice('base-1dep-optional', {exportStats: true});
   itCompilesTwice('base-amd-1dep');
   itCompilesTwice('base-amd-1dep', {exportStats: true});
+  itCompilesTwice('base-amd-1dep-local');
+  itCompilesTwice('base-amd-1dep-local', {exportStats: true});
   itCompilesTwice('base-amd-code-split');
   itCompilesTwice('base-amd-code-split', {exportStats: true});
   itCompilesTwice('base-amd-context');
