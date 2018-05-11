@@ -1646,6 +1646,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var HardModuleAssetsPlugin = require('./lib/hard-module-assets-plugin');
   var HardModuleErrorsPlugin = require('./lib/hard-module-errors-plugin');
   var HardModuleExtractTextPlugin = require('./lib/hard-module-extract-text-plugin');
+  var HardModuleMiniCssExtractPlugin;
+  if (webpackFeatures.generator) {
+    HardModuleMiniCssExtractPlugin = require('./lib/hard-module-mini-css-extract-plugin');
+  }
   var HardDependencyBlockPlugin = require('./lib/hard-dependency-block-plugin');
   var HardBasicDependencyPlugin = require('./lib/hard-basic-dependency-plugin');
   var HardHarmonyDependencyPlugin;
@@ -1674,6 +1678,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   new HardModuleAssetsPlugin().apply(compiler);
   new HardModuleErrorsPlugin().apply(compiler);
   new HardModuleExtractTextPlugin().apply(compiler);
+
+  if (HardModuleMiniCssExtractPlugin) {
+    new HardModuleMiniCssExtractPlugin().apply(compiler);
+  }
 
   new HardDependencyBlockPlugin({
     schema: schemasVersion,
