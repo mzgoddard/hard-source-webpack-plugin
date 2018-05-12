@@ -14,22 +14,6 @@ var values = require('./lib/util/Object.values');
 var relateContext = require('./lib/util/relate-context');
 var pluginCompat = require('./lib/util/plugin-compat');
 
-var AMDRequireContextDependency = require('webpack/lib/dependencies/AMDRequireContextDependency');
-var CommonJsRequireContextDependency = require('webpack/lib/dependencies/CommonJsRequireContextDependency');
-var ContextDependency = require('webpack/lib/dependencies/ContextDependency');
-var RequireContextDependency = require('webpack/lib/dependencies/RequireContextDependency');
-var RequireResolveContextDependency = require('webpack/lib/dependencies/RequireResolveContextDependency');
-
-var ImportContextDependency;
-
-try {
-  ImportContextDependency = require('webpack/lib/dependencies/ImportContextDependency');
-}
-catch (_) {}
-
-var HardContextModuleFactory = require('./lib/hard-context-module-factory');
-var HardModule = require('./lib/hard-module');
-
 var LoggerFactory = require('./lib/logger-factory');
 
 var cachePrefix = require('./lib/util').cachePrefix;
@@ -947,34 +931,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     .then(function() {cb();}, cb);
   });
 
-  compiler.plugin('after-plugins', function() {
-    compiler.plugin('compilation', function(compilation, params) {
-      var factories = compilation.dependencyFactories;
-      var contextFactory = factories.get(RequireContextDependency) ||
-        params.contextModuleFactory;
-
-      var hardContextFactory = new HardContextModuleFactory({
-        compilation: compilation,
-        factory: contextFactory,
-        resolveCache: moduleResolveCache,
-        resolveCacheChange: moduleResolveCacheChange,
-        moduleCache: moduleCache,
-        fileTimestamps: fileTimestamps,
-        fileMd5s: fileMd5s,
-        cachedMd5s: cachedMd5s,
-      });
-
-      factories.set(AMDRequireContextDependency, hardContextFactory);
-      factories.set(CommonJsRequireContextDependency, hardContextFactory);
-      factories.set(RequireContextDependency, hardContextFactory);
-      factories.set(RequireResolveContextDependency, hardContextFactory);
-
-      if (ImportContextDependency) {
-        factories.set(ImportContextDependency, hardContextFactory);
-      }
-    });
-  });
-
   function bindResolvers() {
     function configureMissing(key, resolver) {
       // missingCache[key] = missingCache[key] || {};
@@ -1482,6 +1438,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   if (webpackFeatures.concatenatedModule) {
     HardConcatenationModulePlugin = require('./lib/hard-concatenation-module-plugin');
   }
+  var HardContextModuleFactoryPlugin = require('./lib/hard-context-module-factory-plugin');
   var HardContextModulePlugin = require('./lib/hard-context-module-plugin');
   var HardNormalModulePlugin = require('./lib/hard-normal-module-plugin');
   var HardModuleAssetsPlugin = require('./lib/hard-module-assets-plugin');
@@ -1505,6 +1462,18 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   new HardAssetPlugin().apply(compiler);
 
+  new HardContextModuleFactoryPlugin({
+    caches() {
+      return {
+        cachedMd5s,
+        fileMd5s,
+        fileTimestamps,
+        moduleCache,
+        moduleResolveCache,
+        moduleResolveCacheChange,
+      };
+    }
+  }).apply(compiler);
   new HardContextModulePlugin({
     schema: schemasVersion,
   }).apply(compiler);
