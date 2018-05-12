@@ -56,7 +56,6 @@
     "node-object-hash": "^1.2.0",
     "rimraf": "^2.6.2",
     "tapable": "^1.0.0-beta.5",
-    "webpack-core": "~0.6.0",
     "webpack-sources": "^1.0.1",
     "write-json-file": "^2.3.0"
   }
