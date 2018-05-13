@@ -262,15 +262,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var cacheAssetDirPath = path.join(cacheDirPath, 'assets');
   var resolveCachePath = path.join(cacheDirPath, 'resolve.json');
 
-  var moduleCache = {};
-  var assetCache = {};
-  var dataCache = {};
   var currentStamp = '';
 
   var cacheSerializerFactory = new CacheSerializerFactory(compiler);
-
-  var assetCacheSerializer;
-  var moduleCacheSerializer;
+  var createSerializers = true;
+  var cacheRead = false;
 
   var _this = this;
 
@@ -320,21 +316,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     }
     var start = Date.now();
 
-    if (!assetCacheSerializer) {
+    if (createSerializers) {
+      createSerializers = false;
       try {
         pluginCompat.call(compiler, '_hardSourceCreateSerializer', [cacheSerializerFactory, cacheDirPath]);
-
-        assetCacheSerializer = cacheSerializerFactory.create({
-          name: 'assets',
-          type: 'file',
-          cacheDirPath: cacheDirPath,
-        });
-        moduleCacheSerializer = cacheSerializerFactory.create({
-          name: 'module',
-          type: 'data',
-          cacheDirPath: cacheDirPath,
-          autoParse: true,
-        });
       }
       catch (err) {
         return cb(err);
@@ -384,14 +369,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
         // Reset the cache, we can't use it do to an environment change.
         pluginCompat.call(compiler, '_hardSourceResetCache', []);
-        moduleCache = {};
-        assetCache = {};
-        dataCache = {};
 
         return rimraf(cacheDirPath);
       }
 
-      if (Object.keys(moduleCache).length) {return Promise.resolve();}
+      if (cacheRead) {return Promise.resolve();}
+      cacheRead = true;
 
       function contextKeys(compiler, fn) {
         return function(source) {
@@ -429,13 +412,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           contextNormalModuleId,
           copyWithDeser,
         }]),
-
-        assetCacheSerializer.read()
-        .then(function(_assetCache) {assetCache = _assetCache;}),
-
-        moduleCacheSerializer.read()
-        .then(contextKeys(compiler, contextNormalModuleId))
-        .then(copyWithDeser.bind(null, moduleCache)),
       ])
       .then(function() {
         // console.log('cache in', Date.now() - start);
@@ -448,12 +424,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     if (!active) {return cb();}
 
     // No previous build to verify.
-    if (Object.keys(moduleCache).length === 0) return cb();
+    // if (Object.keys(moduleCache).length === 0) return cb();
 
     var stats = {};
     return pluginCompat.promise(compiler, '_hardSourceVerifyCache', [])
     .then(function() {cb();}, cb);
   });
+
+  var fetch, freeze;
 
   compiler.plugin('compilation', function(compilation, params) {
     if (!active) {return;}
@@ -572,213 +550,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     });
   });
 
-  var assetArchetypeCache = {
-    _ops: [],
-
-    get: function(id) {
-      var hashId = requestHash(relateNormalRequest(compiler, id));
-      if (assetCache[hashId]) {
-        if (typeof assetCache[hashId] === 'string') {
-          assetCache[hashId] = JSON.parse(assetCache[hashId]);
-        }
-        return assetCache[hashId];
-      }
-    },
-
-    set: function(id, item) {
-      var hashId = requestHash(relateNormalRequest(compiler, id));
-      if (item) {
-        assetCache[hashId] = item;
-        this._ops.push({
-          key: hashId,
-          value: item,
-        });
-      }
-      else {
-        assetCache[hashId] = null;
-        this._ops.push({
-          key: hashId,
-          value: null,
-        });
-      }
-    },
-
-    operations: function() {
-      var ops = this._ops.slice();
-      this._ops.length = 0;
-      return ops;
-    },
-  };
-
-  var moduleArchetypeCache = {
-    _ops: [],
-
-    get: function(id) {
-      if (moduleCache[id] && !moduleCache[id].invalid) {
-        if (typeof moduleCache[id] === 'string') {
-          moduleCache[id] = JSON.parse(moduleCache[id]);
-        }
-        return moduleCache[id];
-      }
-    },
-
-    set: function(id, item) {
-      moduleCache[id] = item;
-      if (item) {
-        this._ops.push(id);
-      }
-      else if (moduleCache[id]) {
-        if (typeof moduleCache[id] === 'string') {
-          moduleCache[id] = JSON.parse(moduleCache[id]);
-        }
-        moduleCache[id].invalid = true;
-        moduleCache[id].invalidReason = 'overwritten';
-
-        this._ops.push(id);
-      }
-    },
-
-    operations: function() {
-      var _this = this;
-      var ops = this._ops.map(function(id) {
-        return {
-          key: relateNormalModuleId(compiler, id),
-          value: _this.get(id) || null,
-        };
-      });
-      this._ops.length = 0;
-      return ops;
-    },
-  };
-
-  var archetypeCaches = {
-    asset: assetArchetypeCache,
-    Asset: assetArchetypeCache,
-    module: moduleArchetypeCache,
-    Module: moduleArchetypeCache,
-  };
-
-  var freeze, thaw, mapFreeze, mapThaw, store, fetch;
-
-  pluginCompat.register(compiler, '_hardSourceMethods', 'sync', ['methods']);
-
-  [
-    'Asset',
-    'Compilation',
-    'Dependency',
-    'DependencyBlock',
-    'DependencyVariable',
-    'Module',
-    'ModuleAssets',
-    'ModuleError',
-    'ModuleWarning',
-    'Source',
-  ].forEach(function(archetype) {
-    pluginCompat.register(compiler, '_hardSourceBeforeFreeze' + archetype, 'syncWaterfall', ['frozen', 'item', 'extra']);
-    pluginCompat.register(compiler, '_hardSourceFreeze' + archetype, 'syncWaterfall', ['frozen', 'item', 'extra']);
-    pluginCompat.register(compiler, '_hardSourceAfterFreeze' + archetype, 'syncWaterfall', ['frozen', 'item', 'extra']);
-
-    pluginCompat.register(compiler, '_hardSourceBeforeThaw' + archetype, 'syncWaterfall', ['item', 'frozen', 'extra']);
-    pluginCompat.register(compiler, '_hardSourceThaw' + archetype, 'syncWaterfall', ['item', 'frozen', 'extra']);
-    pluginCompat.register(compiler, '_hardSourceAfterThaw' + archetype, 'syncWaterfall', ['item', 'frozen', 'extra']);
-  });
-
-  compiler.plugin(['watch-run', 'run'], function(_compiler, cb) {
-    var compiler = _compiler;
-    if (_compiler.compiler) {
-      compiler = _compiler.compiler;
-    }
-    freeze = function(archetype, frozen, item, extra) {
-      if (!item) {
-        return item;
-      }
-
-      frozen = pluginCompat.call(compiler, '_hardSourceBeforeFreeze' + archetype, [frozen, item, extra]);
-      frozen = pluginCompat.call(compiler, '_hardSourceFreeze' + archetype, [frozen, item, extra]);
-      frozen = pluginCompat.call(compiler, '_hardSourceAfterFreeze' + archetype, [frozen, item, extra]);
-
-      return frozen;
-    };
-    thaw = function(archetype, item, frozen, extra) {
-      if (!frozen) {
-        return frozen;
-      }
-
-      item = pluginCompat.call(compiler, '_hardSourceBeforeThaw' + archetype, [item, frozen, extra]);
-      item = pluginCompat.call(compiler, '_hardSourceThaw' + archetype, [item, frozen, extra]);
-      item = pluginCompat.call(compiler, '_hardSourceAfterThaw' + archetype, [item, frozen, extra]);
-
-      return item;
-    };
-    mapMap = function(fn, name, output, input, extra) {
-      if (output) {
-        return input.map(function(item, index) {
-          return fn(name, output[index], item, extra);
-        })
-        .filter(Boolean);
-      }
-      else {
-        return input.map(function(item) {
-          return fn(name, null, item, extra);
-        })
-        .filter(Boolean);
-      }
-    };
-    mapFreeze = function(name, frozen, items, extra) {
-      return mapMap(freeze, name, frozen, items, extra);
-    };
-    mapThaw = function(name, items, frozen, extra) {
-      return mapMap(thaw, name, items, frozen, extra);
-    };
-    store = function(archetype, id, item, extra) {
-      var cache = archetypeCaches[archetype];
-      if (item) {
-        var frozen = cache.get(id);
-        var newFrozen = freeze(archetype, frozen, item, extra);
-        if (
-          (frozen && newFrozen && newFrozen !== frozen) ||
-          (!frozen && newFrozen)
-        ) {
-          cache.set(id, newFrozen);
-          return newFrozen;
-        }
-        else if (frozen) {
-          return frozen;
-        }
-      }
-      else {
-        cache.set(id, null);
-      }
-    };
-    fetch = function(archetype, id, extra) {
-      var cache = archetypeCaches[archetype];
-      var frozen = cache.get(id);
-      return thaw(archetype, null, frozen, extra);
-    };
-
-    var methods = {
-      freeze,
-      thaw,
-      mapFreeze,
-      mapThaw,
-      store,
-      fetch,
-    };
-    pluginCompat.call(compiler, '_hardSourceMethods', [methods]);
-    cb();
-  });
-
-  compiler.plugin('compilation', function(compilation) {
-    compilation.__hardSourceMethods = {
-      freeze,
-      thaw,
-      mapFreeze,
-      mapThaw,
-      store,
-      fetch,
-    };
-  });
-
   var detectModule = function(path) {
     try {
       require(path);
@@ -801,6 +572,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   if (webpackFeatures.generator) {
     schemasVersion = 4;
   }
+
+  var ArchetypeSystem = require('./lib/archetype-system');
+
+  var AssetCache = require('./lib/asset-cache');
+  var ModuleCache = require('./lib/module-cache');
 
   var EnhancedResolveCache = require('./lib/enhanced-resolve-cache');
   var Md5Cache = require('./lib/md5-cache');
@@ -832,6 +608,16 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     HardGeneratorPlugin = require('./lib/hard-generator-plugin');
   }
 
+  new ArchetypeSystem().apply(compiler);
+
+  pluginCompat.tap(compiler, '_hardSourceMethods', 'HardSource - index', function(methods) {
+    fetch = methods.fetch;
+    freeze = methods.freeze;
+  });
+
+  new AssetCache().apply(compiler);
+  new ModuleCache().apply(compiler);
+
   new EnhancedResolveCache().apply(compiler);
   new Md5Cache().apply(compiler);
   new ModuleResolverCache().apply(compiler);
@@ -846,7 +632,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         cachedMd5s: compilation.__hardSourceCachedMd5s,
         fileMd5s: compilation.__hardSourceFileMd5s,
         fileTimestamps: compilation.__hardSourceFileTimestamps,
-        moduleCache,
+        moduleCache: compilation.__hardSourceModuleCache,
         moduleResolveCache: compilation.__hardSourceModuleResolveCache,
         moduleResolveCacheChange: compilation.__hardSourceModuleResolveCacheChange,
       };
@@ -893,59 +679,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     }).apply(compiler);
   }
 
-  compiler.plugin('this-compilation', function(compilation) {
-    compiler.__hardSource_topCompilation = compilation;
-  });
-
   compiler.plugin('after-compile', function(compilation, cb) {
     if (!active) {return cb();}
 
     var startCacheTime = Date.now();
-
-    // fs.writeFileSync(
-    //   path.join(cacheDirPath, 'file-dependencies.json'),
-    //   JSON.stringify({fileDependencies: compilation.fileDependencies}),
-    //   'utf8'
-    // );
-
-    var moduleOps = [];
-    var dataOps = [];
-    var md5Ops = [];
-    var assetOps = [];
-    var moduleResolveOps = [];
-
-    var buildingMd5s = {};
-
-    if (compiler.__hardSource_topCompilation === compilation) {
-      Object.keys(moduleCache).forEach(function(key) {
-        var cacheItem = moduleCache[key];
-        if (cacheItem && cacheItem.invalid) {
-          // console.log('invalid', cacheItem.invalidReason);
-          moduleCache[key] = null;
-          moduleOps.push({
-            key: key,
-            value: null,
-          });
-        }
-      });
-    }
-
-    // moduleCache.fileDependencies = fileDependencies;
-    // moduleOps.push({
-    //   type: 'put',
-    //   key: 'fileDependencies',
-    //   // value: JSON.stringify(compilation.fileDependencies),
-    //   value: moduleCache.fileDependencies,
-    // });
-
-    // mkdirp.sync(cacheAssetDirPath);
-
-    function walkCompilations(compilation, fn) {
-      fn(compilation);
-      compilation.children.forEach(function(compilation) {
-        walkCompilations(compilation, fn);
-      });
-    }
 
     var identifierPrefix = cachePrefix(compilation);
     if (identifierPrefix !== null) {
@@ -953,9 +690,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         compilation: compilation,
       });
     }
-
-    assetOps = archetypeCaches.asset.operations();
-    moduleOps = archetypeCaches.module.operations();
 
     Promise.all([
       mkdirp(cacheDirPath)
@@ -970,8 +704,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         relateNormalRequest,
         relateNormalModuleId,
       }]),
-      assetCacheSerializer.write(assetOps),
-      moduleCacheSerializer.write(moduleOps),
     ])
     .then(function() {
       // console.log('cache out', Date.now() - startCacheTime);
