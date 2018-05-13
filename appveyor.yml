@@ -6,16 +6,19 @@ environment:
       extract_text_version: "2"
       babel_loader_version: "7"
       file_loader_version: "0.11"
+      html_plugin_version: "2.22.0"
     - nodejs_version: "8"
       webpack_version: "3"
       extract_text_version: "3"
       babel_loader_version: "7"
       file_loader_version: "0.11"
+      html_plugin_version: "2.22.0"
     - nodejs_version: "9"
       webpack_version: "4"
       extract_text_version: "3"
       babel_loader_version: "7"
       file_loader_version: "0.11"
+      html_plugin_version: "3.2.0"
 
 # Install scripts. (runs after repo cloning)
 install:
@@ -23,7 +26,7 @@ install:
   - ps: Install-Product node $env:nodejs_version
   # install modules
   - npm install
-  - npm install webpack@%webpack_version% extract-text-webpack-plugin@%extract_text_version% babel-loader@%babel_loader_version% file-loader@%file_loader_version%
+  - npm install webpack@%webpack_version% extract-text-webpack-plugin@%extract_text_version% babel-loader@%babel_loader_version% file-loader@%file_loader_version% html-webpack-plugin@%html_plugin_version%
 
 # Post-install test scripts.
 test_script:
