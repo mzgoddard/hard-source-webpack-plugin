@@ -266,163 +266,27 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var assetCache = {};
   var dataCache = {};
   var moduleResolveCache = {};
-  var md5Cache = {};
   var missingCache = {normal: {},loader: {},context: {}};
   var resolverCache = {normal: {},loader: {},context: {}};
   var currentStamp = '';
 
   var moduleResolveCacheChange = [];
 
-  var fileMd5s = {};
-  var cachedMd5s = {};
-  var fileTimestamps = {};
-  var contextMd5s = {};
-  var contextTimestamps = {};
-
   var cacheSerializerFactory = new CacheSerializerFactory(compiler);
 
   var assetCacheSerializer;
   var moduleCacheSerializer;
-  var dataCacheSerializer;
-  var md5CacheSerializer;
   var moduleResolveCacheSerializer;
   var missingCacheSerializer;
   var resolverCacheSerializer;
 
   var _this = this;
 
-  var stat, readdir, readFile, mtime, md5, fileStamp, contextStamps;
-
-  function bindFS() {
-    stat = promisify(
-      compiler.inputFileSystem.stat,
-      {context: compiler.inputFileSystem}
-    );
-    // stat = promisify(fs.stat, {context: fs});
-
-    readdir = promisify(
-      compiler.inputFileSystem.readdir,
-      {context: compiler.inputFileSystem}
-    );
-
-    readFile = promisify(
-      compiler.inputFileSystem.readFile,
-      {context: compiler.inputFileSystem}
-    );
-
-    mtime = function(file) {
-      return stat(file)
-      .then(function(stat) {return +stat.mtime;})
-      .catch(function() {return 0;});
-    };
-
-    md5 = function(file) {
-      return readFile(file)
-      .then(function(contents) {
-        return crypto.createHash('md5').update(contents, 'utf8').digest('hex');
-      })
-      .catch(function() {return '';});
-    };
-
-    fileStamp = function(file, stats) {
-      if (compiler.__hardSource_fileTimestamps[file]) {
-        return compiler.__hardSource_fileTimestamps[file];
-      }
-      else {
-        if (!stats[file]) {stats[file] = stat(file);}
-        return stats[file]
-        .then(function(stat) {
-          var mtime = +stat.mtime;
-          compiler.__hardSource_fileTimestamps[file] = mtime;
-          return mtime;
-        });
-      }
-    };
-
-    contextStamp = function(dir, stats) {
-      var context = {};
-
-      var selfTime = 0;
-
-      function walk(dir) {
-        return readdir(dir)
-        .then(function(items) {
-          return Promise.all(items.map(function(item) {
-            var file = path.join(dir, item);
-            if (!stats[file]) {stats[file] = stat(file);}
-            return stats[file]
-            .then(function(stat) {
-              if (stat.isDirectory()) {
-                return walk(path.join(dir, item))
-                .then(function(items2) {
-                  return items2.map(function(item2) {
-                    return path.join(item, item2);
-                  });
-                });
-              }
-              if (+stat.mtime > selfTime) {
-                selfTime = +stat.mtime;
-              }
-              return item;
-            }, function() {
-              return;
-            });
-          }));
-        })
-        .catch(() => [])
-        .then(function(items) {
-          return items.reduce(function(carry, item) {
-            return carry.concat(item);
-          }, [])
-          .filter(Boolean);
-        });
-      }
-
-      return walk(dir)
-      .then(function(items) {
-        items.sort();
-        var selfHash = crypto.createHash('md5');
-        items.forEach(function(item) {
-          selfHash.update(item);
-        });
-        context.mtime = selfTime;
-        context.hash = selfHash.digest('hex');
-        return context;
-      });
-    };
-
-    contextStamps = function(contextDependencies, stats) {
-      stats = stats || {};
-      var contexts = {};
-      contextDependencies.forEach(function(context) {
-        contexts[context] = {files: [], mtime: 0, hash: ''};
-      });
-
-      var compilerContextTs = compiler.contextTimestamps;
-
-      contextDependencies.forEach(function(contextPath) {
-        const _context = contextStamp(contextPath, stats);
-        if (!_context.then) {
-          contexts[contextPath] = _context;
-        }
-        else {
-          contexts[contextPath] = _context
-          .then(function(context) {
-            contexts[contextPath] = context;
-            return context;
-          });
-        }
-      });
-      return contexts;
-    };
-  }
-
-  if (compiler.inputFileSystem) {
-    bindFS();
-  }
-  else {
-    compiler.plugin('after-environment', bindFS);
-  }
+  pluginCompat.register(compiler, '_hardSourceCreateSerializer', 'sync', ['cacheSerializerFactory', 'cacheDirPath']);
+  pluginCompat.register(compiler, '_hardSourceResetCache', 'sync', []);
+  pluginCompat.register(compiler, '_hardSourceReadCache', 'asyncParallel', ['relativeHelpers']);
+  pluginCompat.register(compiler, '_hardSourceVerifyCache', 'asyncParallel', []);
+  pluginCompat.register(compiler, '_hardSourceWriteCache', 'asyncParallel', ['compilation', 'relativeHelpers']);
 
   compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
     logger.unlock();
@@ -466,6 +330,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
     if (!assetCacheSerializer) {
       try {
+        pluginCompat.call(compiler, '_hardSourceCreateSerializer', [cacheSerializerFactory, cacheDirPath]);
+
         assetCacheSerializer = cacheSerializerFactory.create({
           name: 'assets',
           type: 'file',
@@ -476,16 +342,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           type: 'data',
           cacheDirPath: cacheDirPath,
           autoParse: true,
-        });
-        dataCacheSerializer = cacheSerializerFactory.create({
-          name: 'data',
-          type: 'data',
-          cacheDirPath: cacheDirPath,
-        });
-        md5CacheSerializer = cacheSerializerFactory.create({
-          name: 'md5',
-          type: 'data',
-          cacheDirPath: cacheDirPath,
         });
         moduleResolveCacheSerializer = cacheSerializerFactory.create({
           name: 'module-resolve',
@@ -550,15 +406,13 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         }
 
         // Reset the cache, we can't use it do to an environment change.
+        pluginCompat.call(compiler, '_hardSourceResetCache', []);
         moduleCache = {};
         assetCache = {};
         dataCache = {};
         moduleResolveCache = {};
-        md5Cache = {};
         missingCache = {normal: {},loader: {},context: {}};
         resolverCache = {normal: {},loader: {},context: {}};
-        fileTimestamps = {};
-        contextTimestamps = {};
 
         return rimraf(cacheDirPath);
       }
@@ -629,6 +483,11 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
 
       return Promise.all([
+        pluginCompat.promise(compiler, '_hardSourceReadCache', [{
+          contextKeys,
+          contextNormalPath,
+        }]),
+
         assetCacheSerializer.read()
         .then(function(_assetCache) {assetCache = _assetCache;}),
 
@@ -636,31 +495,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         .then(contextKeys(compiler, contextNormalModuleId))
         .then(copyWithDeser.bind(null, moduleCache)),
 
-        dataCacheSerializer.read()
-        .then(copyWithDeser.bind(null, dataCache))
-        .then(function() {
-          dataCache.fileDependencies = dataCache.fileDependencies
-          .map(function(dep) {
-            return contextNormalPath(compiler, dep);
-          });
-          dataCache.contextDependencies = dataCache.contextDependencies
-          .map(function(dep) {
-            return contextNormalPath(compiler, dep);
-          });
-        }),
-
-        md5CacheSerializer.read()
-        .then(contextKeys(compiler, contextNormalPath))
-        .then(function(_md5Cache) {
-          Object.keys(_md5Cache).forEach(function(key) {
-            if (typeof _md5Cache[key] === 'string') {
-              _md5Cache[key] = JSON.parse(_md5Cache[key]);
-            }
-
-            cachedMd5s[key] = _md5Cache[key].hash;
-          });
-          md5Cache = _md5Cache;
-        }),
 
         moduleResolveCacheSerializer.read()
         .then(contextKeys(compiler, contextNormalModuleResolveKey))
@@ -737,82 +571,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     if (!active) {return cb();}
 
     // No previous build to verify.
-    if (!dataCache.fileDependencies) return cb();
+    if (Object.keys(moduleCache).length === 0) return cb();
 
     var stats = {};
     return Promise.all([
-      (function() {
-        var compilerFileTs = compiler.__hardSource_fileTimestamps = {};
-        var fileTs = fileTimestamps = {};
+      pluginCompat.promise(compiler, '_hardSourceVerifyCache', []),
 
-        return bulkFsTask(dataCache.fileDependencies, function(file, task) {
-          if (compiler.__hardSource_fileTimestamps[file]) {
-            return compiler.__hardSource_fileTimestamps[file];
-          }
-          else {
-            compiler.inputFileSystem.stat(file, task(function(err, value) {
-              if (err) {
-                return 0;
-              }
-
-              var mtime = +value.mtime;
-              compiler.__hardSource_fileTimestamps[file] = mtime;
-              return mtime;
-            }));
-          }
-        })
-        .then(function(mtimes) {
-          const bulk = lodash.zip(dataCache.fileDependencies, mtimes);
-          return bulkFsTask(bulk, function(item, task) {
-            var file = item[0];
-            var mtime = item[1];
-
-            fileTs[file] = mtime || 0;
-            if (!compiler.__hardSource_fileTimestamps[file]) {
-              compiler.__hardSource_fileTimestamps[file] = mtime;
-            }
-
-            // if (
-            //   fileTs[file] &&
-            //   md5Cache[file] &&
-            //   fileTs[file] < md5Cache[file].mtime
-            // ) {
-            //   fileTs[file] = md5Cache[file].mtime;
-            //   fileMd5s[file] = md5Cache[file].hash;
-            // }
-            // else {
-              compiler.inputFileSystem.readFile(file, task(function(err, body) {
-                if (err) {
-                  fileMd5s[file] = '';
-                  return;
-                }
-
-                const hash = crypto.createHash('md5')
-                .update(body, 'utf8').digest('hex');
-
-                fileMd5s[file] = hash;
-              }));
-            // }
-          });
-        });
-      })(),
-      (function() {
-        compiler.contextTimestamps = compiler.contextTimestamps || {};
-        var contextTs = contextTimestamps = {};
-        const contexts = contextStamps(dataCache.contextDependencies, stats);
-        return Promise.all(values(contexts))
-        .then(function() {
-          for (var contextPath in contexts) {
-            var context = contexts[contextPath];
-
-            if (!compiler.contextTimestamps[contextPath]) {
-              compiler.contextTimestamps[contextPath] = context.mtime;
-            }
-            contextTimestamps[contextPath] = context.mtime;
-            fileMd5s[contextPath] = context.hash;
-          }
-        });
-      })(),
       (function() {
         var bulk = lodash.flatten(Object.keys(missingCache)
         .map(function(group) {
@@ -1091,8 +855,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     // compilation.fileTimestamps = fileTimestamps;
     // compilation.contextTimestamps = contextTimestamps;
 
-    compilation.__hardSourceFileMd5s = fileMd5s;
-    compilation.__hardSourceCachedMd5s = cachedMd5s;
+    // compilation.__hardSourceFileMd5s = fileMd5s;
+    // compilation.__hardSourceCachedMd5s = cachedMd5s;
 
     // Webpack 2 can use different parsers based on config rule sets.
     params.normalModuleFactory.plugin('parser', function(parser, options) {
@@ -1432,6 +1196,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     schemasVersion = 4;
   }
 
+  var Md5Cache = require('./lib/md5-cache');
+
   var HardCompilationPlugin = require('./lib/hard-compilation-plugin');
   var HardAssetPlugin = require('./lib/hard-asset-plugin');
   var HardConcatenationModulePlugin;
@@ -1458,16 +1224,18 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     HardGeneratorPlugin = require('./lib/hard-generator-plugin');
   }
 
+  new Md5Cache().apply(compiler);
+
   new HardCompilationPlugin().apply(compiler);
 
   new HardAssetPlugin().apply(compiler);
 
   new HardContextModuleFactoryPlugin({
-    caches() {
+    caches(compilation) {
       return {
-        cachedMd5s,
-        fileMd5s,
-        fileTimestamps,
+        cachedMd5s: compilation.__hardSourceCachedMd5s,
+        fileMd5s: compilation.__hardSourceFileMd5s,
+        fileTimestamps: compilation.__hardSourceFileTimestamps,
         moduleCache,
         moduleResolveCache,
         moduleResolveCacheChange,
@@ -1541,149 +1309,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     var buildingMd5s = {};
 
     if (compiler.__hardSource_topCompilation === compilation) {
-      // var fileDependenciesDiff = lodash.difference(compilation.fileDependencies, dataCache.fileDependencies || []);
-
-      function buildMd5Ops(dependencies) {
-        dependencies.forEach(function(file) {
-          function updateMd5CacheItem(value) {
-            if (
-              !md5Cache[file] ||
-              (
-                md5Cache[file] &&
-                md5Cache[file].hash !== value.hash
-              )
-            ) {
-              md5Cache[file] = value;
-              cachedMd5s[file] = value.hash;
-
-              md5Ops.push({
-                key: relateNormalPath(compiler, file),
-                value: JSON.stringify(value),
-              });
-            }
-            else if (
-              !value.mtime &&
-              md5Cache[file] &&
-              md5Cache[file].mtime !== value.mtime
-            ) {
-              md5Cache[file] = value;
-              cachedMd5s[file] = value.hash;
-            }
-          }
-
-          const building = buildingMd5s[file];
-          if (!building.then) {
-            updateMd5CacheItem(building);
-          }
-          else {
-            buildingMd5s[file] = building.then(updateMd5CacheItem);
-          }
-        });
-      }
-
-      var fileDependencies = Array.from(compilation.fileDependencies);
-
-      if (!lodash.isEqual(fileDependencies, dataCache.fileDependencies)) {
-        lodash.difference(dataCache.fileDependencies, fileDependencies).forEach(function(file) {
-          buildingMd5s[file] = {
-            mtime: 0,
-            hash: '',
-          };
-        });
-
-        dataCache.fileDependencies = fileDependencies;
-
-        dataOps.push({
-          key: 'fileDependencies',
-          value: JSON.stringify(
-            dataCache.fileDependencies
-            .map(function(dep) {
-              return relateNormalPath(compiler, dep);
-            })
-          ),
-        });
-      }
-
-      var MD5_TIME_PRECISION_BUFFER = 2000;
-
-      dataCache.fileDependencies.forEach(function(file) {
-        if (buildingMd5s[file]) {return;}
-
-        function getValue(store, key, fn) {
-          if (store[key]) {
-            return store[key];
-          }
-          else {
-            return fn(key);
-          }
-        }
-
-        if (fileMd5s[file]) {
-          buildingMd5s[file] = {
-            // Subtract a small buffer from now for file systems that record
-            // lower precision mtimes.
-            mtime: Date.now() - MD5_TIME_PRECISION_BUFFER,
-            hash: fileMd5s[file],
-          };
-        }
-        else {
-          buildingMd5s[file] = md5(file)
-          .then(function(hash) {
-            return {
-              mtime: Date.now() - MD5_TIME_PRECISION_BUFFER,
-              hash: hash,
-            };
-          });
-        }
-      });
-
-      buildMd5Ops(dataCache.fileDependencies);
-
-      var contextDependencies = Array.from(compilation.contextDependencies);
-
-      if (!lodash.isEqual(contextDependencies, dataCache.contextDependencies)) {
-        lodash.difference(dataCache.contextDependencies, contextDependencies).forEach(function(file) {
-          buildingMd5s[file] = {
-            mtime: 0,
-            hash: '',
-          };
-        });
-
-        dataCache.contextDependencies = contextDependencies;
-
-        dataOps.push({
-          key: 'contextDependencies',
-          value: JSON.stringify(
-            dataCache.contextDependencies
-            .map(function(dep) {
-              return relateNormalPath(compiler, dep);
-            })
-          ),
-        });
-      }
-
-      const contexts = contextStamps(dataCache.contextDependencies);
-      dataCache.contextDependencies.forEach(function(file) {
-        if (buildingMd5s[file]) {return;}
-
-        var context = contexts[file];
-        if (!context.then) {
-          // Subtract a small buffer from now for file systems that record lower
-          // precision mtimes.
-          context.mtime = Date.now() - MD5_TIME_PRECISION_BUFFER;
-        }
-        else {
-          context = context
-          .then(function(context) {
-            context.mtime = Date.now() - MD5_TIME_PRECISION_BUFFER;
-            return context;
-          });
-        }
-        buildingMd5s[file] = context;
-      });
-
-      buildMd5Ops(dataCache.contextDependencies);
-
       function relateNormalModuleResolveKey(compiler, key) {
         var parsed = JSON.parse(key);
         if (Array.isArray(parsed)) {
@@ -1858,10 +1483,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     assetOps = archetypeCaches.asset.operations();
     moduleOps = archetypeCaches.module.operations();
 
-    var writeMd5Ops = Promise.all(Object.keys(buildingMd5s).map(function(key) {
-      return buildingMd5s[key];
-    }));
-
     Promise.all([
       mkdirp(cacheDirPath)
       .then(function() {
@@ -1870,13 +1491,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
           fsWriteFile(path.join(cacheDirPath, 'version'), hardSourceVersion, 'utf8'),
         ]);
       }),
+      pluginCompat.promise(compiler, '_hardSourceWriteCache', [compilation, {
+        relateNormalPath,
+      }]),
       moduleResolveCacheSerializer.write(moduleResolveOps),
       assetCacheSerializer.write(assetOps),
       moduleCacheSerializer.write(moduleOps),
-      dataCacheSerializer.write(dataOps),
-      writeMd5Ops.then(function() {
-        return md5CacheSerializer.write(md5Ops);
-      }),
       missingCacheSerializer.write(missingOps),
       resolverCacheSerializer.write(resolverOps),
     ])
