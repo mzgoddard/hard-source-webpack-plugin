@@ -10,7 +10,6 @@ var nodeObjectHash = require('node-object-hash');
 var envHash = require('./lib/env-hash');
 var defaultConfigHash = require('./lib/default-config-hash');
 var promisify = require('./lib/util/promisify');
-var values = require('./lib/util/Object.values');
 var relateContext = require('./lib/util/relate-context');
 var pluginCompat = require('./lib/util/plugin-compat');
 
@@ -143,6 +142,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var loggerCore = logger.from('core');
   logger.lock();
 
+  var compilerHooks = pluginCompat.hooks(compiler);
+
   if (!compiler.options.cache) {
     compiler.options.cache = true;
   }
@@ -179,10 +180,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       'without configHash option being set and returning a non-falsy value.'
     );
     active = false;
-    compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
+
+    function unlockLogger() {
       logger.unlock();
-      cb();
-    });
+    }
+    compilerHooks.watchRun.tap('HardSource - index', unlockLogger);
+    compilerHooks.run.tap('HardSource - index', unlockLogger);
     return;
   }
 
@@ -272,10 +275,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   pluginCompat.register(compiler, '_hardSourceVerifyCache', 'asyncParallel', []);
   pluginCompat.register(compiler, '_hardSourceWriteCache', 'asyncParallel', ['compilation', 'relativeHelpers']);
 
-  compiler.plugin(['watch-run', 'run'], function(compiler, cb) {
+  function runReadOrReset(compiler) {
     logger.unlock();
 
-    if (!active) {return cb();}
+    if (!active) {return Promise.resolve();}
 
     try {
       fs.statSync(cacheAssetDirPath);
@@ -322,7 +325,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
     }
 
-    Promise.all([
+    return Promise.all([
       fsReadFile(path.join(cacheDirPath, 'stamp'), 'utf8')
       .catch(function() {return '';}),
 
@@ -412,20 +415,20 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       .then(function() {
         // console.log('cache in', Date.now() - start);
       });
-    })
-    .then(cb, cb);
-  });
+    });
+  }
 
-  compiler.plugin(['watch-run', 'run'], function(_compiler, cb) {
-    if (!active) {return cb();}
-
-    // No previous build to verify.
-    // if (Object.keys(moduleCache).length === 0) return cb();
+  function runVerify(_compiler) {
+    if (!active) {return Promise.resolve();}
 
     var stats = {};
-    return pluginCompat.promise(compiler, '_hardSourceVerifyCache', [])
-    .then(function() {cb();}, cb);
-  });
+    return pluginCompat.promise(compiler, '_hardSourceVerifyCache', []);
+  }
+
+  compilerHooks.watchRun.tapPromise('HardSource - index', runReadOrReset);
+  compilerHooks.run.tapPromise('HardSource - index', runReadOrReset);
+  compilerHooks.watchRun.tapPromise('HardSource - index', runVerify);
+  compilerHooks.run.tapPromise('HardSource - index', runVerify);
 
   var detectModule = function(path) {
     try {
@@ -555,12 +558,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   var freeze;
 
-  pluginCompat.tap(compiler, '_hardSourceMethods', 'HardSource - index', function(methods) {
+  compilerHooks._hardSourceMethods.tap('HardSource - index', function(methods) {
     freeze = methods.freeze;
   });
 
-  compiler.plugin('after-compile', function(compilation, cb) {
-    if (!active) {return cb();}
+  compilerHooks.afterCompile.tapPromise('HardSource - index', function(compilation) {
+    if (!active) {return Promise.resolve();}
 
     var startCacheTime = Date.now();
 
@@ -571,7 +574,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       });
     }
 
-    Promise.all([
+    return Promise.all([
       mkdirp(cacheDirPath)
       .then(function() {
         return Promise.all([
@@ -587,8 +590,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     ])
     .then(function() {
       // console.log('cache out', Date.now() - startCacheTime);
-      cb();
-    }, cb);
+    });
   });
 };
 
