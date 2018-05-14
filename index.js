@@ -39,10 +39,6 @@ rimraf.sync = _rimraf.sync.bind(_rimraf);
 var fsReadFile = promisify(fs.readFile, {context: fs});
 var fsWriteFile = promisify(fs.writeFile, {context: fs});
 
-var NS;
-
-NS = fs.realpathSync(__dirname);
-
 var bulkFsTask = function(array, each) {
   return new Promise(function(resolve, reject) {
     var ops = 0;
@@ -431,125 +427,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     .then(function() {cb();}, cb);
   });
 
-  var fetch, freeze;
-
-  compiler.plugin('compilation', function(compilation, params) {
-    if (!active) {return;}
-
-    // compilation.fileTimestamps = fileTimestamps;
-    // compilation.contextTimestamps = contextTimestamps;
-
-    // compilation.__hardSourceFileMd5s = fileMd5s;
-    // compilation.__hardSourceCachedMd5s = cachedMd5s;
-
-    // Webpack 2 can use different parsers based on config rule sets.
-    params.normalModuleFactory.plugin('parser', function(parser, options) {
-      // Store the options somewhere that can not conflict with another plugin
-      // on the parser so we can look it up and store those options with a
-      // cached module resolution.
-      parser[NS + '/parser-options'] = options;
-    });
-
-    params.normalModuleFactory.plugin('resolver', function(fn) {
-      return function(request, cb) {
-        var identifierPrefix = cachePrefix(compilation);
-        if (identifierPrefix === null) {return fn.call(null, request, cb);}
-
-        var cacheId = JSON.stringify([identifierPrefix, request.context, request.request]);
-        var absCacheId = JSON.stringify([identifierPrefix, request.context, relateContext.relateAbsoluteRequest(request.context, request.request)]);
-
-        request.contextInfo.resolveOptions = request.resolveOptions;
-
-        var next = function() {
-          var originalRequest = request;
-          return fn.call(null, request, function(err, request) {
-            if (err) {
-              return cb(err);
-            }
-            if (!request.source) {
-              compilation.__hardSourceModuleResolveCacheChange.push(cacheId);
-              compilation.__hardSourceModuleResolveCache[cacheId] = Object.assign({}, request, {
-                parser: null,
-                generator: null,
-                parserOptions: request.parser[NS + '/parser-options'],
-                type: request.settings && request.settings.type,
-                settings: request.settings,
-                dependencies: null,
-              });
-            }
-            cb.apply(null, arguments);
-          });
-        };
-
-        var fromCache = function() {
-          var result = Object.assign({}, compilation.__hardSourceModuleResolveCache[cacheId] || compilation.__hardSourceModuleResolveCache[absCacheId]);
-          result.dependencies = request.dependencies;
-
-          if (!result.parser || !result.parser.parse) {
-            result.parser = result.settings ?
-              params.normalModuleFactory.getParser(result.type, result.settings.parser) :
-              params.normalModuleFactory.getParser(result.parserOptions);
-          }
-          if (!result.generator && params.normalModuleFactory.getGenerator) {
-            result.generator = params.normalModuleFactory.getGenerator(result.type, result.settings.generator);
-          }
-
-          result.loaders = result.loaders.map(function(loader) {
-            if (typeof loader === 'object' && loader.ident) {
-              var ruleSet = params.normalModuleFactory.ruleSet;
-              return {
-                loader: loader.loader,
-                ident: loader.ident,
-                options: ruleSet.references[loader.ident],
-              };
-            }
-            return loader;
-          });
-          return cb(null, result);
-        };
-
-        if (
-          compilation.__hardSourceModuleResolveCache[cacheId] &&
-          !compilation.__hardSourceModuleResolveCache[cacheId].invalid ||
-          compilation.__hardSourceModuleResolveCache[absCacheId] &&
-          !compilation.__hardSourceModuleResolveCache[absCacheId].invalid
-        ) {
-          return fromCache();
-        }
-
-        next();
-      };
-    });
-
-    pluginCompat.tap(params.normalModuleFactory, 'createModule', 'HardSourceWebpackPlugin', result => {
-      if (
-        compilation.cache &&
-        compilation.cache['m' + result.request] &&
-        compilation.cache['m' + result.request].cacheItem &&
-        !compilation.cache['m' + result.request].cacheItem.invalid
-      ) {
-        return compilation.cache['m' + result.request];
-      }
-
-      var identifierPrefix = cachePrefix(compilation);
-      if (identifierPrefix === null) {
-        return;
-      }
-
-      var identifier = identifierPrefix + result.request;
-
-      var module = fetch('Module', identifier, {
-        compilation: compilation,
-        normalModuleFactory: params.normalModuleFactory,
-        contextModuleFactory: params.contextModuleFactory,
-      });
-
-      if (module) {
-        return module;
-      }
-    });
-  });
-
   var detectModule = function(path) {
     try {
       require(path);
@@ -591,6 +468,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   var HardContextModuleFactoryPlugin = require('./lib/hard-context-module-factory-plugin');
   var HardContextModulePlugin = require('./lib/hard-context-module-plugin');
   var HardNormalModulePlugin = require('./lib/hard-normal-module-plugin');
+  var HardNormalModuleFactoryPlugin = require('./lib/hard-normal-module-factory-plugin');
   var HardModuleAssetsPlugin = require('./lib/hard-module-assets-plugin');
   var HardModuleErrorsPlugin = require('./lib/hard-module-errors-plugin');
   var HardModuleExtractTextPlugin = require('./lib/hard-module-extract-text-plugin');
@@ -609,11 +487,6 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   }
 
   new ArchetypeSystem().apply(compiler);
-
-  pluginCompat.tap(compiler, '_hardSourceMethods', 'HardSource - index', function(methods) {
-    fetch = methods.fetch;
-    freeze = methods.freeze;
-  });
 
   new AssetCache().apply(compiler);
   new ModuleCache().apply(compiler);
@@ -644,6 +517,7 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   new HardNormalModulePlugin({
     schema: schemasVersion,
   }).apply(compiler);
+  new HardNormalModuleFactoryPlugin().apply(compiler);
 
   if (HardConcatenationModulePlugin) {
     new HardConcatenationModulePlugin().apply(compiler);
@@ -678,6 +552,12 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       schema: schemasVersion,
     }).apply(compiler);
   }
+
+  var freeze;
+
+  pluginCompat.tap(compiler, '_hardSourceMethods', 'HardSource - index', function(methods) {
+    freeze = methods.freeze;
+  });
 
   compiler.plugin('after-compile', function(compilation, cb) {
     if (!active) {return cb();}
