@@ -15,7 +15,7 @@ matrix:
       env: WEBPACK_VERSION=4 EXTRACT_TEXT_VERSION=3 BABEL_LOADER=7 FILE_LOADER=1 HTML_WEBPACK=3.2.0
 
 before_script:
-  - npm install webpack@$WEBPACK_VERSION extract-text-webpack-plugin@$EXTRACT_TEXT_VERSION babel-loader@$BABEL_LOADER file-loader@$FILE_LOADER html-webpack-plugin@HTML_WEBPACK
+  - npm install webpack@$WEBPACK_VERSION extract-text-webpack-plugin@$EXTRACT_TEXT_VERSION babel-loader@$BABEL_LOADER file-loader@$FILE_LOADER html-webpack-plugin@$HTML_WEBPACK
 cache:
   directories:
     - node_modules
