@@ -468,8 +468,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
   if (webpackFeatures.concatenatedModule) {
     HardConcatenationModulePlugin = require('./lib/hard-concatenation-module-plugin');
   }
-  var HardContextModuleFactoryPlugin = require('./lib/hard-context-module-factory-plugin');
-  var HardContextModulePlugin = require('./lib/hard-context-module-plugin');
+  // var HardContextModuleFactoryPlugin = require('./lib/hard-context-module-factory-plugin');
+  // var HardContextModulePlugin = require('./lib/hard-context-module-plugin');
   var HardNormalModulePlugin = require('./lib/hard-normal-module-plugin');
   var HardNormalModuleFactoryPlugin = require('./lib/hard-normal-module-factory-plugin');
   var HardModuleAssetsPlugin = require('./lib/hard-module-assets-plugin');
@@ -502,21 +502,22 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
   new HardAssetPlugin().apply(compiler);
 
-  new HardContextModuleFactoryPlugin({
-    caches(compilation) {
-      return {
-        cachedMd5s: compilation.__hardSourceCachedMd5s,
-        fileMd5s: compilation.__hardSourceFileMd5s,
-        fileTimestamps: compilation.__hardSourceFileTimestamps,
-        moduleCache: compilation.__hardSourceModuleCache,
-        moduleResolveCache: compilation.__hardSourceModuleResolveCache,
-        moduleResolveCacheChange: compilation.__hardSourceModuleResolveCacheChange,
-      };
-    }
-  }).apply(compiler);
-  new HardContextModulePlugin({
-    schema: schemasVersion,
-  }).apply(compiler);
+  // new HardContextModuleFactoryPlugin({
+  //   caches(compilation) {
+  //     return {
+  //       cachedMd5s: compilation.__hardSourceCachedMd5s,
+  //       fileMd5s: compilation.__hardSourceFileMd5s,
+  //       fileTimestamps: compilation.__hardSourceFileTimestamps,
+  //       moduleCache: compilation.__hardSourceModuleCache,
+  //       moduleResolveCache: compilation.__hardSourceModuleResolveCache,
+  //       moduleResolveCacheChange: compilation.__hardSourceModuleResolveCacheChange,
+  //     };
+  //   }
+  // }).apply(compiler);
+  // new HardContextModulePlugin({
+  //   schema: schemasVersion,
+  // }).apply(compiler);
+
   new HardNormalModulePlugin({
     schema: schemasVersion,
   }).apply(compiler);
