@@ -318,10 +318,10 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
     if (createSerializers) {
       createSerializers = false;
       try {
-        pluginCompat.call(compiler, '_hardSourceCreateSerializer', [cacheSerializerFactory, cacheDirPath]);
+        compilerHooks._hardSourceCreateSerializer.call(cacheSerializerFactory, cacheDirPath);
       }
       catch (err) {
-        return cb(err);
+        return Promise.reject(err);
       }
     }
 
@@ -403,14 +403,14 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
       }
 
       return Promise.all([
-        pluginCompat.promise(compiler, '_hardSourceReadCache', [{
+        compilerHooks._hardSourceReadCache.promise({
           contextKeys,
           contextValues,
           contextNormalPath,
           contextNormalRequest,
           contextNormalModuleId,
           copyWithDeser,
-        }]),
+        }),
       ])
       .then(function() {
         // console.log('cache in', Date.now() - start);
