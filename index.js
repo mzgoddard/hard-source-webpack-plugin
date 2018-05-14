@@ -18,51 +18,52 @@ const LoggerFactory = require('./lib/logger-factory');
 const cachePrefix = require('./lib/util').cachePrefix;
 
 const CacheSerializerFactory = require('./lib/cache-serializer-factory');
-const HardSourceJsonSerializerPlugin =
-  require('./lib/hard-source-json-serializer-plugin');
-const HardSourceAppendSerializerPlugin =
-  require('./lib/hard-source-append-serializer-plugin');
-const HardSourceLevelDbSerializerPlugin =
-  require('./lib/hard-source-leveldb-serializer-plugin');
+const HardSourceJsonSerializerPlugin = require('./lib/hard-source-json-serializer-plugin');
+const HardSourceAppendSerializerPlugin = require('./lib/hard-source-append-serializer-plugin');
+const HardSourceLevelDbSerializerPlugin = require('./lib/hard-source-leveldb-serializer-plugin');
 
 const hardSourceVersion = require('./package.json').version;
 
 function requestHash(request) {
-  return crypto.createHash('sha1').update(request).digest().hexSlice();
+  return crypto
+    .createHash('sha1')
+    .update(request)
+    .digest()
+    .hexSlice();
 }
 
-const mkdirp = promisify(_mkdirp, {context: _mkdirp});
+const mkdirp = promisify(_mkdirp, { context: _mkdirp });
 mkdirp.sync = _mkdirp.sync.bind(_mkdirp);
 const rimraf = promisify(_rimraf);
 rimraf.sync = _rimraf.sync.bind(_rimraf);
-const fsReadFile = promisify(fs.readFile, {context: fs});
-const fsWriteFile = promisify(fs.writeFile, {context: fs});
+const fsReadFile = promisify(fs.readFile, { context: fs });
+const fsWriteFile = promisify(fs.writeFile, { context: fs });
 
-const bulkFsTask = (array, each) => new Promise((resolve, reject) => {
-  let ops = 0;
-  const out = [];
-  array.forEach((item, i) => {
-    out[i] = each(item, (back, callback) => {
-      ops++;
-      return (err, value) => {
-        try {
-          out[i] = back(err, value, out[i]);
-        }
-        catch (e) {
-          return reject(e);
-        }
+const bulkFsTask = (array, each) =>
+  new Promise((resolve, reject) => {
+    let ops = 0;
+    const out = [];
+    array.forEach((item, i) => {
+      out[i] = each(item, (back, callback) => {
+        ops++;
+        return (err, value) => {
+          try {
+            out[i] = back(err, value, out[i]);
+          } catch (e) {
+            return reject(e);
+          }
 
-        ops--;
-        if (ops === 0) {
-          resolve(out);
-        }
-      };
+          ops--;
+          if (ops === 0) {
+            resolve(out);
+          }
+        };
+      });
     });
+    if (ops === 0) {
+      resolve(out);
+    }
   });
-  if (ops === 0) {
-    resolve(out);
-  }
-});
 
 const compilerContext = relateContext.compilerContext;
 const relateNormalPath = relateContext.relateNormalPath;
@@ -71,9 +72,9 @@ const contextNormalPathSet = relateContext.contextNormalPathSet;
 
 function relateNormalRequest(compiler, key) {
   return key
-  .split('!')
-  .map(subkey => relateNormalPath(compiler, subkey))
-  .join('!');
+    .split('!')
+    .map(subkey => relateNormalPath(compiler, subkey))
+    .join('!');
 }
 
 function relateNormalModuleId(compiler, id) {
@@ -82,9 +83,9 @@ function relateNormalModuleId(compiler, id) {
 
 function contextNormalRequest(compiler, key) {
   return key
-  .split('!')
-  .map(subkey => contextNormalPath(compiler, subkey))
-  .join('!');
+    .split('!')
+    .map(subkey => contextNormalPath(compiler, subkey))
+    .join('!');
 }
 
 function contextNormalModuleId(compiler, id) {
@@ -92,9 +93,11 @@ function contextNormalModuleId(compiler, id) {
 }
 
 function contextNormalLoaders(compiler, loaders) {
-  return loaders.map(loader => Object.assign({}, loader, {
-    loader: contextNormalPath(compiler, loader.loader),
-  }));
+  return loaders.map(loader =>
+    Object.assign({}, loader, {
+      loader: contextNormalPath(compiler, loader.loader),
+    }),
+  );
 }
 
 function contextNormalPathArray(compiler, paths) {
@@ -112,7 +115,9 @@ class HardSourceWebpackPlugin {
       dirName = dirName.replace(/\[confighash\]/, this.configHash);
     }
     let cachePath = path.resolve(
-      process.cwd(), this.compilerOutputOptions.path, dirName
+      process.cwd(),
+      this.compilerOutputOptions.path,
+      dirName,
     );
     if (suffix) {
       cachePath = path.join(cachePath, suffix);
@@ -143,7 +148,7 @@ class HardSourceWebpackPlugin {
       options.cacheDirectory = path.resolve(
         process.cwd(),
         compiler.options.context,
-        'node_modules/.cache/hard-source/[confighash]'
+        'node_modules/.cache/hard-source/[confighash]',
       );
     }
 
@@ -154,8 +159,7 @@ class HardSourceWebpackPlugin {
     if (options.configHash) {
       if (typeof options.configHash === 'string') {
         this.configHash = options.configHash;
-      }
-      else if (typeof options.configHash === 'function') {
+      } else if (typeof options.configHash === 'function') {
         this.configHash = options.configHash(compiler.options);
       }
     }
@@ -165,10 +169,10 @@ class HardSourceWebpackPlugin {
       loggerCore.error(
         {
           id: 'confighash-directory-no-confighash',
-          cacheDirectory: options.cacheDirectory
+          cacheDirectory: options.cacheDirectory,
         },
         'HardSourceWebpackPlugin cannot use [confighash] in cacheDirectory ' +
-        'without configHash option being set and returning a non-falsy value.'
+          'without configHash option being set and returning a non-falsy value.',
       );
       active = false;
 
@@ -184,14 +188,11 @@ class HardSourceWebpackPlugin {
     if (typeof options.environmentHash !== 'undefined') {
       if (options.environmentHash === false) {
         environmentHasher = () => Promise.resolve('');
-      }
-      else if (typeof options.environmentHash === 'string') {
+      } else if (typeof options.environmentHash === 'string') {
         environmentHasher = () => Promise.resolve(options.environmentHash);
-      }
-      else if (typeof options.environmentHash === 'object') {
+      } else if (typeof options.environmentHash === 'object') {
         environmentHasher = () => envHash(options.environmentHash);
-      }
-      else if (typeof options.environmentHash === 'function') {
+      } else if (typeof options.environmentHash === 'function') {
         environmentHasher = () => Promise.resolve(options.environmentHash());
       }
     }
@@ -210,13 +211,13 @@ class HardSourceWebpackPlugin {
             hardSourceRecordsPath: options.recordsPath,
           },
           'recordsInputPath option to HardSourceWebpackPlugin is deprecated. ' +
-          'You do not need to set it and recordsInputPath in webpack root ' +
-          'configuration.'
+            'You do not need to set it and recordsInputPath in webpack root ' +
+            'configuration.',
         );
-      }
-      else {
-        compiler.options.recordsInputPath =
-          this.getPath(options.recordsInputPath || options.recordsPath);
+      } else {
+        compiler.options.recordsInputPath = this.getPath(
+          options.recordsInputPath || options.recordsPath,
+        );
       }
     }
     if (options.recordsOutputPath || options.recordsPath) {
@@ -230,13 +231,13 @@ class HardSourceWebpackPlugin {
             hardSourceRecordsPath: options.recordsPath,
           },
           'recordsOutputPath option to HardSourceWebpackPlugin is deprecated. ' +
-          'You do not need to set it and recordsOutputPath in webpack root ' +
-          'configuration.'
+            'You do not need to set it and recordsOutputPath in webpack root ' +
+            'configuration.',
         );
-      }
-      else {
-        compiler.options.recordsOutputPath =
-          this.getPath(options.recordsOutputPath || options.recordsPath);
+      } else {
+        compiler.options.recordsOutputPath = this.getPath(
+          options.recordsOutputPath || options.recordsPath,
+        );
       }
     }
 
@@ -252,32 +253,50 @@ class HardSourceWebpackPlugin {
 
     const _this = this;
 
-    pluginCompat.register(compiler, '_hardSourceCreateSerializer', 'sync', ['cacheSerializerFactory', 'cacheDirPath']);
+    pluginCompat.register(compiler, '_hardSourceCreateSerializer', 'sync', [
+      'cacheSerializerFactory',
+      'cacheDirPath',
+    ]);
     pluginCompat.register(compiler, '_hardSourceResetCache', 'sync', []);
-    pluginCompat.register(compiler, '_hardSourceReadCache', 'asyncParallel', ['relativeHelpers']);
-    pluginCompat.register(compiler, '_hardSourceVerifyCache', 'asyncParallel', []);
-    pluginCompat.register(compiler, '_hardSourceWriteCache', 'asyncParallel', ['compilation', 'relativeHelpers']);
+    pluginCompat.register(compiler, '_hardSourceReadCache', 'asyncParallel', [
+      'relativeHelpers',
+    ]);
+    pluginCompat.register(
+      compiler,
+      '_hardSourceVerifyCache',
+      'asyncParallel',
+      [],
+    );
+    pluginCompat.register(compiler, '_hardSourceWriteCache', 'asyncParallel', [
+      'compilation',
+      'relativeHelpers',
+    ]);
 
     function runReadOrReset(compiler) {
       logger.unlock();
 
-      if (!active) {return Promise.resolve();}
+      if (!active) {
+        return Promise.resolve();
+      }
 
       try {
         fs.statSync(cacheAssetDirPath);
-      }
-      catch (_) {
+      } catch (_) {
         mkdirp.sync(cacheAssetDirPath);
         if (configHashInDirectory) {
           loggerCore.warn(
             {
               id: 'new-config-hash',
-              cacheDirPath
+              cacheDirPath,
             },
-            `HardSourceWebpackPlugin is writing to a new confighash path for the first time: ${cacheDirPath}`
+            `HardSourceWebpackPlugin is writing to a new confighash path for the first time: ${cacheDirPath}`,
           );
         }
-        if (options.recordsPath || options.recordsOutputPath || options.recordsInputPath) {
+        if (
+          options.recordsPath ||
+          options.recordsOutputPath ||
+          options.recordsInputPath
+        ) {
           loggerCore.warn(
             {
               id: 'deprecated-recordsPath',
@@ -290,8 +309,8 @@ class HardSourceWebpackPlugin {
               ' in 0.6 and will be removed in 0.7. 0.6 and later do not need ',
               'recordsPath. If you still need it outside HardSourceWebpackPlugin',
               ' you can set recordsPath on the root of your webpack ',
-              'configuration.'
-            ].join('')
+              'configuration.',
+            ].join(''),
           );
         }
       }
@@ -300,23 +319,22 @@ class HardSourceWebpackPlugin {
       if (createSerializers) {
         createSerializers = false;
         try {
-          compilerHooks._hardSourceCreateSerializer.call(cacheSerializerFactory, cacheDirPath);
-        }
-        catch (err) {
+          compilerHooks._hardSourceCreateSerializer.call(
+            cacheSerializerFactory,
+            cacheDirPath,
+          );
+        } catch (err) {
           return Promise.reject(err);
         }
       }
 
       return Promise.all([
-        fsReadFile(path.join(cacheDirPath, 'stamp'), 'utf8')
-        .catch(() => ''),
+        fsReadFile(path.join(cacheDirPath, 'stamp'), 'utf8').catch(() => ''),
 
         environmentHasher(),
 
-        fsReadFile(path.join(cacheDirPath, 'version'), 'utf8')
-        .catch(() => ''),
-      ])
-      .then(stamps => {
+        fsReadFile(path.join(cacheDirPath, 'version'), 'utf8').catch(() => ''),
+      ]).then(stamps => {
         const stamp = stamps[0];
         let hash = stamps[1];
         const versionStamp = stamps[2];
@@ -330,21 +348,20 @@ class HardSourceWebpackPlugin {
           if (hash && stamp) {
             loggerCore.error(
               {
-                id: 'environment-changed'
+                id: 'environment-changed',
               },
               'Environment has changed (node_modules or configuration was ' +
-              'updated).\nHardSourceWebpackPlugin will reset the cache and ' +
-              'store a fresh one.'
+                'updated).\nHardSourceWebpackPlugin will reset the cache and ' +
+                'store a fresh one.',
             );
-          }
-          else if (versionStamp && hardSourceVersion !== versionStamp) {
+          } else if (versionStamp && hardSourceVersion !== versionStamp) {
             loggerCore.error(
               {
-                id: 'hard-source-changed'
+                id: 'hard-source-changed',
               },
               'Installed HardSource version does not match the saved ' +
-              'cache.\nHardSourceWebpackPlugin will reset the cache and store ' +
-              'a fresh one.'
+                'cache.\nHardSourceWebpackPlugin will reset the cache and store ' +
+                'a fresh one.',
             );
           }
 
@@ -354,7 +371,9 @@ class HardSourceWebpackPlugin {
           return rimraf(cacheDirPath);
         }
 
-        if (cacheRead) {return Promise.resolve();}
+        if (cacheRead) {
+          return Promise.resolve();
+        }
         cacheRead = true;
 
         function contextKeys(compiler, fn) {
@@ -393,15 +412,16 @@ class HardSourceWebpackPlugin {
             contextNormalModuleId,
             copyWithDeser,
           }),
-        ])
-        .then(() => {
+        ]).then(() => {
           // console.log('cache in', Date.now() - start);
         });
       });
     }
 
     function runVerify(_compiler) {
-      if (!active) {return Promise.resolve();}
+      if (!active) {
+        return Promise.resolve();
+      }
 
       const stats = {};
       return pluginCompat.promise(compiler, '_hardSourceVerifyCache', []);
@@ -416,14 +436,15 @@ class HardSourceWebpackPlugin {
       try {
         require(path);
         return true;
-      }
-      catch (_) {
+      } catch (_) {
         return false;
       }
     };
 
     const webpackFeatures = {
-      concatenatedModule: detectModule('webpack/lib/optimize/ConcatenatedModule'),
+      concatenatedModule: detectModule(
+        'webpack/lib/optimize/ConcatenatedModule',
+      ),
       generator: detectModule('webpack/lib/JavascriptGenerator'),
     };
 
@@ -546,7 +567,9 @@ class HardSourceWebpackPlugin {
     });
 
     compilerHooks.afterCompile.tapPromise('HardSource - index', compilation => {
-      if (!active) {return Promise.resolve();}
+      if (!active) {
+        return Promise.resolve();
+      }
 
       const startCacheTime = Date.now();
 
@@ -558,18 +581,25 @@ class HardSourceWebpackPlugin {
       }
 
       return Promise.all([
-        mkdirp(cacheDirPath)
-        .then(() => Promise.all([
-          fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
-          fsWriteFile(path.join(cacheDirPath, 'version'), hardSourceVersion, 'utf8'),
-        ])),
-        pluginCompat.promise(compiler, '_hardSourceWriteCache', [compilation, {
-          relateNormalPath,
-          relateNormalRequest,
-          relateNormalModuleId,
-        }]),
-      ])
-      .then(() => {
+        mkdirp(cacheDirPath).then(() =>
+          Promise.all([
+            fsWriteFile(path.join(cacheDirPath, 'stamp'), currentStamp, 'utf8'),
+            fsWriteFile(
+              path.join(cacheDirPath, 'version'),
+              hardSourceVersion,
+              'utf8',
+            ),
+          ]),
+        ),
+        pluginCompat.promise(compiler, '_hardSourceWriteCache', [
+          compilation,
+          {
+            relateNormalPath,
+            relateNormalRequest,
+            relateNormalModuleId,
+          },
+        ]),
+      ]).then(() => {
         // console.log('cache out', Date.now() - startCacheTime);
       });
     });
