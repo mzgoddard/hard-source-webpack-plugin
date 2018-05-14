@@ -227,8 +227,8 @@ describe('loader webpack use - builds changes', function() {
     function(output) {
       expect(output.runs[0].compiler).to.equal(output.runs[1].compiler);
       expect(output.runs[0].compiler).to.equal(output.runs[2].compiler);
-      expect(output.runs[0].out).to.not.eql(output.runs[1].out);
-      expect(output.runs[0].out).to.eql(output.runs[2].out);
+      expect(output.runs[1].out).to.not.eql(output.runs[0].out);
+      expect(output.runs[2].out).to.eql(output.runs[0].out);
     }
   );
 

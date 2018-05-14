@@ -366,7 +366,7 @@ class HardSourceWebpackPlugin {
           }
 
           // Reset the cache, we can't use it do to an environment change.
-          pluginCompat.call(compiler, '_hardSourceResetCache', []);
+          compilerHooks._hardSourceResetCache.call();
 
           return rimraf(cacheDirPath);
         }
