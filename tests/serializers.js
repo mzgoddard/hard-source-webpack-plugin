@@ -25,6 +25,7 @@ var itCompilesChange = require('./util').itCompilesChange;
 describe('hard source serializers - compiles identically', function() {
 
   itCompilesTwice('serializer-append-base-1dep');
+  itCompilesTwice('serializer-cacache-base-1dep');
   itCompilesTwice('serializer-json-base-1dep');
   itCompilesTwice('serializer-leveldb-base-1dep');
 
