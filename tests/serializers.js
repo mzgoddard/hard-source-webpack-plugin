@@ -57,20 +57,20 @@ describe('hard source serializers - serializer abilities', function() {
 
     return Promise.resolve()
     .then(function() {
-      return stat(join(cachePath, 'data/log0000'));
+      return stat(join(cachePath, 'md5/log0000'));
     })
     .then(function(_stat) {
       oldSize = _stat.size;
     })
     .then(function() {
       return AppendSerializerPlugin.createSerializer({
-        name: 'data',
+        name: 'md5',
         cacheDirPath: cachePath
       })
       .compact();
     })
     .then(function() {
-      return stat(join(cachePath, 'data/log0000'));
+      return stat(join(cachePath, 'md5/log0000'));
     })
     .then(function(_stat) {
       expect(oldSize).to.be.gt(_stat.size);

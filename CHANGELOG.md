@@ -1,3 +1,27 @@
+# 0.7.0
+
+- Internal reworking splitting out multiple caches and making them less dependent on each other
+- Use webpack 4's new tapable plugin interface to avoid the deprecation message on .plugin
+
+## Support
+
+- webpack 3 and 4
+- node 8 and later
+
+## Release Features
+
+### Cleaner Separation of Concerns
+
+Separate different parts of the cache into subcaches.
+
+- AssetCache: stores the collection of Assets for the compiler
+- EnhancedResolverCache: cached results from enhanced-resolver
+- Md5Cache: performs file and context hashing together as well as store values
+- ModuleCache: stores the modules as frozen and thawed by other plugins
+- ModuleResolverCache: stores resolver data collected from enhanced-resolver for a module
+
+Each Cache handles a set of singles to: reset their cache, read from an existing cache, verify the cache is correct, and write out changes to the cache.
+
 # 0.6.0
 
 - Thaw dependency instances to their original type
