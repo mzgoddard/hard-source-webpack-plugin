@@ -18,6 +18,8 @@ describe('loader webpack use', function() {
   itCompilesTwice('loader-file-use');
   itCompilesTwice('loader-custom-missing-dep');
   itCompilesTwice('loader-custom-no-dep');
+  itCompilesTwice('loader-custom-user-pitch');
+  itCompilesTwice('loader-custom-user-pitch', {exportStats: true});
 
   itCompilesHardModules('loader-css', ['./index.css']);
   itCompilesHardModules('loader-file', ['./image.png']);
