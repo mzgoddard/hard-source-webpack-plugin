@@ -200,47 +200,6 @@ class HardSourceWebpackPlugin {
       environmentHasher = envHash;
     }
 
-    if (options.recordsInputPath || options.recordsPath) {
-      if (compiler.options.recordsInputPath || compiler.options.recordsPath) {
-        loggerCore.error(
-          {
-            id: 'records-input-path-set-in-root-config',
-            webpackRecordsInputPath: compiler.options.recordsInputPath,
-            webpackRecordsPath: compiler.options.recordsPath,
-            hardSourceRecordsInputPath: options.recordsInputPath,
-            hardSourceRecordsPath: options.recordsPath,
-          },
-          'recordsInputPath option to HardSourceWebpackPlugin is deprecated. ' +
-            'You do not need to set it and recordsInputPath in webpack root ' +
-            'configuration.',
-        );
-      } else {
-        compiler.options.recordsInputPath = this.getPath(
-          options.recordsInputPath || options.recordsPath,
-        );
-      }
-    }
-    if (options.recordsOutputPath || options.recordsPath) {
-      if (compiler.options.recordsOutputPath || compiler.options.recordsPath) {
-        loggerCore.error(
-          {
-            id: 'records-output-path-set-in-root-config',
-            webpackRecordsOutputPath: compiler.options.recordsInputPath,
-            webpackRecordsPath: compiler.options.recordsPath,
-            hardSourceRecordsOutputPath: options.recordsOutputPath,
-            hardSourceRecordsPath: options.recordsPath,
-          },
-          'recordsOutputPath option to HardSourceWebpackPlugin is deprecated. ' +
-            'You do not need to set it and recordsOutputPath in webpack root ' +
-            'configuration.',
-        );
-      } else {
-        compiler.options.recordsOutputPath = this.getPath(
-          options.recordsOutputPath || options.recordsPath,
-        );
-      }
-    }
-
     const cacheDirPath = this.getCachePath();
     const cacheAssetDirPath = path.join(cacheDirPath, 'assets');
     const resolveCachePath = path.join(cacheDirPath, 'resolve.json');
@@ -290,27 +249,6 @@ class HardSourceWebpackPlugin {
               cacheDirPath,
             },
             `HardSourceWebpackPlugin is writing to a new confighash path for the first time: ${cacheDirPath}`,
-          );
-        }
-        if (
-          options.recordsPath ||
-          options.recordsOutputPath ||
-          options.recordsInputPath
-        ) {
-          loggerCore.warn(
-            {
-              id: 'deprecated-recordsPath',
-              recordsPath: options.recordsPath,
-              recordsOutputPath: options.recordsOutputPath,
-              recordsInputPath: options.recordsInputPath,
-            },
-            [
-              'The `recordsPath` option to HardSourceWebpackPlugin is deprecated',
-              ' in 0.6 and will be removed in 0.7. 0.6 and later do not need ',
-              'recordsPath. If you still need it outside HardSourceWebpackPlugin',
-              ' you can set recordsPath on the root of your webpack ',
-              'configuration.',
-            ].join(''),
           );
         }
       }
