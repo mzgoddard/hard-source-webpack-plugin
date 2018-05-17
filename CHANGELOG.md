@@ -2,6 +2,11 @@
 
 - Internal reworking splitting out multiple caches and making them less dependent on each other
 - Use webpack 4's new tapable plugin interface to avoid the deprecation message on .plugin
+- Replace default data serializer, append, with append-2 for performance and stability
+
+## 0.7.X Patches
+
+- `0.7.0-alpha.1` Remove deprecated recordsPath support, more narrow dependency transform generation, add cacache serializer and append-2 serializer as the new default.
 
 ## Support
 
@@ -21,6 +26,10 @@ Separate different parts of the cache into subcaches.
 - ModuleResolverCache: stores resolver data collected from enhanced-resolver for a module
 
 Each Cache handles a set of singles to: reset their cache, read from an existing cache, verify the cache is correct, and write out changes to the cache.
+
+### Stability
+
+The current 'data' serializer, `append`, is being replaced by `append-2`. This second version "appends" at the folder level instead of the file level. This make the source easier to understand and write and more likely to hold less bugs. It also happens to be faster than `append` thanks to being easier to write, it's easier to write optimizations for.
 
 # 0.6.0
 
