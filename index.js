@@ -18,8 +18,10 @@ const LoggerFactory = require('./lib/logger-factory');
 const cachePrefix = require('./lib/util').cachePrefix;
 
 const CacheSerializerFactory = require('./lib/cache-serializer-factory');
-const HardSourceJsonSerializerPlugin = require('./lib/hard-source-json-serializer-plugin');
 const HardSourceAppendSerializerPlugin = require('./lib/hard-source-append-serializer-plugin');
+const HardSourceAppend2SerializerPlugin = require('./lib/hard-source-append-2-serializer-plugin');
+const HardSourceCacacheSerializerPlugin = require('./lib/hard-source-cacache-serializer-plugin');
+const HardSourceJsonSerializerPlugin = require('./lib/hard-source-json-serializer-plugin');
 const HardSourceLevelDbSerializerPlugin = require('./lib/hard-source-leveldb-serializer-plugin');
 
 const hardSourceVersion = require('./package.json').version;
@@ -528,6 +530,8 @@ class HardSourceWebpackPlugin {
 
 module.exports = HardSourceWebpackPlugin;
 
-HardSourceWebpackPlugin.HardSourceJsonSerializerPlugin = HardSourceJsonSerializerPlugin;
 HardSourceWebpackPlugin.HardSourceAppendSerializerPlugin = HardSourceAppendSerializerPlugin;
+HardSourceWebpackPlugin.HardSourceAppend2SerializerPlugin = HardSourceAppend2SerializerPlugin;
+HardSourceWebpackPlugin.HardSourceCacacheSerializerPlugin = HardSourceCacacheSerializerPlugin;
+HardSourceWebpackPlugin.HardSourceJsonSerializerPlugin = HardSourceJsonSerializerPlugin;
 HardSourceWebpackPlugin.HardSourceLevelDbSerializerPlugin = HardSourceLevelDbSerializerPlugin;

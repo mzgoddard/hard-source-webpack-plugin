@@ -2,7 +2,7 @@
 
 const rimraf = require('rimraf');
 
-const AppendSerializer = require('../lib/hard-source-append-serializer');
+const AppendSerializer = require('../lib/hard-source-append-2-serializer');
 const pify = require('../lib/util/promisify')
 
 const lorem =
