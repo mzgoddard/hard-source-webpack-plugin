@@ -398,12 +398,12 @@ class HardSourceWebpackPlugin {
 
     const ArchetypeSystem = require('./lib/ArchetypeSystem');
 
-    const AssetCache = require('./lib/AssetCache');
-    const ModuleCache = require('./lib/ModuleCache');
+    const AssetCache = require('./lib/CacheAsset');
+    const ModuleCache = require('./lib/CacheModule');
 
-    const EnhancedResolveCache = require('./lib/EnhancedResolveCache');
-    const Md5Cache = require('./lib/Md5Cache');
-    const ModuleResolverCache = require('./lib/ModuleResolverCache');
+    const EnhancedResolveCache = require('./lib/CacheEnhancedResolve');
+    const Md5Cache = require('./lib/CacheMd5');
+    const ModuleResolverCache = require('./lib/CacheModuleResolver');
 
     const HardCompilationPlugin = require('./lib/HardCompilationPlugin');
     const HardAssetPlugin = require('./lib/HardAssetPlugin');
