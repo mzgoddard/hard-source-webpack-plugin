@@ -17,8 +17,8 @@ function promisify(f, o) {
   };
 }
 
-var AppendSerializerPlugin = require('../lib/hard-source-append-serializer-plugin');
-var Append2SerializerPlugin = require('../lib/hard-source-append-2-serializer-plugin');
+var AppendSerializerPlugin = require('../lib/HardSourceAppendSerializerPlugin');
+var Append2SerializerPlugin = require('../lib/HardSourceAppend2SerializerPlugin');
 
 var itCompilesTwice = require('./util').itCompilesTwice;
 var itCompilesChange = require('./util').itCompilesChange;

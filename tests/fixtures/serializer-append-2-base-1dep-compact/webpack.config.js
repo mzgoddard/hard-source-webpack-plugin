@@ -1,5 +1,5 @@
 var HardSourceWebpackPlugin = require('../../..');
-var HardSourceAppend2SerializerPlugin = require('../../../lib/hard-source-append-2-serializer-plugin');
+var HardSourceAppend2SerializerPlugin = require('../../../lib/HardSourceAppend2SerializerPlugin');
 
 module.exports = {
   context: __dirname,

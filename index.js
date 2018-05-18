@@ -7,22 +7,22 @@ const _mkdirp = require('mkdirp');
 const _rimraf = require('rimraf');
 const nodeObjectHash = require('node-object-hash');
 
-const envHash = require('./lib/env-hash');
-const defaultConfigHash = require('./lib/default-config-hash');
+const envHash = require('./lib/envHash');
+const defaultConfigHash = require('./lib/defaultConfigHash');
 const promisify = require('./lib/util/promisify');
 const relateContext = require('./lib/util/relate-context');
 const pluginCompat = require('./lib/util/plugin-compat');
 
-const LoggerFactory = require('./lib/logger-factory');
+const LoggerFactory = require('./lib/loggerFactory');
 
 const cachePrefix = require('./lib/util').cachePrefix;
 
-const CacheSerializerFactory = require('./lib/cache-serializer-factory');
-const HardSourceAppendSerializerPlugin = require('./lib/hard-source-append-serializer-plugin');
-const HardSourceAppend2SerializerPlugin = require('./lib/hard-source-append-2-serializer-plugin');
-const HardSourceCacacheSerializerPlugin = require('./lib/hard-source-cacache-serializer-plugin');
-const HardSourceJsonSerializerPlugin = require('./lib/hard-source-json-serializer-plugin');
-const HardSourceLevelDbSerializerPlugin = require('./lib/hard-source-leveldb-serializer-plugin');
+const CacheSerializerFactory = require('./lib/CacheSerializerFactory');
+const HardSourceAppendSerializerPlugin = require('./lib/HardSourceAppendSerializerPlugin');
+const HardSourceAppend2SerializerPlugin = require('./lib/HardSourceAppend2SerializerPlugin');
+const HardSourceCacacheSerializerPlugin = require('./lib/HardSourceCacacheSerializerPlugin');
+const HardSourceJsonSerializerPlugin = require('./lib/HardSourceJsonSerializerPlugin');
+const HardSourceLevelDbSerializerPlugin = require('./lib/HardSourceLeveldbSerializerPlugin');
 
 const hardSourceVersion = require('./package.json').version;
 
@@ -396,38 +396,38 @@ class HardSourceWebpackPlugin {
       schemasVersion = 4;
     }
 
-    const ArchetypeSystem = require('./lib/archetype-system');
+    const ArchetypeSystem = require('./lib/ArchetypeSystem');
 
-    const AssetCache = require('./lib/asset-cache');
-    const ModuleCache = require('./lib/module-cache');
+    const AssetCache = require('./lib/AssetCache');
+    const ModuleCache = require('./lib/ModuleCache');
 
-    const EnhancedResolveCache = require('./lib/enhanced-resolve-cache');
-    const Md5Cache = require('./lib/md5-cache');
-    const ModuleResolverCache = require('./lib/module-resolver-cache');
+    const EnhancedResolveCache = require('./lib/EnhancedResolveCache');
+    const Md5Cache = require('./lib/Md5Cache');
+    const ModuleResolverCache = require('./lib/ModuleResolverCache');
 
-    const HardCompilationPlugin = require('./lib/hard-compilation-plugin');
-    const HardAssetPlugin = require('./lib/hard-asset-plugin');
+    const HardCompilationPlugin = require('./lib/HardCompilationPlugin');
+    const HardAssetPlugin = require('./lib/HardAssetPlugin');
     let HardConcatenationModulePlugin;
     if (webpackFeatures.concatenatedModule) {
-      HardConcatenationModulePlugin = require('./lib/hard-concatenation-module-plugin');
+      HardConcatenationModulePlugin = require('./lib/HardConcatenationModulePlugin');
     }
-    const HardNormalModulePlugin = require('./lib/hard-normal-module-plugin');
-    const HardNormalModuleFactoryPlugin = require('./lib/hard-normal-module-factory-plugin');
-    const HardModuleAssetsPlugin = require('./lib/hard-module-assets-plugin');
-    const HardModuleErrorsPlugin = require('./lib/hard-module-errors-plugin');
-    const HardModuleExtractTextPlugin = require('./lib/hard-module-extract-text-plugin');
+    const HardNormalModulePlugin = require('./lib/HardNormalModulePlugin');
+    const HardNormalModuleFactoryPlugin = require('./lib/HardNormalModuleFactoryPlugin');
+    const HardModuleAssetsPlugin = require('./lib/HardModuleAssetsPlugin');
+    const HardModuleErrorsPlugin = require('./lib/HardModuleErrorsPlugin');
+    const HardModuleExtractTextPlugin = require('./lib/HardModuleExtractTextPlugin');
     let HardModuleMiniCssExtractPlugin;
     if (webpackFeatures.generator) {
-      HardModuleMiniCssExtractPlugin = require('./lib/hard-module-mini-css-extract-plugin');
+      HardModuleMiniCssExtractPlugin = require('./lib/HardModuleMiniCssExtractPlugin');
     }
-    const HardDependencyBlockPlugin = require('./lib/hard-dependency-block-plugin');
-    const HardBasicDependencyPlugin = require('./lib/hard-basic-dependency-plugin');
+    const HardDependencyBlockPlugin = require('./lib/HardDependencyBlockPlugin');
+    const HardBasicDependencyPlugin = require('./lib/HardBasicDependencyPlugin');
     let HardHarmonyDependencyPlugin;
-    const HardSourceSourcePlugin = require('./lib/hard-source-source-plugin');
-    const HardParserPlugin = require('./lib/hard-parser-plugin');
+    const HardSourceSourcePlugin = require('./lib/HardSourceSourcePlugin');
+    const HardParserPlugin = require('./lib/HardParserPlugin');
     let HardGeneratorPlugin;
     if (webpackFeatures.generator) {
-      HardGeneratorPlugin = require('./lib/hard-generator-plugin');
+      HardGeneratorPlugin = require('./lib/HardGeneratorPlugin');
     }
 
     new ArchetypeSystem().apply(compiler);
