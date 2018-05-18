@@ -18,11 +18,11 @@ const LoggerFactory = require('./lib/loggerFactory');
 const cachePrefix = require('./lib/util').cachePrefix;
 
 const CacheSerializerFactory = require('./lib/CacheSerializerFactory');
-const HardSourceAppendSerializerPlugin = require('./lib/HardSourceAppendSerializerPlugin');
-const HardSourceAppend2SerializerPlugin = require('./lib/HardSourceAppend2SerializerPlugin');
-const HardSourceCacacheSerializerPlugin = require('./lib/HardSourceCacacheSerializerPlugin');
-const HardSourceJsonSerializerPlugin = require('./lib/HardSourceJsonSerializerPlugin');
-const HardSourceLevelDbSerializerPlugin = require('./lib/HardSourceLeveldbSerializerPlugin');
+const SerializerAppendPlugin = require('./lib/SerializerAppendPlugin');
+const SerializerAppend2Plugin = require('./lib/SerializerAppend2Plugin');
+const SerializerCacachePlugin = require('./lib/SerializerCacachePlugin');
+const SerializerJsonPlugin = require('./lib/SerializerJsonPlugin');
+const HardSourceLevelDbSerializerPlugin = require('./lib/SerializerLeveldbPlugin');
 
 const hardSourceVersion = require('./package.json').version;
 
@@ -405,29 +405,29 @@ class HardSourceWebpackPlugin {
     const Md5Cache = require('./lib/CacheMd5');
     const ModuleResolverCache = require('./lib/CacheModuleResolver');
 
-    const HardCompilationPlugin = require('./lib/HardCompilationPlugin');
-    const HardAssetPlugin = require('./lib/HardAssetPlugin');
-    let HardConcatenationModulePlugin;
+    const TransformCompilationPlugin = require('./lib/TransformCompilationPlugin');
+    const TransformAssetPlugin = require('./lib/TransformAssetPlugin');
+    let TransformConcatenationModulePlugin;
     if (webpackFeatures.concatenatedModule) {
-      HardConcatenationModulePlugin = require('./lib/HardConcatenationModulePlugin');
+      TransformConcatenationModulePlugin = require('./lib/TransformConcatenationModulePlugin');
     }
-    const HardNormalModulePlugin = require('./lib/HardNormalModulePlugin');
-    const HardNormalModuleFactoryPlugin = require('./lib/HardNormalModuleFactoryPlugin');
-    const HardModuleAssetsPlugin = require('./lib/HardModuleAssetsPlugin');
-    const HardModuleErrorsPlugin = require('./lib/HardModuleErrorsPlugin');
-    const HardModuleExtractTextPlugin = require('./lib/HardModuleExtractTextPlugin');
-    let HardModuleMiniCssExtractPlugin;
+    const TransformNormalModulePlugin = require('./lib/TransformNormalModulePlugin');
+    const TransformNormalModuleFactoryPlugin = require('./lib/TransformNormalModuleFactoryPlugin');
+    const TransformModuleAssetsPlugin = require('./lib/TransformModuleAssetsPlugin');
+    const TransformModuleErrorsPlugin = require('./lib/TransformModuleErrorsPlugin');
+    const SupportExtractTextPlugin = require('./lib/SupportExtractTextPlugin');
+    let SupportMiniCssExtractPlugin;
     if (webpackFeatures.generator) {
-      HardModuleMiniCssExtractPlugin = require('./lib/HardModuleMiniCssExtractPlugin');
+      SupportMiniCssExtractPlugin = require('./lib/SupportMiniCssExtractPlugin');
     }
-    const HardDependencyBlockPlugin = require('./lib/HardDependencyBlockPlugin');
-    const HardBasicDependencyPlugin = require('./lib/HardBasicDependencyPlugin');
+    const TransformDependencyBlockPlugin = require('./lib/TransformDependencyBlockPlugin');
+    const TransformBasicDependencyPlugin = require('./lib/TransformBasicDependencyPlugin');
     let HardHarmonyDependencyPlugin;
-    const HardSourceSourcePlugin = require('./lib/HardSourceSourcePlugin');
-    const HardParserPlugin = require('./lib/HardParserPlugin');
-    let HardGeneratorPlugin;
+    const TransformSourcePlugin = require('./lib/TransformSourcePlugin');
+    const TransformParserPlugin = require('./lib/TransformParserPlugin');
+    let TransformGeneratorPlugin;
     if (webpackFeatures.generator) {
-      HardGeneratorPlugin = require('./lib/HardGeneratorPlugin');
+      TransformGeneratorPlugin = require('./lib/TransformGeneratorPlugin');
     }
 
     new ArchetypeSystem().apply(compiler);
@@ -439,45 +439,45 @@ class HardSourceWebpackPlugin {
     new Md5Cache().apply(compiler);
     new ModuleResolverCache().apply(compiler);
 
-    new HardCompilationPlugin().apply(compiler);
+    new TransformCompilationPlugin().apply(compiler);
 
-    new HardAssetPlugin().apply(compiler);
+    new TransformAssetPlugin().apply(compiler);
 
-    new HardNormalModulePlugin({
+    new TransformNormalModulePlugin({
       schema: schemasVersion,
     }).apply(compiler);
-    new HardNormalModuleFactoryPlugin().apply(compiler);
+    new TransformNormalModuleFactoryPlugin().apply(compiler);
 
-    if (HardConcatenationModulePlugin) {
-      new HardConcatenationModulePlugin().apply(compiler);
+    if (TransformConcatenationModulePlugin) {
+      new TransformConcatenationModulePlugin().apply(compiler);
     }
 
-    new HardModuleAssetsPlugin().apply(compiler);
-    new HardModuleErrorsPlugin().apply(compiler);
-    new HardModuleExtractTextPlugin().apply(compiler);
+    new TransformModuleAssetsPlugin().apply(compiler);
+    new TransformModuleErrorsPlugin().apply(compiler);
+    new SupportExtractTextPlugin().apply(compiler);
 
-    if (HardModuleMiniCssExtractPlugin) {
-      new HardModuleMiniCssExtractPlugin().apply(compiler);
+    if (SupportMiniCssExtractPlugin) {
+      new SupportMiniCssExtractPlugin().apply(compiler);
     }
 
-    new HardDependencyBlockPlugin({
+    new TransformDependencyBlockPlugin({
       schema: schemasVersion,
     }).apply(compiler);
 
-    new HardBasicDependencyPlugin({
+    new TransformBasicDependencyPlugin({
       schema: schemasVersion,
     }).apply(compiler);
 
-    new HardSourceSourcePlugin({
+    new TransformSourcePlugin({
       schema: schemasVersion,
     }).apply(compiler);
 
-    new HardParserPlugin({
+    new TransformParserPlugin({
       schema: schemasVersion,
     }).apply(compiler);
 
-    if (HardGeneratorPlugin) {
-      new HardGeneratorPlugin({
+    if (TransformGeneratorPlugin) {
+      new TransformGeneratorPlugin({
         schema: schemasVersion,
       }).apply(compiler);
     }
@@ -530,8 +530,8 @@ class HardSourceWebpackPlugin {
 
 module.exports = HardSourceWebpackPlugin;
 
-HardSourceWebpackPlugin.HardSourceAppendSerializerPlugin = HardSourceAppendSerializerPlugin;
-HardSourceWebpackPlugin.HardSourceAppend2SerializerPlugin = HardSourceAppend2SerializerPlugin;
-HardSourceWebpackPlugin.HardSourceCacacheSerializerPlugin = HardSourceCacacheSerializerPlugin;
-HardSourceWebpackPlugin.HardSourceJsonSerializerPlugin = HardSourceJsonSerializerPlugin;
+HardSourceWebpackPlugin.SerializerAppendPlugin = SerializerAppendPlugin;
+HardSourceWebpackPlugin.SerializerAppend2Plugin = SerializerAppend2Plugin;
+HardSourceWebpackPlugin.SerializerCacachePlugin = SerializerCacachePlugin;
+HardSourceWebpackPlugin.SerializerJsonPlugin = SerializerJsonPlugin;
 HardSourceWebpackPlugin.HardSourceLevelDbSerializerPlugin = HardSourceLevelDbSerializerPlugin;

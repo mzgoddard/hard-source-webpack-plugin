@@ -1,5 +1,5 @@
 var HardSourceWebpackPlugin = require('../../..');
-var HardSourceLevelDbSerializerPlugin = require('../../../lib/HardSourceLeveldbSerializerPlugin');
+var HardSourceLevelDbSerializerPlugin = require('../../../lib/SerializerLeveldbPlugin');
 
 module.exports = {
   context: __dirname,

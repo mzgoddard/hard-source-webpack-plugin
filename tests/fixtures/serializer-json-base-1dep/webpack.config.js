@@ -1,5 +1,5 @@
 var HardSourceWebpackPlugin = require('../../..');
-var HardSourceJsonSerializerPlugin = require('../../../lib/HardSourceJsonSerializerPlugin');
+var SerializerJsonPlugin = require('../../../lib/SerializerJsonPlugin');
 
 module.exports = {
   context: __dirname,
@@ -15,6 +15,6 @@ module.exports = {
         root: __dirname + '/../../..',
       },
     }),
-    new HardSourceJsonSerializerPlugin(),
+    new SerializerJsonPlugin(),
   ],
 };
