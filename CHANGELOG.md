@@ -7,6 +7,7 @@
 
 ## 0.6.X Patches
 
+- `0.6.8` Fix Source freezing with typescript (#291) (@kristenmills)
 - `0.6.7` Add MiniCssExtract support, add graceful failure when module does not freeze all dependencies
 - `0.6.6` Add local module support and fix webpack 4 json, wasm, and module build hash support
 - `0.6.5` Fix dynamic import (@faceyspacey, @matthewborden) (#300), fix .split issue (@toriningen) (#289), fix README typo (@Zakjholt, @koningskristof)
