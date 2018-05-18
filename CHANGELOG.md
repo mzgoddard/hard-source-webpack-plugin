@@ -6,6 +6,7 @@
 
 ## 0.7.X Patches
 
+- `0.7.0-alpha.2` Fix Source freezing with typescript (#291) (@kristenmills)
 - `0.7.0-alpha.1` Remove deprecated recordsPath support, more narrow dependency transform generation, add cacache serializer and append-2 serializer as the new default.
 
 ## Support
