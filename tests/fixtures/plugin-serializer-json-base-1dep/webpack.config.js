@@ -14,6 +14,6 @@ module.exports = {
         root: __dirname + '/../../..',
       },
     }),
-    new HardSourceWebpackPlugin.HardSourceJsonSerializerPlugin(),
+    new HardSourceWebpackPlugin.SerializerJsonPlugin(),
   ],
 };

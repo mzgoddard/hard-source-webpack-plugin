@@ -5,7 +5,7 @@ var vm = require('vm');
 var expect = require('chai').expect;
 var MemoryFS = require('memory-fs');
 
-var dataSerializer = require('../../lib/cache-serializer-factory').dataSerializer;
+var dataSerializer = require('../../lib/CacheSerializerFactory').dataSerializer;
 
 var mkdirp = require('mkdirp');
 var rimraf = require('rimraf');

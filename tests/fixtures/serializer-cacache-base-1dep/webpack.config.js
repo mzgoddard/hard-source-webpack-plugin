@@ -1,5 +1,5 @@
 var HardSourceWebpackPlugin = require('../../..');
-var HardSourceCacacheSerializerPlugin = require('../../../lib/hard-source-cacache-serializer-plugin');
+var SerializerCacachePlugin = require('../../../lib/SerializerCacachePlugin');
 
 module.exports = {
   context: __dirname,
@@ -15,6 +15,6 @@ module.exports = {
         root: __dirname + '/../../..',
       },
     }),
-    new HardSourceCacacheSerializerPlugin(),
+    new SerializerCacachePlugin(),
   ],
 };
