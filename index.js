@@ -419,6 +419,8 @@ class HardSourceWebpackPlugin {
       TransformGeneratorPlugin = require('./lib/TransformGeneratorPlugin');
     }
 
+    const ChalkLoggerPlugin = require('./lib/ChalkLoggerPlugin');
+
     new ArchetypeSystem().apply(compiler);
 
     new AssetCache().apply(compiler);
@@ -470,6 +472,8 @@ class HardSourceWebpackPlugin {
         schema: schemasVersion,
       }).apply(compiler);
     }
+
+    new ChalkLoggerPlugin().apply(compiler);
 
     let freeze;
 
