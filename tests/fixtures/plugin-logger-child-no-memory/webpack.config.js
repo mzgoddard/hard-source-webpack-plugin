@@ -1,14 +1,9 @@
-var RawSource;
-try {
-  RawSource = require('webpack-sources/lib/RawSource');
-}
-catch (_) {
-  RawSource = require('webpack-core/lib/RawSource');
-}
+var RawSource = require('webpack-sources/lib/RawSource');
 
 var SingleEntryPlugin = require('webpack/lib/SingleEntryPlugin');
 
 var HardSourceWebpackPlugin = require('../../..');
+var pluginCompat = require('../../../lib/util/plugin-compat');
 
 module.exports = {
   context: __dirname,
@@ -26,13 +21,26 @@ module.exports = {
     }),
     {
       apply: function(compiler) {
-        var lines = [];
-        compiler.plugin('hard-source-log', function(info) {
-          lines.push([info.level, info.from, info.message]);
+        pluginCompat.tapAsync(compiler, 'make', 'NoMemoryCache', (compilation, cb) => {
+          const child = compilation.createChildCompiler('noname', {}, []);
+          pluginCompat.tap(child, 'make', 'NoMemoryCache', childCompilation => {
+            childCompilation.cache = null;
+          });
+          new SingleEntryPlugin(compiler.options.context, compiler.options.entry, 'noname').apply(child);
+          child.runAsChild(cb);
         });
-        compiler.plugin('emit', function(compilation, cb) {
+      },
+    },
+    {
+      apply: function(compiler) {
+        var lines = [];
+        pluginCompat.tap(compiler, 'hardSourceLog', 'NoMemoryCache', function(info) {
+          if (info.level === 'error') {
+            lines.push([info.level, info.from, info.message]);
+          }
+        });
+        pluginCompat.tap(compiler, 'emit', 'NoMemoryCache', function(compilation) {
           compilation.assets['log.json'] = new RawSource(JSON.stringify(lines));
-          cb();
         });
       },
     },
