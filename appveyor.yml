@@ -34,7 +34,9 @@ test_script:
   - node --version
   - npm --version
   # run tests
-  - npm test
+  # - npm test
+  - set NODE_ENV=test
+  - node_modules/.bin/mocha tests/*.js
 
 # Don't actually build.
 build: off

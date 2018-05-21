@@ -12,6 +12,7 @@ const defaultConfigHash = require('./lib/defaultConfigHash');
 const promisify = require('./lib/util/promisify');
 const relateContext = require('./lib/util/relate-context');
 const pluginCompat = require('./lib/util/plugin-compat');
+const logMessages = require('./lib/util/log-messages');
 
 const LoggerFactory = require('./lib/loggerFactory');
 
@@ -164,18 +165,15 @@ class HardSourceWebpackPlugin {
       } else if (typeof options.configHash === 'function') {
         this.configHash = options.configHash(compiler.options);
       }
+      compiler.__hardSource_configHash = this.configHash;
+      compiler.__hardSource_shortConfigHash = this.configHash.substring(0, 8);
     }
     const configHashInDirectory =
       options.cacheDirectory.search(/\[confighash\]/) !== -1;
     if (configHashInDirectory && !this.configHash) {
-      loggerCore.error(
-        {
-          id: 'confighash-directory-no-confighash',
-          cacheDirectory: options.cacheDirectory,
-        },
-        'HardSourceWebpackPlugin cannot use [confighash] in cacheDirectory ' +
-          'without configHash option being set and returning a non-falsy value.',
-      );
+      logMessages.configHashSetButNotUsed(compiler, {
+        cacheDirectory: options.cacheDirectory,
+      });
       active = false;
 
       function unlockLogger() {
@@ -194,8 +192,12 @@ class HardSourceWebpackPlugin {
         environmentHasher = () => Promise.resolve(options.environmentHash);
       } else if (typeof options.environmentHash === 'object') {
         environmentHasher = () => envHash(options.environmentHash);
+        environmentHasher.inputs = () => envHash.inputs(options.environmentHash);
       } else if (typeof options.environmentHash === 'function') {
         environmentHasher = () => Promise.resolve(options.environmentHash());
+        if (options.environmentHash.inputs) {
+          environmentHasher.inputs = () => Promise.resolve(options.environmentHasher.inputs());
+        };
       }
     }
     if (!environmentHasher) {
@@ -244,15 +246,10 @@ class HardSourceWebpackPlugin {
         fs.statSync(cacheAssetDirPath);
       } catch (_) {
         mkdirp.sync(cacheAssetDirPath);
-        if (configHashInDirectory) {
-          loggerCore.warn(
-            {
-              id: 'new-config-hash',
-              cacheDirPath,
-            },
-            `HardSourceWebpackPlugin is writing to a new confighash path for the first time: ${cacheDirPath}`,
-          );
-        }
+        logMessages.configHashFirstBuild(compiler, {
+          cacheDirPath,
+          configHash: compiler.__hardSource_configHash,
+        });
       }
       const start = Date.now();
 
@@ -274,35 +271,28 @@ class HardSourceWebpackPlugin {
         environmentHasher(),
 
         fsReadFile(path.join(cacheDirPath, 'version'), 'utf8').catch(() => ''),
-      ]).then(stamps => {
-        const stamp = stamps[0];
-        let hash = stamps[1];
-        const versionStamp = stamps[2];
 
+        environmentHasher.inputs ? environmentHasher.inputs() : null,
+      ]).then(([stamp, hash, versionStamp, hashInputs]) => {
         if (!configHashInDirectory && options.configHash) {
           hash += `_${_this.configHash}`;
+        }
+
+        if (hashInputs) {
+          logMessages.environmentInputs(compiler, {inputs: hashInputs});
         }
 
         currentStamp = hash;
         if (!hash || hash !== stamp || hardSourceVersion !== versionStamp) {
           if (hash && stamp) {
-            loggerCore.error(
-              {
-                id: 'environment-changed',
-              },
-              'Environment has changed (node_modules or configuration was ' +
-                'updated).\nHardSourceWebpackPlugin will reset the cache and ' +
-                'store a fresh one.',
-            );
+            if (configHashInDirectory) {
+              logMessages.environmentHashChanged(compiler);
+            }
+            else {
+              logMessages.configHashChanged(compiler);
+            }
           } else if (versionStamp && hardSourceVersion !== versionStamp) {
-            loggerCore.error(
-              {
-                id: 'hard-source-changed',
-              },
-              'Installed HardSource version does not match the saved ' +
-                'cache.\nHardSourceWebpackPlugin will reset the cache and store ' +
-                'a fresh one.',
-            );
+            logMessages.hardSourceVersionChanged(compiler);
           }
 
           // Reset the cache, we can't use it do to an environment change.
@@ -315,6 +305,11 @@ class HardSourceWebpackPlugin {
           return Promise.resolve();
         }
         cacheRead = true;
+
+        logMessages.configHashBuildWith(compiler, {
+          cacheDirPath,
+          configHash: compiler.__hardSource_configHash,
+        });
 
         function contextKeys(compiler, fn) {
           return source => {
@@ -430,6 +425,8 @@ class HardSourceWebpackPlugin {
       TransformGeneratorPlugin = require('./lib/TransformGeneratorPlugin');
     }
 
+    const ChalkLoggerPlugin = require('./lib/ChalkLoggerPlugin');
+
     new ArchetypeSystem().apply(compiler);
 
     new AssetCache().apply(compiler);
@@ -481,6 +478,8 @@ class HardSourceWebpackPlugin {
         schema: schemasVersion,
       }).apply(compiler);
     }
+
+    new ChalkLoggerPlugin(this.options.info).apply(compiler);
 
     let freeze;
 

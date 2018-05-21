@@ -1,3 +1,4 @@
+var pluginCompat = require('../../../lib/util/plugin-compat');
 var HardSourceWebpackPlugin = require('../../..');
 
 module.exports = {
@@ -15,11 +16,13 @@ module.exports = {
       },
     }),
     {
-      apply: function(compiler) {
-        compiler.plugin('hard-source-log', function(info) {
-          throw new Error('loader-worker-1dep fixture should not produce logs');
+      apply(compiler) {
+        pluginCompat.tap(compiler, 'hardSourceLog', 'loader-worker-1dep test', info => {
+          if (info.level !== 'log') {
+            throw new Error('loader-worker-1dep fixture should not produce logs');
+          }
         });
-      }
+      },
     },
   ],
 };
