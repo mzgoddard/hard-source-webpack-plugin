@@ -479,7 +479,7 @@ class HardSourceWebpackPlugin {
       }).apply(compiler);
     }
 
-    new ChalkLoggerPlugin().apply(compiler);
+    new ChalkLoggerPlugin(this.options.info).apply(compiler);
 
     let freeze;
 
