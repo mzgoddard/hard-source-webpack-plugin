@@ -192,8 +192,12 @@ class HardSourceWebpackPlugin {
         environmentHasher = () => Promise.resolve(options.environmentHash);
       } else if (typeof options.environmentHash === 'object') {
         environmentHasher = () => envHash(options.environmentHash);
+        environmentHasher.inputs = () => envHash.inputs(options.environmentHash);
       } else if (typeof options.environmentHash === 'function') {
         environmentHasher = () => Promise.resolve(options.environmentHash());
+        if (options.environmentHash.inputs) {
+          environmentHasher.inputs = () => Promise.resolve(options.environmentHasher.inputs());
+        };
       }
     }
     if (!environmentHasher) {
@@ -267,13 +271,15 @@ class HardSourceWebpackPlugin {
         environmentHasher(),
 
         fsReadFile(path.join(cacheDirPath, 'version'), 'utf8').catch(() => ''),
-      ]).then(stamps => {
-        const stamp = stamps[0];
-        let hash = stamps[1];
-        const versionStamp = stamps[2];
 
+        environmentHasher.inputs ? environmentHasher.inputs() : null,
+      ]).then(([stamp, hash, versionStamp, hashInputs]) => {
         if (!configHashInDirectory && options.configHash) {
           hash += `_${_this.configHash}`;
+        }
+
+        if (hashInputs) {
+          logMessages.environmentInputs(compiler, {inputs: hashInputs});
         }
 
         currentStamp = hash;
