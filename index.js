@@ -233,7 +233,7 @@ class HardSourceWebpackPlugin {
       'relativeHelpers',
     ]);
 
-    function runReadOrReset(compiler) {
+    function runReadOrReset(_compiler) {
       logger.unlock();
 
       if (!active) {
