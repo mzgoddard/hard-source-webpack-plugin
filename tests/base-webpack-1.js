@@ -10,6 +10,8 @@ describe('basic webpack use - compiles identically', function() {
   itCompilesTwice('base-10deps-1nest', {exportStats: true});
   itCompilesTwice('base-1dep');
   itCompilesTwice('base-1dep', {exportStats: true});
+  itCompilesTwice('base-1dep-full-width');
+  itCompilesTwice('base-1dep-full-width', {exportStats: true});
   itCompilesTwice('base-1dep-hash-filename');
   itCompilesTwice('base-1dep-hash-filename', {exportStats: true});
   itCompilesTwice('base-1dep-optional');

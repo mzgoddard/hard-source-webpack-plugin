@@ -53,6 +53,7 @@
   },
   "dependencies": {
     "chalk": "^2.4.1",
+    "jsonlint": "^1.6.3",
     "lodash": "^4.15.0",
     "mkdirp": "^0.5.1",
     "node-object-hash": "^1.2.0",
