@@ -6,6 +6,7 @@
 
 ## 0.7.X Patches
 
+- `0.7.0-alpha.4` Add chalk logging with shorter messages, iterate fix on data deleted from md5 cache (#330)
 - `0.7.0-alpha.3` Update file path naming standards, fix watchRun compiler misnover (#320)
 - `0.7.0-alpha.2` Fix Source freezing with typescript (#291) (@kristenmills)
 - `0.7.0-alpha.1` Remove deprecated recordsPath support, more narrow dependency transform generation, add cacache serializer and append-2 serializer as the new default.
