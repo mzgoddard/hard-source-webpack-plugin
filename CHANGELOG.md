@@ -6,6 +6,7 @@
 
 ## 0.7.X Patches
 
+- `0.7.0-beta.0` Update README
 - `0.7.0-alpha.4` Add chalk logging with shorter messages, iterate fix on data deleted from md5 cache (#330)
 - `0.7.0-alpha.3` Update file path naming standards, fix watchRun compiler misnover (#320)
 - `0.7.0-alpha.2` Fix Source freezing with typescript (#291) (@kristenmills)
