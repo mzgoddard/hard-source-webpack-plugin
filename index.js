@@ -518,6 +518,10 @@ class HardSourceWebpackPlugin {
             relateNormalPath,
             relateNormalRequest,
             relateNormalModuleId,
+
+            contextNormalPath,
+            contextNormalRequest,
+            contextNormalModuleId,
           },
         ]),
       ]).then(() => {
