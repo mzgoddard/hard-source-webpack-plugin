@@ -26,9 +26,6 @@ You can optionally set where HardSource writes and reads its cache to and from, 
 new HardSourceWebpackPlugin({
   // Either an absolute path or relative to webpack's options.context.
   cacheDirectory: 'node_modules/.cache/hard-source/[confighash]',
-  // Either an absolute path or relative to webpack's options.context.
-  // Sets webpack's recordsPath if not already set.
-  recordsPath: 'node_modules/.cache/hard-source/[confighash]/records.json',
   // Either a string of object hash function given a webpack config.
   configHash: function(webpackConfig) {
     // node-object-hash on npm can be used to build this.
@@ -39,6 +36,13 @@ new HardSourceWebpackPlugin({
     root: process.cwd(),
     directories: [],
     files: ['package-lock.json', 'yarn.lock'],
+  },
+  // An object.
+  info: {
+    // 'none' or 'test'.
+    mode: 'none',
+    // 'debug', 'log', 'info', 'warn', or 'error'.
+    level: 'debug',
   },
 }),
 ```
@@ -51,16 +55,12 @@ The `cacheDirectory` is where the cache is written to. The default stores the ca
 
 The `cacheDirectory` has a field in it `[confighash]` that is replaced by the `configHash` option when webpack is started. The `[confighash]` field is here to help with changes to the configuration by the developer or by a script. For example if the same webpack configuration is used for the `webpack` cli tool and then the `webpack-dev-server` cli tool, they will generate different configuration hashes. `webpack-dev-server` adds plugins for its reloading features, and the default hash function produces a different value with those plugins added.
 
-### `recordsPath`
-
-`webpack` produces records for the ids it uses for its internal objects that `hard-source` writes to disk. The `recordsPath` option in `hard-source` is the same option for webpack. Use it to make use of the `[confighash]` value as it also appears in `cacheDirectory` so that the records are stored next to the rest of the cache.
-
 ### `configHash`
 
 <a name="using-confighash-in-the-cachedirectory"></a>
 <a name="why-hash-the-config"></a>
 
-`configHash` turns a webpack configuration when a webpack instance is started and is used by `cacheDirectory` and `recordsPath` to build different caches for different webpack configurations.
+`configHash` turns a webpack configuration when a webpack instance is started and is used by `cacheDirectory` to build different caches for different webpack configurations.
 
 Configurations may change how modules are rendered and so change how they appear in the disk cache `hard-source` writes. It is important to use a different cache per webpack configuration or webpack cli tool. `webpack` and `webpack-dev-server` for example needed separate caches, `configHash` and `[confighash]` in the `cacheDirectory` will create separate caches due to the plugins and configuration changes `webpack-dev-server` makes.
 
@@ -104,6 +104,20 @@ hashes the lock files for `npm` and `yarn`. They will both be used if they both 
 <a name="environmenthash-disabled-with-false"></a>
 
 You can disable the environmentHash by setting it to `false`. By doing this you will manually need to delete the cache when there is any dependency environment change.
+
+### `info`
+
+Control the amount of messages from hard-source.
+
+#### `mode`
+
+Sets other defaults for info. Defaults to 'test' when NODE_ENV==='test'.
+
+#### `level`
+
+The level of log messages to report down to. Defaults to 'debug' when mode is 'none'. Defaults to 'warn' when mode is 'test'.
+
+For example 'debug' reports all messages while 'warn' reports warn and error level messages.
 
 ## Troubleshooting
 
