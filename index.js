@@ -325,7 +325,13 @@ class HardSourceWebpackPlugin {
           return source => {
             const dest = {};
             Object.keys(source).forEach(key => {
-              dest[key] = fn(compiler, source[key]);
+              const value = fn(compiler, source[key], key);
+              if (value) {
+                dest[key] = value;
+              }
+              else {
+                delete dest[key];
+              }
             });
             return dest;
           };
@@ -362,10 +368,8 @@ class HardSourceWebpackPlugin {
       return pluginCompat.promise(compiler, '_hardSourceVerifyCache', []);
     }
 
-    compilerHooks.watchRun.tapPromise('HardSource - index', runReadOrReset);
-    compilerHooks.run.tapPromise('HardSource - index', runReadOrReset);
-    compilerHooks.watchRun.tapPromise('HardSource - index', runVerify);
-    compilerHooks.run.tapPromise('HardSource - index', runVerify);
+    compilerHooks.watchRun.tapPromise('HardSource - index - readOrReset', runReadOrReset);
+    compilerHooks.run.tapPromise('HardSource - index - readOrReset', runReadOrReset);
 
     const detectModule = path => {
       try {
@@ -391,7 +395,8 @@ class HardSourceWebpackPlugin {
       schemasVersion = 4;
     }
 
-    const ArchetypeSystem = require('./lib/ArchetypeSystem');
+    const ArchetypeSystem = require('./lib/SystemArchetype');
+    const ParitySystem = require('./lib/SystemParity');
 
     const AssetCache = require('./lib/CacheAsset');
     const ModuleCache = require('./lib/CacheModule');
@@ -428,6 +433,7 @@ class HardSourceWebpackPlugin {
     const ChalkLoggerPlugin = require('./lib/ChalkLoggerPlugin');
 
     new ArchetypeSystem().apply(compiler);
+    new ParitySystem().apply(compiler);
 
     new AssetCache().apply(compiler);
     new ModuleCache().apply(compiler);
@@ -480,6 +486,9 @@ class HardSourceWebpackPlugin {
     }
 
     new ChalkLoggerPlugin(this.options.info).apply(compiler);
+
+    compilerHooks.watchRun.tapPromise('HardSource - index - verify', runVerify);
+    compilerHooks.run.tapPromise('HardSource - index - verify', runVerify);
 
     let freeze;
 
