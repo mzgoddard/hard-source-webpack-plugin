@@ -278,7 +278,7 @@ class HardSourceWebpackPlugin {
           hash += `_${_this.configHash}`;
         }
 
-        if (hashInputs) {
+        if (hashInputs && !cacheRead) {
           logMessages.environmentInputs(compiler, {inputs: hashInputs});
         }
 
