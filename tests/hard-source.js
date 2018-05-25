@@ -33,6 +33,8 @@ describe('hard-source features', function() {
           })
         },
         function(cache1, cache2) {
+          delete cache1.__hardSource_parityToken_root;
+          delete cache2.__hardSource_parityToken_root;
           expect(cache1).to.eql(cache2);
         }
       );
