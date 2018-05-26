@@ -6,6 +6,7 @@
 
 ## 0.7.X Patches
 
+- `0.7.0-beta.3` Monkey patch mini-css CssDependency to update its module's hash (#339)
 - `0.7.0-beta.2` Fix import context block chunk name support (#327), Add parity compilation cache check
 - `0.7.0-beta.1` Ensure file and context dependencies are absolute paths (#330), better json error messaging (#307), always chalk log to stderr
 - `0.7.0-beta.0` Update README
