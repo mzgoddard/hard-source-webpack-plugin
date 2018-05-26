@@ -7,6 +7,7 @@
 
 ## 0.6.X Patches
 
+- `0.6.11` Fix mini-css module hashing (#339), ensure file and context dependencies are absolute paths (#330)
 - `0.6.10` Fix import context block chunk name support (#327)
 - `0.6.8` Fix Source freezing with typescript (#291) (@kristenmills)
 - `0.6.7` Add MiniCssExtract support, add graceful failure when module does not freeze all dependencies
