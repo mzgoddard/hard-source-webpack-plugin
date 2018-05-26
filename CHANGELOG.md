@@ -3,6 +3,7 @@
 - Internal reworking splitting out multiple caches and making them less dependent on each other
 - Use webpack 4's new tapable plugin interface to avoid the deprecation message on .plugin
 - Replace default data serializer, append, with append-2 for performance and stability
+- Use brief (chalk) colored log messages
 
 ## 0.7.X Patches
 
