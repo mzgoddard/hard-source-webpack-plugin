@@ -1771,7 +1771,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
         });
       }
 
-      var fileDependencies = Array.from(compilation.fileDependencies);
+      var fileDependencies = Array.from(compilation.fileDependencies)
+      .map(file => contextNormalPath(compiler, file));
 
       if (!lodash.isEqual(fileDependencies, dataCache.fileDependencies)) {
         lodash.difference(dataCache.fileDependencies, fileDependencies).forEach(function(file) {
@@ -1829,7 +1830,8 @@ HardSourceWebpackPlugin.prototype.apply = function(compiler) {
 
       buildMd5Ops(dataCache.fileDependencies);
 
-      var contextDependencies = Array.from(compilation.contextDependencies);
+      var contextDependencies = Array.from(compilation.contextDependencies)
+      .map(file => contextNormalPath(compiler, file));
 
       if (!lodash.isEqual(contextDependencies, dataCache.contextDependencies)) {
         lodash.difference(dataCache.contextDependencies, contextDependencies).forEach(function(file) {
