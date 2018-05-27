@@ -24,6 +24,7 @@
   },
   "scripts": {
     "commitmsg": "commitlint -e $GIT_PARAMS",
+    "commitlint-travis": "commitlint-travis",
     "lint": "prettier --list-different --single-quote --trailing-comma all {index.js,lib/*.js,lib/util/*.js,test/*.js,test/*/*.js,bin/*.js}",
     "lint:fix": "prettier --write --single-quote --trailing-comma all {index.js,lib/*.js,lib/util/*.js,test/*.js,test/*/*.js,bin/*.js}",
     "test": "NODE_ENV=test mocha tests/*.js"
