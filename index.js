@@ -192,12 +192,14 @@ class HardSourceWebpackPlugin {
         environmentHasher = () => Promise.resolve(options.environmentHash);
       } else if (typeof options.environmentHash === 'object') {
         environmentHasher = () => envHash(options.environmentHash);
-        environmentHasher.inputs = () => envHash.inputs(options.environmentHash);
+        environmentHasher.inputs = () =>
+          envHash.inputs(options.environmentHash);
       } else if (typeof options.environmentHash === 'function') {
         environmentHasher = () => Promise.resolve(options.environmentHash());
         if (options.environmentHash.inputs) {
-          environmentHasher.inputs = () => Promise.resolve(options.environmentHasher.inputs());
-        };
+          environmentHasher.inputs = () =>
+            Promise.resolve(options.environmentHasher.inputs());
+        }
       }
     }
     if (!environmentHasher) {
@@ -279,7 +281,7 @@ class HardSourceWebpackPlugin {
         }
 
         if (hashInputs && !cacheRead) {
-          logMessages.environmentInputs(compiler, {inputs: hashInputs});
+          logMessages.environmentInputs(compiler, { inputs: hashInputs });
         }
 
         currentStamp = hash;
@@ -287,8 +289,7 @@ class HardSourceWebpackPlugin {
           if (hash && stamp) {
             if (configHashInDirectory) {
               logMessages.environmentHashChanged(compiler);
-            }
-            else {
+            } else {
               logMessages.configHashChanged(compiler);
             }
           } else if (versionStamp && hardSourceVersion !== versionStamp) {
@@ -328,8 +329,7 @@ class HardSourceWebpackPlugin {
               const value = fn(compiler, source[key], key);
               if (value) {
                 dest[key] = value;
-              }
-              else {
+              } else {
                 delete dest[key];
               }
             });
@@ -368,8 +368,14 @@ class HardSourceWebpackPlugin {
       return pluginCompat.promise(compiler, '_hardSourceVerifyCache', []);
     }
 
-    compilerHooks.watchRun.tapPromise('HardSource - index - readOrReset', runReadOrReset);
-    compilerHooks.run.tapPromise('HardSource - index - readOrReset', runReadOrReset);
+    compilerHooks.watchRun.tapPromise(
+      'HardSource - index - readOrReset',
+      runReadOrReset,
+    );
+    compilerHooks.run.tapPromise(
+      'HardSource - index - readOrReset',
+      runReadOrReset,
+    );
 
     const detectModule = path => {
       try {

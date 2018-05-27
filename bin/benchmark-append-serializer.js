@@ -3,10 +3,9 @@
 const rimraf = require('rimraf');
 
 const AppendSerializer = require('../lib/hard-source-append-2-serializer');
-const pify = require('../lib/util/promisify')
+const pify = require('../lib/util/promisify');
 
-const lorem =
-  `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
+const lorem = `Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
   tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
   quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
   consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
@@ -53,10 +52,14 @@ const main = async () => {
 
     // validate
     if (Object.values(map).length !== size) {
-      throw new Error(`missing entries: ${Object.values(map).length} !== ${size}`);
+      throw new Error(
+        `missing entries: ${Object.values(map).length} !== ${size}`,
+      );
     }
     for (const value of Object.values(map)) {
-      if (value !== superIpsum) {throw new Error('bad write or read');}
+      if (value !== superIpsum) {
+        throw new Error('bad write or read');
+      }
     }
   }
 };

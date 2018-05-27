@@ -1,18 +1,14 @@
 # Test against the latest version of this Node.js version
 environment:
   matrix:
+    # test lts
     - nodejs_version: "8"
       webpack_version: "3"
       extract_text_version: "3"
       babel_loader_version: "7"
       file_loader_version: "0.11"
       html_plugin_version: "2.22.0"
-    - nodejs_version: "9"
-      webpack_version: "4"
-      extract_text_version: "3"
-      babel_loader_version: "7"
-      file_loader_version: "1"
-      html_plugin_version: "3.2.0"
+    # test latest
     - nodejs_version: "10"
       webpack_version: "4"
       extract_text_version: "3"
