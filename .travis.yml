@@ -18,7 +18,7 @@ matrix:
 
 before_script:
   - npm install ${NPM_INSTALL_EXTRA}
-script: NODE_ENV=test npm run ${NPM_SCRIPT:test_}
+script: NODE_ENV=test npm run ${NPM_SCRIPT:test:all}
 cache:
   directories:
     - node_modules
