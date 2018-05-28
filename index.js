@@ -150,7 +150,10 @@ class HardSourceWebpackPlugin {
 
     if (!options.cacheDirectory) {
       options.cacheDirectory = path.resolve(
-        findCacheDir({name: 'hard-source', cwd: compiler.options.context || process.cwd()}),
+        findCacheDir({
+          name: 'hard-source',
+          cwd: compiler.options.context || process.cwd(),
+        }),
         '[confighash]',
       );
     }
