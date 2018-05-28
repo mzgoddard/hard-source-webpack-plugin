@@ -6,6 +6,7 @@ const lodash = require('lodash');
 const _mkdirp = require('mkdirp');
 const _rimraf = require('rimraf');
 const nodeObjectHash = require('node-object-hash');
+const findCacheDir = require('find-cache-dir');
 
 const envHash = require('./lib/envHash');
 const defaultConfigHash = require('./lib/defaultConfigHash');
@@ -149,9 +150,11 @@ class HardSourceWebpackPlugin {
 
     if (!options.cacheDirectory) {
       options.cacheDirectory = path.resolve(
-        process.cwd(),
-        compiler.options.context,
-        'node_modules/.cache/hard-source/[confighash]',
+        findCacheDir({
+          name: 'hard-source',
+          cwd: compiler.options.context || process.cwd(),
+        }),
+        '[confighash]',
       );
     }
 
