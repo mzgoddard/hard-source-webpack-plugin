@@ -13,7 +13,8 @@ install:
   # Get the latest stable version of Node.js or io.js
   - ps: Install-Product node $env:nodejs_version
   # install modules
-  - yarn
+  - cd packages/hard-source-webpack-plugin
+  - npm install
   - npm install webpack@%webpack_version%
 
 # Post-install test scripts.
@@ -24,7 +25,8 @@ test_script:
   # run tests
   # - yarn test
   - set NODE_ENV=test
-  - yarn --scripts-prepend-node-path true test:appveyor:hard-source-webpack-plugin
+  - cd packages/hard-source-webpack-plugin/tests
+  - mocha *.js
 
 cache:
   - node_modules
