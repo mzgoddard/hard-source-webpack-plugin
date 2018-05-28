@@ -1,0 +1,18 @@
+{
+  "name": "test-webpack-contrib",
+  "version": "0.0.0",
+  "description": "Test support for webpack-contrib loaders and plugins.",
+  "author": "Michael \"Z\" Goddard",
+  "license": "ISC",
+  "private": true,
+  "scripts": {
+    "lint": "prettier --list-different --single-quote --trailing-comma all {*,*/*,*/*/*}/*.js",
+    "lint:fix": "prettier --write --single-quote --trailing-comma all {*,*/*,*/*/*}/*.js",
+    "test": "yarn test:extract-text-webpack-plugin && yarn test:file-loader && yarn test:mini-css-extract-plugin && yarn test:style-loader && yarn test:worker-loader",
+    "test:extract-text-webpack-plugin": "yarn --cwd extract-text-webpack-plugin test",
+    "test:file-loader": "yarn --cwd file-loader test",
+    "test:mini-css-extract-plugin": "yarn --cwd mini-css-extract-plugin test",
+    "test:style-loader": "yarn --cwd style-loader test",
+    "test:worker-loader": "yarn --cwd worker-loader test"
+  }
+}

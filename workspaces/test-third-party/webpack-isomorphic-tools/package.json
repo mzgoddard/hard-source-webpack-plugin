@@ -1,0 +1,20 @@
+{
+  "name": "test-webpack-isomorphic-tools",
+  "version": "0.0.0",
+  "author": "Michael \"Z\" Goddard",
+  "license": "ISC",
+  "private": true,
+  "scripts": {
+    "test": "mocha *.js"
+  },
+  "workspaces": {
+    "nohoist": ["mocha", "mocha/**", "prettier", "prettier/**"]
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "hard-source-webpack-plugin": "*",
+    "mocha": "^3.0.2",
+    "mocha-hard-source": "*",
+    "webpack-isomorphic-tools": "^3.0.5"
+  }
+}

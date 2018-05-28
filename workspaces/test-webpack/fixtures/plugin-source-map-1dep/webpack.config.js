@@ -1,0 +1,31 @@
+var SourceMapDevToolPlugin = require('webpack').SourceMapDevToolPlugin;
+
+var HardSourceWebpackPlugin = require('hard-source-webpack-plugin');
+
+module.exports = {
+  context: __dirname,
+  entry: './index.js',
+  output: {
+    path: __dirname + '/tmp',
+    filename: 'main.js',
+  },
+  plugins: [
+    new HardSourceWebpackPlugin({
+      cacheDirectory: 'cache',
+      environmentHash: {
+        root: __dirname + '/../../../..',
+      },
+    }),
+    new SourceMapDevToolPlugin({
+      filename: '[file].map[query]',
+      moduleFilenameTemplate: undefined,
+      fallbackModuleFilenameTemplate: undefined,
+      append: null,
+      module: true,
+      columns: false,
+      lineToLine: false,
+      noSources: false,
+      test: /\.(js|css)(\.out)?($|\?)/i,
+    }),
+  ],
+};

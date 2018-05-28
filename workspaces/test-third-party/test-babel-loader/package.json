@@ -1,0 +1,23 @@
+{
+  "name": "test-babel-loader",
+  "version": "0.0.0",
+  "description": "Test webpack support for babel-loader.",
+  "author": "Michael \"Z\" Goddard",
+  "license": "ISC",
+  "private": true,
+  "scripts": {
+    "test": "mocha *.js"
+  },
+  "workspaces": {
+    "nohoist": ["mocha", "mocha/**", "prettier", "prettier/**"]
+  },
+  "devDependencies": {
+    "babel-core": "^6.26.0",
+    "babel-loader": "^7.1.4",
+    "babel-preset-env": "^1.6.1",
+    "chai": "^3.5.0",
+    "mocha": "^3.0.2",
+    "hard-source-webpack-plugin": "*",
+    "mocha-hard-source": "*"
+  }
+}

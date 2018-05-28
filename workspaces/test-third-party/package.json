@@ -1,0 +1,15 @@
+{
+  "name": "test-third-party",
+  "version": "0.0.0",
+  "description": "Test support for thiry party loaders and plugins.",
+  "author": "Michael \"Z\" Goddard",
+  "license": "ISC",
+  "private": true,
+  "scripts": {
+    "lint": "prettier --list-different --single-quote --trailing-comma all {*,*/*,*/*/*}/*.js",
+    "lint:fix": "prettier --write --single-quote --trailing-comma all {*,*/*,*/*/*}/*.js",
+    "test": "yarn test:html-webpack-plugin && yarn test:webpack-isomorphic-tools",
+    "test:html-webpack-plugin": "yarn --cwd html-webpack-plugin test",
+    "test:webpack-isomorphic-tools": "yarn --cwd webpack-isomorphic-tools test"
+  }
+}
