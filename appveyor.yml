@@ -16,6 +16,7 @@ install:
   - cd packages/hard-source-webpack-plugin
   - npm install
   - npm install webpack@%webpack_version%
+  - cd ../..
 
 # Post-install test scripts.
 test_script:
@@ -25,8 +26,9 @@ test_script:
   # run tests
   # - yarn test
   - set NODE_ENV=test
-  - cd packages\hard-source-webpack-plugin\tests
-  - ..\node_modules\.bin\mocha *.js
+  - cd packages/hard-source-webpack-plugin/tests
+  - ../node_modules/.bin/mocha *.js
+  - cd ../../..
 
 cache:
   - node_modules
