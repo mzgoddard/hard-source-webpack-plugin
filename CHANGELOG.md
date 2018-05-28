@@ -1,3 +1,17 @@
+# Change Log
+
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+
+<a name="0.7.1"></a>
+## [0.7.1](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.0...v0.7.1) (2018-05-28)
+
+
+### Bug Fixes
+
+* missing logMessages import in ParitySystem ([#354](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/354)) ([59ec7cf](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/59ec7cf))
+
+
+
 # 0.7.0
 
 - Internal reworking splitting out multiple caches and making them less dependent on each other
