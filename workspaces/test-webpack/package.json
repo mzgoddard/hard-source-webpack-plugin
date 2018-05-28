@@ -1,0 +1,23 @@
+{
+  "name": "test-webpack",
+  "version": "0.0.0",
+  "description": "Test webpack feature support for hard-source-webpack-plugin.",
+  "author": "Michael \"Z\" Goddard",
+  "license": "ISC",
+  "private": true,
+  "scripts": {
+    "lint": "prettier --list-different --single-quote --trailing-comma all {*,*/*,*/*/*}/*.js",
+    "lint:fix": "prettier --write --single-quote --trailing-comma all {*,*/*,*/*/*}/*.js",
+    "test": "mocha *.js"
+  },
+  "workspaces": {
+    "nohoist": ["mocha", "mocha/**", "prettier", "prettier/**"]
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^3.0.2",
+    "prettier": "^1.12.1",
+    "hard-source-webpack-plugin": "*",
+    "mocha-hard-source": "*"
+  }
+}

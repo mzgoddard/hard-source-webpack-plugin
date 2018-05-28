@@ -1,2 +1,0 @@
-// fake content
-require("./module");

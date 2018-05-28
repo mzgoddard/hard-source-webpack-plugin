@@ -4,35 +4,30 @@ environment:
     # test lts
     - nodejs_version: "8"
       webpack_version: "3"
-      extract_text_version: "3"
-      babel_loader_version: "7"
-      file_loader_version: "0.11"
-      html_plugin_version: "2.22.0"
     # test latest
     - nodejs_version: "10"
       webpack_version: "4"
-      extract_text_version: "3"
-      babel_loader_version: "7"
-      file_loader_version: "1"
-      html_plugin_version: "3.2.0"
 
 # Install scripts. (runs after repo cloning)
 install:
   # Get the latest stable version of Node.js or io.js
   - ps: Install-Product node $env:nodejs_version
   # install modules
-  - npm install
-  - npm install webpack@%webpack_version% extract-text-webpack-plugin@%extract_text_version% babel-loader@%babel_loader_version% file-loader@%file_loader_version% html-webpack-plugin@%html_plugin_version%
+  - yarn
+  - npm install webpack@%webpack_version%
 
 # Post-install test scripts.
 test_script:
   # Output useful info for debugging.
   - node --version
-  - npm --version
+  - yarn --version
   # run tests
-  # - npm test
+  # - yarn test
   - set NODE_ENV=test
-  - node_modules/.bin/mocha tests/*.js
+  - cd packages/hard-source-webpack-plugin/tests && ../../../node_modules/.bin/mocha *.js
+
+cache:
+  - node_modules
 
 # Don't actually build.
 build: off

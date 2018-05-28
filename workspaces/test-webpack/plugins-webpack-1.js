@@ -1,0 +1,118 @@
+var expect = require('chai').expect;
+
+var clean = require('mocha-hard-source').clean;
+var compile = require('mocha-hard-source').compile;
+var itCompiles = require('mocha-hard-source').itCompiles;
+var itCompilesTwice = require('mocha-hard-source').itCompilesTwice;
+var itCompilesChange = require('mocha-hard-source').itCompilesChange;
+var itCompilesHardModules = require('mocha-hard-source').itCompilesHardModules;
+
+var c = require('mocha-hard-source/features');
+
+describe('plugin webpack use', function() {
+
+  itCompilesTwice('plugin-dll');
+  itCompilesTwice('plugin-dll-reference');
+  itCompilesTwice('plugin-dll-reference-scope');
+  itCompilesTwice.skipIf([c.uglify])('plugin-uglify-1dep');
+  itCompilesTwice('plugin-hmr', {exportStats: true});
+  itCompilesTwice('plugin-hmr-accept', {exportStats: true});
+  itCompilesTwice('plugin-hmr-accept-dep', {exportStats: true});
+  itCompilesTwice('plugin-hmr-process-env', {exportStats: true});
+  itCompilesTwice('plugin-ignore-1dep');
+  itCompilesTwice('plugin-ignore-context');
+  itCompilesTwice('plugin-ignore-context-members');
+  itCompilesTwice('plugin-child-compiler-resolutions');
+  itCompilesTwice('plugin-logger-child-no-memory');
+  itCompilesTwice('plugin-source-map-1dep');
+  itCompilesTwice.skipIf([c.uglify])('plugin-uglify-devtool-source-map');
+  itCompilesTwice.skipIf([c.uglify])('plugin-uglify-devtool-source-map', {exportStats: true});
+  itCompilesTwice('plugin-prefetch-es2015');
+  itCompilesTwice('plugin-prefetch-es2015', {exportStats: true});
+
+  itCompilesHardModules('plugin-dll', ['./fib.js']);
+  itCompilesHardModules('plugin-dll-reference', ['./index.js']);
+  itCompilesHardModules('plugin-dll-reference-scope', ['./index.js']);
+  itCompilesHardModules('plugin-prefetch-es2015', ['./unused.js']);
+
+});
+
+describe('plugin webpack use - builds changes', function() {
+
+  itCompilesChange('plugin-hmr', {
+    'fib.js': [
+      'module.exports = function(n) {',
+      '  return n + (n > 0 ? n - 1 : 0);',
+      '};',
+    ].join('\n'),
+    'fib/index.js': null,
+  }, {
+    'fib.js': null,
+    'fib/index.js': [
+      'module.exports = function(n) {',
+      '  return n + (n > 0 ? n - 2 : 0);',
+      '};',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/n - 1/);
+    expect(output.run2['main.js'].toString()).to.match(/n - 2/);
+    expect(Object.keys(output.run2).filter(function(key) {
+      return /\.hot-update\.json/.test(key);
+    })).to.length.of(1);
+  });
+
+  itCompilesChange('plugin-hmr-process-env', {
+    'fib.js': [
+      'module.exports = function(n) {',
+      '  if (process.env.NODE_ENV !== "production") {',
+      '    return n + (n > 0 ? n - 4 : 0);',
+      '  }',
+      '  else {',
+      '    return n + (n > 0 ? n - 3 : 0);',
+      '  }',
+      '};',
+    ].join('\n'),
+    'fib/index.js': null,
+  }, {
+    'fib.js': null,
+    'fib/index.js': [
+      'module.exports = function(n) {',
+      '  if (process.env.NODE_ENV !== "production") {',
+      '    return n + (n > 0 ? n - 2 : 0);',
+      '  }',
+      '  else {',
+      '    return n + (n > 0 ? n - 1 : 0);',
+      '  }',
+      '};',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/n - 4/);
+    expect(output.run2['main.js'].toString()).to.match(/n - 2/);
+    expect(Object.keys(output.run2).filter(function(key) {
+      return /\.hot-update\.json/.test(key);
+    })).to.length.of(1);
+  });
+
+  // before(function() {
+  //   clean('plugin-hmr-process-env');
+  // });
+  //
+  // it('plugin-hmr-process-env stats', function() {
+  //   return compile('plugin-hmr-process-env')
+  //   .then(function() {
+  //     return compile('plugin-hmr-process-env', {outputStats: true});
+  //   });
+  // });
+
+});
+
+describe('plugin webpack use - logging', function() {
+  itCompiles(
+    'plugin-logger-child-no-memory',
+    'plugin-logger-child-no-memory',
+    function(out) {
+      expect(out.run1['log.json'].toString()).to.not.match(/^[]$/);
+      expect(out.run2['log.json'].toString()).to.not.match(/^[]$/);
+    }
+  );
+});

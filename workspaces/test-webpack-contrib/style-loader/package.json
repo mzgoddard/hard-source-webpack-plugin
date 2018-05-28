@@ -1,0 +1,21 @@
+{
+  "name": "test-style-loader",
+  "version": "0.0.0",
+  "author": "Michael \"Z\" Goddard",
+  "license": "ISC",
+  "private": true,
+  "scripts": {
+    "test": "mocha *.js"
+  },
+  "workspaces": {
+    "nohoist": ["mocha", "mocha/**", "prettier", "prettier/**"]
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "css-loader": "^0.28.11",
+    "hard-source-webpack-plugin": "*",
+    "mocha": "^3.0.2",
+    "mocha-hard-source": "*",
+    "style-loader": "^0.21.0"
+  }
+}

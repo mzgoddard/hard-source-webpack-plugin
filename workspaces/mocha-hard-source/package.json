@@ -1,0 +1,12 @@
+{
+  "name": "mocha-hard-source",
+  "version": "0.0.0",
+  "description": "\"Utilities for testing hard-source with mocha\"",
+  "main": "index.js",
+  "author": "Michael \"Z\" Goddard",
+  "license": "ISC",
+  "private": true,
+  "devDependencies": {
+    "hard-source-webpack-plugin": "*"
+  }
+}

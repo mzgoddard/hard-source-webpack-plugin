@@ -1,0 +1,20 @@
+{
+  "name": "test-file-loader",
+  "version": "0.0.0",
+  "author": "Michael \"Z\" Goddard",
+  "license": "ISC",
+  "private": true,
+  "scripts": {
+    "test": "mocha *.js"
+  },
+  "workspaces": {
+    "nohoist": ["mocha", "mocha/**", "prettier", "prettier/**"]
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "file-loader": "1",
+    "hard-source-webpack-plugin": "*",
+    "mocha": "^3.0.2",
+    "mocha-hard-source": "*"
+  }
+}
