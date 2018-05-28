@@ -8,7 +8,7 @@
 
     "lint": "yarn lint:hard-source-webpack-plugin && yarn lint:test-third-party && yarn lint:test-webpack && yarn lint:test-webpack-contrib && yarn lint:test-third-party",
     "lint:fix": "yarn lint:fix:hard-source-webpack-plugin && yarn lint:fix:test-third-party && yarn lint:fix:test-webpack && yarn lint:fix:test-webpack-contrib && yarn lint:fix:test-third-party",
-    "test": "NODE_ENV=test yarn run test_",
+    "test": "NODE_ENV=test yarn run test:all",
     "test:all": "yarn test:hard-source-webpack-plugin && yarn test:test-third-party && yarn test:test-webpack && yarn test:test-webpack-contrib && yarn test:test-third-party",
     "lint:hard-source-webpack-plugin": "yarn --cwd packages/hard-source-webpack-plugin lint",
     "lint:fix:hard-source-webpack-plugin": "yarn --cwd packages/hard-source-webpack-plugin lint:fix",
