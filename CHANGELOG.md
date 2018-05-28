@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.7.2"></a>
+## [0.7.2](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.0...v0.7.2) (2018-05-28)
+
+
+### Bug Fixes
+
+* missing logMessages import in ParitySystem ([#354](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/354)) ([59ec7cf](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/59ec7cf))
+* use find-cache-dir for default cache directory ([#237](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/237)) ([#355](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/355)) ([0212475](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/0212475))
+
+
+
 <a name="0.7.1"></a>
 ## [0.7.1](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.0...v0.7.1) (2018-05-28)
 
