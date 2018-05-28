@@ -12,8 +12,9 @@ environment:
 install:
   # Get the latest stable version of Node.js or io.js
   - ps: Install-Product node $env:nodejs_version
-  # install modules
+  # install with yarn to link up the workspaces
   - yarn
+  # install modules with npm to get the local hierarchy needed to run
   - cd packages/hard-source-webpack-plugin
   - npm install
   - npm install webpack@%webpack_version%
@@ -30,9 +31,34 @@ test_script:
   - cd packages/hard-source-webpack-plugin/tests
   - ../node_modules/.bin/mocha *.js
   - cd ../../..
+  - cd workspaces/test-webpack
+  - ../../packages/hard-source-webpack-plugin/node_modules/.bin/mocha *.js
+  - cd ../..
+  - cd workspaces/test-contrib/extract-text-webpack-plugin
+  - ../../../packages/hard-source-webpack-plugin/node_modules/.bin/mocha *.js
+  - cd ../../..
+  - cd workspaces/test-contrib/file-loader
+  - ../../../packages/hard-source-webpack-plugin/node_modules/.bin/mocha *.js
+  - cd ../../..
+  - cd workspaces/test-contrib/mini-css-extract-plugin
+  - ../../../packages/hard-source-webpack-plugin/node_modules/.bin/mocha *.js
+  - cd ../../..
+  - cd workspaces/test-contrib/style-loader
+  - ../../../packages/hard-source-webpack-plugin/node_modules/.bin/mocha *.js
+  - cd ../../..
+  - cd workspaces/test-contrib/worker-loader
+  - ../../../packages/hard-source-webpack-plugin/node_modules/.bin/mocha *.js
+  - cd ../../..
+  - cd workspaces/test-third-party/html-webpack-plugin
+  - ../../../packages/hard-source-webpack-plugin/node_modules/.bin/mocha *.js
+  - cd ../../..
+  - cd workspaces/test-third-party/webpack-isomorphic-tools
+  - ../../../packages/hard-source-webpack-plugin/node_modules/.bin/mocha *.js
+  - cd ../../..
 
 cache:
   - node_modules
+  - packages/hard-source-webpack-plugin/node_modules
 
 # Don't actually build.
 build: off
