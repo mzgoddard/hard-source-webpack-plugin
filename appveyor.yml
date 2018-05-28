@@ -25,8 +25,8 @@ test_script:
   # run tests
   # - yarn test
   - set NODE_ENV=test
-  - cd packages/hard-source-webpack-plugin/tests
-  - mocha *.js
+  - cd packages\hard-source-webpack-plugin\tests
+  - ..\node_modules\.bin\mocha *.js
 
 cache:
   - node_modules
