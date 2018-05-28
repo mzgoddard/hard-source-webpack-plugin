@@ -24,7 +24,7 @@ test_script:
   # run tests
   # - yarn test
   - set NODE_ENV=test
-  - yarn test:appveyor:hard-source-webpack-plugin
+  - yarn --scripts-prepend-node-path true test:appveyor:hard-source-webpack-plugin
 
 cache:
   - node_modules
