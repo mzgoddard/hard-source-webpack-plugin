@@ -24,7 +24,9 @@
     "test:test-webpack-contrib": "yarn --cwd workspaces/test-webpack-contrib test",
     "lint:test-third-party": "yarn --cwd workspaces/test-third-party lint",
     "lint:fix:test-third-party": "yarn --cwd workspaces/test-third-party lint:fix",
-    "test:test-third-party": "yarn --cwd workspaces/test-third-party test"
+    "test:test-third-party": "yarn --cwd workspaces/test-third-party test",
+
+    "test:appveyor:hard-source-webpack-plugin": "cd packages/hard-source-webpack-plugin/tests && mocha *.js"
   },
   "workspaces": [
     "packages/*",
