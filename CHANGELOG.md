@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.7.3"></a>
+## [0.7.3](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.2...v0.7.3) (2018-05-30)
+
+
+### Bug Fixes
+
+* parse and stringify data in serializers ([#358](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/358)) ([c40fd30](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/c40fd30))
+
+
+
 <a name="0.7.2"></a>
 ## [0.7.2](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.0...v0.7.2) (2018-05-28)
 
