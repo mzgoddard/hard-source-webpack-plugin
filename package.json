@@ -49,7 +49,7 @@
     "memory-fs": "^0.4.1",
     "mini-css-extract-plugin": "^0.4.0",
     "mocha": "^3.0.2",
-    "prettier": "^1.12.1",
+    "prettier": "^1.13.4",
     "source-map": "^0.5.6",
     "standard-version": "^4.4.0",
     "style-loader": "^0.14.0",
