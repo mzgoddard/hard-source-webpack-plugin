@@ -32,7 +32,7 @@
   "author": "Michael \"Z\" Goddard <mzgoddard@gmail.com>",
   "license": "ISC",
   "devDependencies": {
-    "@commitlint/cli": "^6.2.0",
+    "@commitlint/cli": "^7.0.0",
     "@commitlint/config-conventional": "^6.1.3",
     "@commitlint/travis-cli": "^6.2.0",
     "babel-core": "^6.26.0",
