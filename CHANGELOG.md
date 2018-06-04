@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.7.5"></a>
+## [0.7.5](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.2...v0.7.5) (2018-06-04)
+
+
+### Bug Fixes
+
+* add missing commitlint configuration file ([#363](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/363)) ([c878f4b](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/c878f4b))
+* check that normalId is on missingCache ([#364](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/364)) ([79aa0bc](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/79aa0bc))
+* parse and stringify data in serializers ([#358](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/358)) ([c40fd30](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/c40fd30))
+
+
+
 <a name="0.7.4"></a>
 ## [0.7.4](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.3...v0.7.4) (2018-05-30)
 
