@@ -136,4 +136,10 @@ describe('hard source serializers - serializer abilities', function() {
     });
   });
 
+  itCompilesChange('serializer-append-2-base-1dep-bad-cache', {}, {
+    'tmp/cache/module/log0000': '',
+  }, function(output) {
+    expect(output.run2).to.eql(output.run2);
+  });
+
 });

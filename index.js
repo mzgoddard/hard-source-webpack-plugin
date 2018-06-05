@@ -356,9 +356,15 @@ class HardSourceWebpackPlugin {
             contextNormalModuleId,
             copyWithDeser,
           }),
-        ]).then(() => {
-          // console.log('cache in', Date.now() - start);
-        });
+        ])
+          .catch(error => {
+            logMessages.serialBadCache(compiler, error);
+
+            return rimraf(cacheDirPath);
+          })
+          .then(() => {
+            // console.log('cache in', Date.now() - start);
+          });
       });
     }
 
