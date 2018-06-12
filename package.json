@@ -31,6 +31,9 @@
   },
   "author": "Michael \"Z\" Goddard <mzgoddard@gmail.com>",
   "license": "ISC",
+  "engines": {
+    "node" : ">=8.0.0"
+  },
   "devDependencies": {
     "@commitlint/cli": "^6.2.0",
     "@commitlint/config-conventional": "^6.1.3",
