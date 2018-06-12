@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.7.6"></a>
+## [0.7.6](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.5...v0.7.6) (2018-06-12)
+
+
+### Bug Fixes
+
+* **cache:** reset corrupted caches ([#375](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/375)) ([33cc986](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/33cc986))
+* thaw SystemImportDeprecationWarning ([#379](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/379)) ([5603da0](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/5603da0))
+* **package:** add engine to define minimum node version ([#377](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/377)) ([d1f9c5f](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/d1f9c5f))
+
+
+
 <a name="0.7.5"></a>
 ## [0.7.5](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.2...v0.7.5) (2018-06-04)
 

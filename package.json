@@ -1,6 +1,6 @@
 {
   "name": "hard-source-webpack-plugin",
-  "version": "0.7.5",
+  "version": "0.7.6",
   "description": "Hard cache the source of modules in webpack.",
   "keywords": [
     "webpack",
@@ -32,7 +32,7 @@
   "author": "Michael \"Z\" Goddard <mzgoddard@gmail.com>",
   "license": "ISC",
   "engines": {
-    "node" : ">=8.0.0"
+    "node": ">=8.0.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^6.2.0",
