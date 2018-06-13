@@ -20,11 +20,12 @@ const LoggerFactory = require('./lib/loggerFactory');
 const cachePrefix = require('./lib/util').cachePrefix;
 
 const CacheSerializerFactory = require('./lib/CacheSerializerFactory');
-const SerializerAppendPlugin = require('./lib/SerializerAppendPlugin');
+const ExcludeModulePlugin = require('./lib/ExcludeModulePlugin');
+const HardSourceLevelDbSerializerPlugin = require('./lib/SerializerLeveldbPlugin');
 const SerializerAppend2Plugin = require('./lib/SerializerAppend2Plugin');
+const SerializerAppendPlugin = require('./lib/SerializerAppendPlugin');
 const SerializerCacachePlugin = require('./lib/SerializerCacachePlugin');
 const SerializerJsonPlugin = require('./lib/SerializerJsonPlugin');
-const HardSourceLevelDbSerializerPlugin = require('./lib/SerializerLeveldbPlugin');
 
 const hardSourceVersion = require('./package.json').version;
 
@@ -557,8 +558,10 @@ class HardSourceWebpackPlugin {
 
 module.exports = HardSourceWebpackPlugin;
 
-HardSourceWebpackPlugin.SerializerAppendPlugin = SerializerAppendPlugin;
+HardSourceWebpackPlugin.ExcludeModulePlugin = ExcludeModulePlugin;
+HardSourceWebpackPlugin.HardSourceLevelDbSerializerPlugin = HardSourceLevelDbSerializerPlugin;
+HardSourceWebpackPlugin.LevelDbSerializerPlugin = HardSourceLevelDbSerializerPlugin;
 HardSourceWebpackPlugin.SerializerAppend2Plugin = SerializerAppend2Plugin;
+HardSourceWebpackPlugin.SerializerAppendPlugin = SerializerAppendPlugin;
 HardSourceWebpackPlugin.SerializerCacachePlugin = SerializerCacachePlugin;
 HardSourceWebpackPlugin.SerializerJsonPlugin = SerializerJsonPlugin;
-HardSourceWebpackPlugin.HardSourceLevelDbSerializerPlugin = HardSourceLevelDbSerializerPlugin;
