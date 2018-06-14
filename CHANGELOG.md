@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.8.0"></a>
+# [0.8.0](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.6...v0.8.0) (2018-06-14)
+
+
+### Features
+
+* add ExcludeModulePlugin ([#381](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/381)) ([074b5d9](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/074b5d9))
+
+
+
 <a name="0.7.6"></a>
 ## [0.7.6](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.5...v0.7.6) (2018-06-12)
 
