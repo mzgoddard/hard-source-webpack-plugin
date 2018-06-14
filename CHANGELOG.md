@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.8.1"></a>
+## [0.8.1](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.8.0...v0.8.1) (2018-06-14)
+
+
+### Bug Fixes
+
+* exclude mini-css loader modules ([#382](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/382)) ([1c8eb1f](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/1c8eb1f))
+
+
+
 <a name="0.8.0"></a>
 # [0.8.0](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.6...v0.8.0) (2018-06-14)
 
