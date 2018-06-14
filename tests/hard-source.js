@@ -2,8 +2,10 @@ var fs = require('fs');
 
 var expect = require('chai').expect;
 
-var itCompilesChange = require('./util').itCompilesChange;
 var itCompiles = require('./util').itCompiles;
+var itCompilesChange = require('./util').itCompilesChange;
+var itCompilesHardModules = require('./util').itCompilesHardModules;
+var itCompilesTwice = require('./util').itCompilesTwice;
 var itCompilesWithCache = require('./util').itCompilesWithCache;
 var writeFiles = require('./util').writeFiles;
 
@@ -272,5 +274,8 @@ describe('hard-source features', function() {
     'package-lock.json': 'c',
     'yarn.lock': 'b',
   });
+
+  itCompilesTwice('hard-source-exclude-plugin');
+  itCompilesHardModules('hard-source-exclude-plugin', ['./index.js', '!./fib.js']);
 
 });

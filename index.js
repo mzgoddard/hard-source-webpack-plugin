@@ -20,11 +20,12 @@ const LoggerFactory = require('./lib/loggerFactory');
 const cachePrefix = require('./lib/util').cachePrefix;
 
 const CacheSerializerFactory = require('./lib/CacheSerializerFactory');
-const SerializerAppendPlugin = require('./lib/SerializerAppendPlugin');
+const ExcludeModulePlugin = require('./lib/ExcludeModulePlugin');
+const HardSourceLevelDbSerializerPlugin = require('./lib/SerializerLeveldbPlugin');
 const SerializerAppend2Plugin = require('./lib/SerializerAppend2Plugin');
+const SerializerAppendPlugin = require('./lib/SerializerAppendPlugin');
 const SerializerCacachePlugin = require('./lib/SerializerCacachePlugin');
 const SerializerJsonPlugin = require('./lib/SerializerJsonPlugin');
-const HardSourceLevelDbSerializerPlugin = require('./lib/SerializerLeveldbPlugin');
 
 const hardSourceVersion = require('./package.json').version;
 
@@ -356,9 +357,15 @@ class HardSourceWebpackPlugin {
             contextNormalModuleId,
             copyWithDeser,
           }),
-        ]).then(() => {
-          // console.log('cache in', Date.now() - start);
-        });
+        ])
+          .catch(error => {
+            logMessages.serialBadCache(compiler, error);
+
+            return rimraf(cacheDirPath);
+          })
+          .then(() => {
+            // console.log('cache in', Date.now() - start);
+          });
       });
     }
 
@@ -426,8 +433,10 @@ class HardSourceWebpackPlugin {
     const TransformModuleErrorsPlugin = require('./lib/TransformModuleErrorsPlugin');
     const SupportExtractTextPlugin = require('./lib/SupportExtractTextPlugin');
     let SupportMiniCssExtractPlugin;
+    let ExcludeMiniCssModulePlugin;
     if (webpackFeatures.generator) {
       SupportMiniCssExtractPlugin = require('./lib/SupportMiniCssExtractPlugin');
+      ExcludeMiniCssModulePlugin = require('./lib/ExcludeMiniCssModulePlugin');
     }
     const TransformDependencyBlockPlugin = require('./lib/TransformDependencyBlockPlugin');
     const TransformBasicDependencyPlugin = require('./lib/TransformBasicDependencyPlugin');
@@ -470,6 +479,7 @@ class HardSourceWebpackPlugin {
 
     if (SupportMiniCssExtractPlugin) {
       new SupportMiniCssExtractPlugin().apply(compiler);
+      new ExcludeMiniCssModulePlugin().apply(compiler);
     }
 
     new TransformDependencyBlockPlugin({
@@ -551,8 +561,10 @@ class HardSourceWebpackPlugin {
 
 module.exports = HardSourceWebpackPlugin;
 
-HardSourceWebpackPlugin.SerializerAppendPlugin = SerializerAppendPlugin;
+HardSourceWebpackPlugin.ExcludeModulePlugin = ExcludeModulePlugin;
+HardSourceWebpackPlugin.HardSourceLevelDbSerializerPlugin = HardSourceLevelDbSerializerPlugin;
+HardSourceWebpackPlugin.LevelDbSerializerPlugin = HardSourceLevelDbSerializerPlugin;
 HardSourceWebpackPlugin.SerializerAppend2Plugin = SerializerAppend2Plugin;
+HardSourceWebpackPlugin.SerializerAppendPlugin = SerializerAppendPlugin;
 HardSourceWebpackPlugin.SerializerCacachePlugin = SerializerCacachePlugin;
 HardSourceWebpackPlugin.SerializerJsonPlugin = SerializerJsonPlugin;
-HardSourceWebpackPlugin.HardSourceLevelDbSerializerPlugin = HardSourceLevelDbSerializerPlugin;

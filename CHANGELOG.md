@@ -2,6 +2,50 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.8.1"></a>
+## [0.8.1](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.8.0...v0.8.1) (2018-06-14)
+
+
+### Bug Fixes
+
+* exclude mini-css loader modules ([#382](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/382)) ([1c8eb1f](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/1c8eb1f))
+
+
+
+<a name="0.8.0"></a>
+# [0.8.0](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.6...v0.8.0) (2018-06-14)
+
+
+### Features
+
+* add ExcludeModulePlugin ([#381](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/381)) ([074b5d9](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/074b5d9))
+
+
+
+<a name="0.7.6"></a>
+## [0.7.6](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.5...v0.7.6) (2018-06-12)
+
+
+### Bug Fixes
+
+* **cache:** reset corrupted caches ([#375](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/375)) ([33cc986](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/33cc986))
+* thaw SystemImportDeprecationWarning ([#379](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/379)) ([5603da0](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/5603da0))
+* **package:** add engine to define minimum node version ([#377](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/377)) ([d1f9c5f](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/d1f9c5f))
+
+
+
+<a name="0.7.5"></a>
+## [0.7.5](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.2...v0.7.5) (2018-06-04)
+
+
+### Bug Fixes
+
+* add missing commitlint configuration file ([#363](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/363)) ([c878f4b](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/c878f4b))
+* check that normalId is on missingCache ([#364](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/364)) ([79aa0bc](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/79aa0bc))
+* parse and stringify data in serializers ([#358](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/358)) ([c40fd30](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/c40fd30))
+
+
+
 <a name="0.7.4"></a>
 ## [0.7.4](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.7.3...v0.7.4) (2018-05-30)
 
