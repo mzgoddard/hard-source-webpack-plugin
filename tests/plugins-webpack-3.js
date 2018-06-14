@@ -22,6 +22,9 @@ describeWP(3)('plugin webpack 3 use', function() {
     });
   });
 
+  itCompilesTwice('plugin-copy');
+  itCompilesTwice('plugin-copy', {exportStats: true});
+
 });
 
 describeWP(3)('plugin webpack 3 use - builds change', function() {

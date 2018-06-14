@@ -16,6 +16,9 @@ describeWP(4)('plugin webpack 4 use', function() {
   itCompilesTwice.skipIf([c.miniCss])('plugin-mini-css-extract', {exportStats: true});
   itCompilesHardModules.skipIf([c.miniCss])('plugin-mini-css-extract', ['./index.css']);
 
+  itCompilesTwice.skipIf([c.miniCss])('plugin-mini-css-extract-file');
+  itCompilesTwice.skipIf([c.miniCss])('plugin-mini-css-extract-file', {exportStats: true});
+
 });
 
 describeWP(4)('plugin webpack 4 use - builds change', function() {
