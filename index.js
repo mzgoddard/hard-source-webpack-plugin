@@ -433,8 +433,10 @@ class HardSourceWebpackPlugin {
     const TransformModuleErrorsPlugin = require('./lib/TransformModuleErrorsPlugin');
     const SupportExtractTextPlugin = require('./lib/SupportExtractTextPlugin');
     let SupportMiniCssExtractPlugin;
+    let ExcludeMiniCssModulePlugin;
     if (webpackFeatures.generator) {
       SupportMiniCssExtractPlugin = require('./lib/SupportMiniCssExtractPlugin');
+      ExcludeMiniCssModulePlugin = require('./lib/ExcludeMiniCssModulePlugin');
     }
     const TransformDependencyBlockPlugin = require('./lib/TransformDependencyBlockPlugin');
     const TransformBasicDependencyPlugin = require('./lib/TransformBasicDependencyPlugin');
@@ -477,6 +479,7 @@ class HardSourceWebpackPlugin {
 
     if (SupportMiniCssExtractPlugin) {
       new SupportMiniCssExtractPlugin().apply(compiler);
+      new ExcludeMiniCssModulePlugin().apply(compiler);
     }
 
     new TransformDependencyBlockPlugin({
