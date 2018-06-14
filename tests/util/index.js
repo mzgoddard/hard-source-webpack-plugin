@@ -485,7 +485,11 @@ exports.itCompilesHardModules = function(fixturePath, filesA, filesB, expectHand
           });
         }
         else {
-          expect(hardModules).to.include(handle);
+          if (handle.startsWith('!')) {
+            expect(hardModules).to.not.include(handle.substring(1));
+          } else {
+            expect(hardModules).to.include(handle);
+          }
         }
       });
     }
