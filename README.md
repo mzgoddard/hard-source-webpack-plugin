@@ -44,6 +44,16 @@ new HardSourceWebpackPlugin({
     // 'debug', 'log', 'info', 'warn', or 'error'.
     level: 'debug',
   },
+  // Clean up large, old caches automatically.
+  cachePrune: {
+    // Caches younger than `maxAge` are not considered for deletion. They must
+    // be at least this (default: 2 days) old in milliseconds.
+    maxAge: 2 * 24 * 60 * 60 * 1000,
+    // All caches together must be larger than `sizeThreshold` before any
+    // caches will be deleted. Together they must be at least this
+    // (default: 50 MB) big in bytes.
+    sizeThreshold: 50 * 1024 * 1024
+  },
 }),
 ```
 
@@ -145,6 +155,18 @@ Sets other defaults for info. Defaults to 'test' when NODE_ENV==='test'.
 The level of log messages to report down to. Defaults to 'debug' when mode is 'none'. Defaults to 'warn' when mode is 'test'.
 
 For example 'debug' reports all messages while 'warn' reports warn and error level messages.
+
+### `cachePrune`
+
+`hard-source` caches are by default created when the webpack configuration changes. Each cache holds a copy of all the data to create a build so they can become quite large. Once a cache is considered "old enough" that it is unlikely to be reused `hard-source` will delete it to free up space automatically.
+
+#### `maxAge`
+
+Caches older than `maxAge` in milliseconds are considered for automatic deletion.
+
+#### `sizeThreshold`
+
+For caches to be deleted, all of them together must total more than this threshold.
 
 ## Troubleshooting
 

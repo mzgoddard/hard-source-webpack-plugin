@@ -241,6 +241,15 @@ class HardSourceWebpackPlugin {
       'relativeHelpers',
     ]);
 
+    if (configHashInDirectory) {
+      const PruneCachesSystem = require('./lib/SystemPruneCaches');
+
+      new PruneCachesSystem(
+        path.dirname(cacheDirPath),
+        options.cachePrune,
+      ).apply(compiler);
+    }
+
     function runReadOrReset(_compiler) {
       logger.unlock();
 
