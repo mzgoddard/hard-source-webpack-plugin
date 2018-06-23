@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.9.0"></a>
+# [0.9.0](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.8.1...v0.9.0) (2018-06-23)
+
+
+### Bug Fixes
+
+* **package:** update find-cache-dir to version 2.0.0 ([#385](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/385)) ([d871c8a](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/d871c8a))
+* **package:** update pkg-dir to version 3.0.0 ([#384](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/384)) ([d97566d](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/d97566d))
+
+
+### Features
+
+* add cache pruning ([#386](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/386)) ([c685a61](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/c685a61))
+
+
+
 <a name="0.8.1"></a>
 ## [0.8.1](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.8.0...v0.8.1) (2018-06-14)
 
