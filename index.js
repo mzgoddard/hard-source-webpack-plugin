@@ -378,15 +378,6 @@ class HardSourceWebpackPlugin {
       });
     }
 
-    function runVerify(_compiler) {
-      if (!active) {
-        return Promise.resolve();
-      }
-
-      const stats = {};
-      return pluginCompat.promise(compiler, '_hardSourceVerifyCache', []);
-    }
-
     compilerHooks.watchRun.tapPromise(
       'HardSource - index - readOrReset',
       runReadOrReset,
@@ -514,6 +505,15 @@ class HardSourceWebpackPlugin {
     }
 
     new ChalkLoggerPlugin(this.options.info).apply(compiler);
+
+    function runVerify(_compiler) {
+      if (!active) {
+        return Promise.resolve();
+      }
+
+      const stats = {};
+      return pluginCompat.promise(compiler, '_hardSourceVerifyCache', []);
+    }
 
     compilerHooks.watchRun.tapPromise('HardSource - index - verify', runVerify);
     compilerHooks.run.tapPromise('HardSource - index - verify', runVerify);
