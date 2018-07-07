@@ -12,6 +12,11 @@ var c = require('./util/features');
 
 describeWP(4)('plugin webpack 4 use', function() {
 
+  itCompilesTwice('plugin-side-effect');
+  itCompilesTwice('plugin-side-effect', {exportStats: true});
+  itCompilesTwice('plugin-side-effect-settings');
+  itCompilesTwice('plugin-side-effect-settings', {exportStats: true});
+
   itCompilesTwice.skipIf([c.miniCss])('plugin-mini-css-extract');
   itCompilesTwice.skipIf([c.miniCss])('plugin-mini-css-extract', {exportStats: true});
   // itCompilesHardModules.skipIf([c.miniCss])('plugin-mini-css-extract', ['./index.css']);
@@ -38,6 +43,25 @@ describeWP(4)('plugin webpack 4 use - builds change', function() {
   }, function(output) {
     expect(output.run1['main.css'].toString()).to.match(/blue/);
     expect(output.run2['main.css'].toString()).to.match(/red/);
+  });
+
+  itCompilesChange('plugin-side-effect-change', {
+    'index.js': [
+      'import {fib} from \'./obj\';',
+      '',
+      'console.log(fib(3));',
+    ].join('\n'),
+  }, {
+    'index.js': [
+      'import {fab} from \'./obj\';',
+      '',
+      'console.log(fab(3));',
+    ].join('\n'),
+  }, function(output) {
+    expect(output.run1['main.js'].toString()).to.match(/fib/);
+    expect(output.run1['main.js'].toString()).to.not.match(/fab/);
+    expect(output.run2['main.js'].toString()).to.match(/fab/);
+    expect(output.run2['main.js'].toString()).to.not.match(/fib/);
   });
 
 });

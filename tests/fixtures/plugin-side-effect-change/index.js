@@ -1,3 +1,3 @@
-import {fib} from './obj';
+import {fab} from './obj';
 
-console.log(fib(3));
+console.log(fab(3));

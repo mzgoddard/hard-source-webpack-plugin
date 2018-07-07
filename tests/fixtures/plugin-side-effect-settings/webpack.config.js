@@ -15,6 +15,7 @@ module.exports = {
     rules: [
       {
         test: /obj/,
+        sideEffects: false,
       },
     ],
   },

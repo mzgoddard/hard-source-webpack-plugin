@@ -9,14 +9,12 @@ module.exports = {
   },
   optimization: {
     minimize: false,
-    // concatenateModules: false,
-    // sideEffects: false,
+    sideEffects: true,
   },
   module: {
     rules: [
       {
         test: /obj/,
-        // sideEffects: false,
       },
     ],
   },
