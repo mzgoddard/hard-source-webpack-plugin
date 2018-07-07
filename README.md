@@ -115,7 +115,7 @@ This uses the npm `node-object-hash` module with sort set to false to hash the o
 
 ```js
 configHash: function() {
-  return process.env.NODE_ENV + '-' process.env.BABEL_ENV;
+  return process.env.NODE_ENV + '-' + process.env.BABEL_ENV;
 }
 ```
 
