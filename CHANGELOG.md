@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.10.2"></a>
+## [0.10.2](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.10.0...v0.10.2) (2018-07-07)
+
+
+### Bug Fixes
+
+* plus sign missing ([#398](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/398)) ([8885f10](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/8885f10))
+* support unresolved loader resolve calls ([#396](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/396)) ([66086aa](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/66086aa))
+* use Buffer.alloc ([#402](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/402)) ([e327108](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/e327108))
+
+
+
 <a name="0.10.1"></a>
 ## [0.10.1](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.10.0...v0.10.1) (2018-07-02)
 
