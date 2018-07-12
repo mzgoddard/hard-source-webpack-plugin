@@ -7,12 +7,14 @@ var describeWP = require('./util').describeWP;
 
 describeWP(3)('basic webpack 3 use - compiles identically', function() {
 
+  itCompilesTwice('base-1dep-query');
+  itCompilesTwice('base-1dep-query', {exportStats: true});
+  itCompilesTwice('base-devtool-nosources-source-map');
+  itCompilesTwice('base-devtool-nosources-source-map', {exportStats: true});
   itCompilesTwice('base-es2015-module-export-star');
   itCompilesTwice('base-es2015-module-export-star', {exportStats: true});
   itCompilesTwice('base-es2015-module-export-star-alt');
   itCompilesTwice('base-es2015-module-export-star-alt', {exportStats: true});
-  itCompilesTwice('base-devtool-nosources-source-map');
-  itCompilesTwice('base-devtool-nosources-source-map', {exportStats: true});
 
   itCompilesHardModules('base-es2015-module-export-star', ['./export.js', './fab.js', './fib.js', './index.js']);
   itCompilesHardModules('base-es2015-module-export-star-alt', ['./export.js', './fab.js', './fib.js', './index.js']);
