@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.11.1"></a>
+## [0.11.1](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.10.1...v0.11.1) (2018-07-12)
+
+
+### Bug Fixes
+
+* plus sign missing ([#398](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/398)) ([8885f10](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/8885f10))
+* serialize path query params without change ([#408](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/408)) ([734e5b0](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/734e5b0))
+* use Buffer.alloc ([#402](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/402)) ([e327108](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/e327108))
+* webpack 3 RuleSet creation ([#407](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/407)) ([6551c8e](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/6551c8e))
+
+
+### Features
+
+* support resource data sideEffects: false ([#403](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/403)) ([a5c5d33](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/a5c5d33))
+
+
+
 <a name="0.11.0"></a>
 # [0.11.0](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.10.2...v0.11.0) (2018-07-07)
 
