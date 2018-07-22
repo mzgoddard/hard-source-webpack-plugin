@@ -4,7 +4,7 @@
 
 `HardSourceWebpackPlugin` is a plugin for webpack to provide an intermediate caching step for modules. In order to see results, you'll need to run webpack twice with this plugin: the first build will take the normal amount of time. The second build will be signficantly faster.
 
-Install with `npm install --save hard-source-webpack-plugin` or `yarn`. And include the plugin in your webpack's plugins configuration.
+Install with `npm install --save-dev hard-source-webpack-plugin` or `yarn add --dev hard-source-webpack-plugin`. And include the plugin in your webpack's plugins configuration.
 
 ```js
 // webpack.config.js
