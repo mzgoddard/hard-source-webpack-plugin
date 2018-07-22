@@ -287,4 +287,6 @@ describe('hard-source features', function() {
     .to.have.length(1);
   });
 
+  itCompilesTwice('hard-source-parallel-plugin');
+
 });
