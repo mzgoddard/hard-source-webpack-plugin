@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.11.2"></a>
+## [0.11.2](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.11.0...v0.11.2) (2018-07-22)
+
+
+### Bug Fixes
+
+* performance regression due to false position md5 ([#413](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/413)) ([c670f73](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/c670f73))
+* serialize path query params without change ([#408](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/408)) ([734e5b0](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/734e5b0))
+* webpack 3 RuleSet creation ([#407](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/407)) ([6551c8e](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/6551c8e))
+
+
+
 <a name="0.11.1"></a>
 ## [0.11.1](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.10.1...v0.11.1) (2018-07-12)
 
