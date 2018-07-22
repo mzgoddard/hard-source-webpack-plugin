@@ -465,7 +465,7 @@ exports.itCompilesHardModules = function(fixturePath, filesA, filesB, expectHand
     var shortener = new (require('webpack/lib/RequestShortener'))(path.resolve(__dirname, '../fixtures', fixturePath));
     function walk(compilation) {
       compilation.modules.forEach(function(module) {
-        if (module.cacheItem) {
+        if (module.cacheItem && module.buildTimestamp === module.cacheItem.build.buildTimestamp) {
           hardModules.push(module.readableIdentifier(shortener));
         }
       });
