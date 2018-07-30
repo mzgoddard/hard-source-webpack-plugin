@@ -581,5 +581,5 @@ HardSourceWebpackPlugin.SerializerJsonPlugin = SerializerJsonPlugin;
 Object.defineProperty(HardSourceWebpackPlugin, 'ParallelModulePlugin', {
   get() {
     return require('./lib/ParallelModulePlugin');
-  }
+  },
 });
