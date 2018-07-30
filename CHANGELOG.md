@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.12.0"></a>
+# [0.12.0](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.11.2...v0.12.0) (2018-07-30)
+
+
+### Bug Fixes
+
+* memory leak in TransformNormalModuleFactoryPlugin ([#414](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/414)) ([33b306b](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/33b306b))
+
+
+### Features
+
+* add ParallelModulePlugin ([#415](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/415)) ([9585d47](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/9585d47))
+
+
+
 <a name="0.11.2"></a>
 ## [0.11.2](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.11.0...v0.11.2) (2018-07-22)
 
