@@ -2,6 +2,7 @@ var fs = require('fs');
 
 var expect = require('chai').expect;
 
+var describeWP = require('./util').describeWP;
 var itCompiles = require('./util').itCompiles;
 var itCompilesChange = require('./util').itCompilesChange;
 var itCompilesHardModules = require('./util').itCompilesHardModules;
@@ -286,5 +287,14 @@ describe('hard-source features', function() {
     expect(fs.readdirSync(__dirname + '/fixtures/hard-source-prune/tmp/cache'))
     .to.have.length(1);
   });
+
+});
+
+describeWP(4)('hard-source webpack 4 features', function() {
+
+  itCompilesTwice('hard-source-parallel-plugin');
+  itCompilesTwice('hard-source-parallel-plugin-config-mismatch');
+  itCompilesTwice('hard-source-parallel-plugin-context');
+  itCompilesTwice('hard-source-parallel-plugin-defaults');
 
 });

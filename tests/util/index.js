@@ -230,7 +230,7 @@ exports.itCompilesTwice = function(fixturePath, compileOptions) {
     exportSuffix = ' [exportStats]';
   }
   it('builds identical ' + fixturePath + ' fixture' + exportSuffix, function() {
-    this.timeout(10000);
+    this.timeout(30000);
     return exports.clean(fixturePath)
     .then(function() {
       return exports.compileTwiceEqual(fixturePath, compileOptions);
@@ -335,7 +335,7 @@ exports.itCompiles = function(name, fixturePath, fns, expectHandle) {
   // });
 
   it(name, function() {
-    this.timeout(20000);
+    this.timeout(30000);
     this.slow(4000);
     var runs = [];
     var setups = [];
@@ -381,7 +381,7 @@ exports.itCompilesWithCache = function(name, fixturePath, fnA, fnB, expectHandle
   });
 
   it(name, function() {
-    this.timeout(20000);
+    this.timeout(30000);
     this.slow(4000);
     var cache1, cache2;
     return Promise.resolve()
