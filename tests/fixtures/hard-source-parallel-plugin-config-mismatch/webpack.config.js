@@ -1,7 +1,10 @@
 var HardSourceWebpackPlugin = require('../../..');
 
 module.exports = {
-  mode: 'development',
+  // The test process will have mode set by testing utilities. The forked
+  // parallel processes will not have mode set. With a different configuration
+  // the processes won't match and building should fallback to the test process.
+  // mode: 'development',
   context: __dirname,
   entry: './index.js',
   output: {
@@ -16,10 +19,6 @@ module.exports = {
       },
     }),
     new (require('../../../lib/ParallelModulePlugin'))({
-      fork: (fork, compiler, webpackBin) => fork(webpackBin(), ['--config', __filename], {
-        silent: true,
-      }),
-      numWorkers: 2,
       minModules: 1,
     }),
   ],

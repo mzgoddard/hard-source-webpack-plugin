@@ -11,9 +11,10 @@ module.exports = {
   plugins: [
     new HardSourceWebpackPlugin({
       cacheDirectory: 'cache',
+      environmentHash: {
+        root: __dirname + '/../../..',
+      },
     }),
-    new (require('../../../lib/ParallelModulePlugin'))({
-      minModules: 2,
-    }),
+    new (require('../../../lib/ParallelModulePlugin'))(),
   ],
 };
