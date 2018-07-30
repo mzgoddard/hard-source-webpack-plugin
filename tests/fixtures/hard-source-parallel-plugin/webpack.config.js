@@ -15,7 +15,7 @@ module.exports = {
         root: __dirname + '/../../..',
       },
     }),
-    new (require('../../../lib/ParallelModulePlugin'))({
+    new HardSourceWebpackPlugin.ParallelModulePlugin({
       fork: (fork, compiler, webpackBin) => fork(webpackBin(), ['--config', __filename], {
         silent: true,
       }),
