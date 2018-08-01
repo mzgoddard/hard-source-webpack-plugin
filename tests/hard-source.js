@@ -296,5 +296,7 @@ describeWP(4)('hard-source webpack 4 features', function() {
   itCompilesTwice('hard-source-parallel-plugin-config-mismatch');
   itCompilesTwice('hard-source-parallel-plugin-context');
   itCompilesTwice('hard-source-parallel-plugin-defaults');
+  itCompilesTwice('hard-source-parallel-plugin-es2015');
+  itCompilesTwice('hard-source-parallel-plugin-es2015-side-effects');
 
 });
