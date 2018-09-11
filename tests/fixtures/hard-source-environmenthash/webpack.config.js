@@ -1,10 +1,10 @@
-var fs = require('fs');
+var fs = require('graceful-fs');
 
 var HardSourceWebpackPlugin = require('../../..');
 
 var hardSourceConfig = eval(
   '(function() { return (' +
-  require('fs')
+  require('graceful-fs')
   .readFileSync(__dirname + '/hard-source-config.js', 'utf8') +
   '); })'
 )();
