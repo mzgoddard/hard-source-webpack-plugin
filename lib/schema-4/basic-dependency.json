@@ -27,7 +27,8 @@
     "HarmonyExportExpressionDependency",
     "originModule",
     "range",
-    "rangeStatement"
+    "rangeStatement",
+    "prefix"
   ],
   ["HarmonyExportHeaderDependency", "range", "rangeStatement"],
   [
