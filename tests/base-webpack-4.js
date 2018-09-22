@@ -13,6 +13,7 @@ describeWP(4)('basic webpack 4 use - compiles identically', function() {
   itCompilesTwice('base-wasm', {exportStats: true});
   itCompilesTwice('base-es2015-dynamic-import');
   itCompilesTwice('base-es2015-dynamic-import', {exportStats: true});
+  itCompilesTwice('base-es2015-dynamic-import-rawrequest');
   
   itCompilesHardModules('base-es2015-json', ['./b.json']);
   itCompilesHardModules('base-wasm', ['./wasm.wasm']);
