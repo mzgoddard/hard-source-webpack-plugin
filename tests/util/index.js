@@ -138,7 +138,7 @@ exports.compile = function(fixturePath, options) {
           return stat(fullname)
           .then(function(stat) {
             if (stat.isFile()) {
-              return readFile(fullname, fullname.endsWith('.js') ? 'utf8' : '')
+              return readFile(fullname, fullname.endsWith('.js') || fullname.endsWith('.json') ? 'utf8' : '')
               .then(function(file) {return [name, file];});
             }
           });
@@ -152,7 +152,7 @@ exports.compile = function(fixturePath, options) {
           return fsStat(fullname)
           .then(function(stat) {
             if (stat.isFile()) {
-              return fsReadFile(fullname, fullname.endsWith('.js') ? 'utf8' : '')
+              return fsReadFile(fullname, fullname.endsWith('.js') || fullname.endsWith('.json') ? 'utf8' : '')
               .then(function(file) {return [name, file];});
             }
           });
@@ -216,6 +216,7 @@ exports.compileTwiceEqual = function(fixturePath, compileOptions) {
     return Promise.all([run1, run2]);
   })
   .then(function(runs) {
+    // console.log(runs)
     expect(runs[0]).to.eql(runs[1]);
   });
 };
