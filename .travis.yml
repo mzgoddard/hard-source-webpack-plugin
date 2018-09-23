@@ -14,7 +14,7 @@ matrix:
     - node_js: 8
       env: NPM_SCRIPT=test NPM_INSTALL_EXTRA="webpack@3 file-loader@0.11 html-webpack-plugin@2.22.0"
     - node_js: 8
-      env: NPM_SCRIPT=test NPM_INSTALL_EXTRA="webpack@4 file-loader@1 html-webpack-plugin@3.2.0"
+      env: NPM_SCRIPT=test NPM_INSTALL_EXTRA="webpack@4.18.1 file-loader@1 html-webpack-plugin@3.2.0"
 
 before_script:
   - npm install ${NPM_INSTALL_EXTRA}
