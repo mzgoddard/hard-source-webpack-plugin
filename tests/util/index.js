@@ -216,7 +216,6 @@ exports.compileTwiceEqual = function(fixturePath, compileOptions) {
     return Promise.all([run1, run2]);
   })
   .then(function(runs) {
-    // console.log(runs)
     expect(runs[0]).to.eql(runs[1]);
   });
 };
