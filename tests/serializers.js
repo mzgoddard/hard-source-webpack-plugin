@@ -1,4 +1,4 @@
-var fs = require('fs');
+var fs = require('graceful-fs');
 var join = require('path').join;
 
 var expect = require('chai').expect;
