@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="0.13.1"></a>
+## [0.13.1](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.13.0...v0.13.1) (2018-12-10)
+
+
+### Bug Fixes
+
+* optimize contextNormalPath mzgoddard/hard-source-webpack-plugin[#469](https://github.com/mzgoddard/hard-source-webpack-plugin/issues/469) ([cb03413](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/cb03413))
+* replace native fs with graceful-fs ([93143ca](https://github.com/mzgoddard/hard-source-webpack-plugin/commit/93143ca))
+
+
+
 <a name="0.13.0"></a>
 # [0.13.0](https://github.com/mzgoddard/hard-source-webpack-plugin/compare/v0.12.0...v0.13.0) (2018-12-09)
 
