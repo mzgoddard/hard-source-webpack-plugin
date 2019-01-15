@@ -37,7 +37,7 @@
   "devDependencies": {
     "@commitlint/cli": "^7.0.0",
     "@commitlint/config-conventional": "^7.0.0",
-    "@commitlint/travis-cli": "^7.0.0",
+    "@commitlint/travis-cli": "^7.3.2",
     "babel-core": "^6.26.0",
     "babel-loader": "^7.1.4",
     "babel-preset-env": "^1.6.1",
