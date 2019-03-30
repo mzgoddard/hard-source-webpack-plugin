@@ -49,7 +49,7 @@
     "file-loader": "^1.0.0 || ^0.11.0 || ^0.10.1",
     "html-webpack-plugin": "^3.2.0 || ^2.22.0",
     "husky": "^0.14.3",
-    "level": "^4.0.0",
+    "level": "^5.0.1",
     "memory-fs": "^0.4.1",
     "mini-css-extract-plugin": "^0.4.0",
     "mocha": "^3.0.2",
