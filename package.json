@@ -67,7 +67,7 @@
   },
   "dependencies": {
     "chalk": "^2.4.1",
-    "find-cache-dir": "^2.0.0",
+    "find-cache-dir": "^3.0.0",
     "graceful-fs": "^4.1.11",
     "lodash": "^4.15.0",
     "mkdirp": "^0.5.1",
