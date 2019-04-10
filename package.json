@@ -51,7 +51,7 @@
     "husky": "^0.14.3",
     "level": "^4.0.0",
     "memory-fs": "^0.4.1",
-    "mini-css-extract-plugin": "^0.4.0",
+    "mini-css-extract-plugin": "^0.6.0",
     "mocha": "^3.0.2",
     "prettier": "^1.12.1",
     "source-map": "^0.5.6",
