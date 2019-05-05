@@ -55,7 +55,7 @@
     "mocha": "^3.0.2",
     "prettier": "^1.12.1",
     "source-map": "^0.5.6",
-    "standard-version": "^4.4.0",
+    "standard-version": "^6.0.1",
     "style-loader": "^0.14.0",
     "webpack": "^4.0.0 || ^4.0.0-beta.* || ^3.8.1 || ^3.0.0 || ^3.0.0-rc.0 || ^2.1.0 || ^1.13.1",
     "webpack-cli": "^3.0.0",
