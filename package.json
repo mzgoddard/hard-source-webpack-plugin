@@ -35,7 +35,7 @@
     "node": ">=8.0.0"
   },
   "devDependencies": {
-    "@commitlint/cli": "^7.0.0",
+    "@commitlint/cli": "^8.1.0",
     "@commitlint/config-conventional": "^7.0.0",
     "@commitlint/travis-cli": "^7.0.0",
     "babel-core": "^6.26.0",
