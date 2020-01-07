@@ -36,7 +36,7 @@
   },
   "devDependencies": {
     "@commitlint/cli": "^8.3.4",
-    "@commitlint/config-conventional": "^7.0.0",
+    "@commitlint/config-conventional": "^8.3.4",
     "@commitlint/travis-cli": "^7.0.0",
     "babel-core": "^6.26.0",
     "babel-loader": "^7.1.4",
