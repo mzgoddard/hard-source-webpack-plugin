@@ -70,7 +70,7 @@
     "find-cache-dir": "^2.0.0",
     "graceful-fs": "^4.1.11",
     "lodash": "^4.15.0",
-    "mkdirp": "^0.5.1",
+    "mkdirp": "^1.0.1",
     "node-object-hash": "^1.2.0",
     "parse-json": "^4.0.0",
     "pkg-dir": "^3.0.0",
